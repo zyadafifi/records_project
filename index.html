@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <!-- Bootstrap CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+    <!-- Font Awesome for Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div
+      class="container card-container d-flex justify-content-center align-items-center"
+    >
+      <div
+        class="card shadow-lg border-0 rounded-4 p-4 w-100"
+        style="max-width: 400px"
+      >
+        <!-- Video Container -->
+        <div class="video-container mb-3">
+          <video class="w-100 rounded-3" controls>
+            <source src="" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        </div>
+
+        <div class="recording-sentence">
+          <!-- Arabic Text Container -->
+          <div dir="rtl" class="arabic-text mb-1">
+            <p>مرحبا! كيف حالك؟ اضغط على الميكروفون واقرأ الجملة التالية:</p>
+          </div>
+          <div class="tip">اقرأ هذا</div>
+
+          <div class="sentence-container" id="sentence">
+            <p class="sentence-text">Sentence will appear here</p>
+          </div>
+
+          <!-- Sentence to Read with Mic Icon -->
+          <div
+            class="icons-container d-flex align-items-center justify-content-between"
+          >
+            <!-- Sound Icon (Left) -->
+            <div class="icon-circle" id="listenButton">
+              <button class="icon-wrapper startButton" id="startButton">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="sound-icon"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+
+            <!-- Mic Icon in Circle (Center) -->
+            <button
+              class="mic-circle d-flex align-items-center justify-content-center"
+              id="micButton"
+            >
+              <i class="fas fa-microphone mic-icon"></i>
+            </button>
+
+            <!-- Recording Indicator -->
+            <div
+              id="recordingIndicator"
+              style="display: none; margin-left: 10px"
+            >
+              <div style="color: red">Recording...</div>
+            </div>
+
+            <!-- Ear Icon (Right) -->
+            <div class="icon-circle">
+              <button class="icon-wrapper">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="bookmark-icon"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM7 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dialog Container -->
+        <div
+          class="dialog-container"
+          style="
+            position: relative;
+            border: 2px solid #0aa989;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            margin: auto;
+          "
+        >
+          <!-- Close Icon -->
+          <button
+            class="close-icon"
+            style="
+              position: absolute;
+              top: 10px;
+              right: 10px;
+              background: none;
+              border: none;
+              cursor: pointer;
+            "
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+
+          <!-- Dialog Content -->
+          <div class="card-body text-center dialog-card">
+            <div class="progress-circle">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <!-- Outer Border Circle -->
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  stroke="#ddd"
+                  stroke-width="5"
+                  fill="none"
+                ></circle>
+
+                <!-- Background Circle -->
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  stroke="#e0e0e0"
+                  stroke-width="10"
+                  fill="none"
+                ></circle>
+
+                <!-- Progress Circle -->
+                <circle
+                  id="progress"
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  stroke="#0aa989"
+                  stroke-width="10"
+                  fill="none"
+                  stroke-dasharray="251.2"
+                  stroke-dashoffset="251.2"
+                  stroke-linecap="round"
+                ></circle>
+
+                <!-- Percentage Text -->
+                <text
+                  id="pronunciationScore"
+                  x="50"
+                  y="55"
+                  font-size="18"
+                  text-anchor="middle"
+                  fill="#333"
+                >
+                  0%
+                </text>
+              </svg>
+            </div>
+            <div class="tip-2">Pronunciation Review</div>
+
+            <div class="sentence-container" id="recognizedText">
+              <p class="sentence-text-2">
+                Please try again with <br />
+                another response.
+              </p>
+              <div id="missingWordDiv"></div>
+            </div>
+
+            <!-- Flex container to align elements -->
+            <div class="d-flex justify-content-between align-items-center">
+              <!-- Sound Icon (Left) -->
+              <div class="icon-circle" id="listen2Button">
+                <button class="icon-wrapper startButton">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="sound-icon"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+                    ></path>
+                  </svg>
+                </button>
+              </div>
+
+              <!-- Buttons (Center) -->
+              <div class="d-flex flex-column align-items-center retry-continue">
+                <a
+                  id="retryButton"
+                  class="btn secondary text-black border dialog-btn mb-2"
+                >
+                  <i class="fas fa-redo"></i> Retry
+                </a>
+                <a
+                  href="#"
+                  class="btn text-white dialog-btn"
+                  style="background-color: #0aa989"
+                  id="nextButton"
+                  >Continue</a
+                >
+              </div>
+
+              <!-- Ear Icon (Right) -->
+              <div class="icon-circle">
+                <button class="icon-wrapper">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                    class="bookmark-icon"
+                    id="bookmark-icon2"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM7 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Congratulation Modal -->
+    <div
+      class="modal fade"
+      id="congratulationModal"
+      tabindex="-1"
+      aria-labelledby="congratulationModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header border-0">
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+          <div class="modal-body text-center">
+            <!-- GIF -->
+            <img
+              src="download.jpeg"
+              alt="Celebration GIF"
+              style="width: 100%; max-width: 300px; margin-bottom: 20px"
+              class="congrats_img"
+            />
+            <h5 class="modal-title" id="congratulationModalLabel">Congrats!</h5>
+
+            <p>You've successfully completed this lesson! 🎉</p>
+            <!-- Number of Sentences Spoken and Overall Score -->
+            <div class="d-flex justify-content-around mt-4">
+              <div class="text-center">
+                <h4 class="text-muted mb-2">Sentences Spoken</h4>
+                <p id="sentencesSpoken" class="display-6 fw-bold text-primary">
+                  0
+                </p>
+              </div>
+              <div class="text-center">
+                <h4 class="text-muted mb-2">Overall Score</h4>
+                <p id="overallScore" class="display-6 fw-bold text-success">
+                  0%
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer border-0 justify-content-center">
+            <button
+              type="button"
+              class="btn btn-primary continue-to-next-lesson"
+              style="background-color: #0aa989; border: none"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bootstrap JS Bundle (Includes Popper) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Waveform library -->
+    <script src="https://unpkg.com/wavesurfer.js"></script>
+    <!-- Home Page Logic -->
+    <script src="records.js"></script>
+  </body>
+</html>
