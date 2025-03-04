@@ -155,49 +155,30 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   let missingWord = "";
 
   // Compare words one by one
-  let transcriptIndex = 0;
-  let sentenceIndex = 0;
+  for (let i = 0; i < sentenceWords.length; i++) {
+    const expectedWord = sentenceWords[i];
+    const userWord = transcriptWords[i] || ""; // Handle cases where the user says fewer words
 
-  while (
-    transcriptIndex < transcriptWords.length &&
-    sentenceIndex < sentenceWords.length
-  ) {
-    if (
-      isSimilar(transcriptWords[transcriptIndex], sentenceWords[sentenceIndex])
-    ) {
-      highlightedText += `<span style="color: green;">${transcriptWords[transcriptIndex]}</span> `;
+    if (isSimilar(userWord, expectedWord)) {
+      highlightedText += `<span style="color: green;">${expectedWord}</span> `;
       correctWords++;
-      transcriptIndex++;
-      sentenceIndex++;
-    } else {
-      if (
-        isSimilar(
-          transcriptWords[transcriptIndex],
-          sentenceWords[sentenceIndex + 1]
-        )
-      ) {
-        highlightedText += `<span style="text-decoration: underline; color: gray;">${sentenceWords[sentenceIndex]}</span> `;
-        sentenceIndex++;
-      } else {
-        highlightedText += `<span style="color: red;">${transcriptWords[transcriptIndex]}</span> `;
-        transcriptIndex++;
+    } else if (userWord === "") {
+      // Missing word
+      highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
+      if (!missingWord) {
+        missingWord = expectedWord;
       }
+    } else {
+      // Incorrect word
+      highlightedText += `<span style="color: red;">${expectedWord}</span> `;
     }
   }
 
-  // Handle missed words
-  while (sentenceIndex < sentenceWords.length) {
-    highlightedText += `<span style="text-decoration: underline; color: gray;">${sentenceWords[sentenceIndex]}</span> `;
-    if (sentenceIndex === Math.floor(sentenceWords.length / 2)) {
-      missingWord = sentenceWords[sentenceIndex];
+  // Handle extra words spoken by the user
+  if (transcriptWords.length > sentenceWords.length) {
+    for (let i = sentenceWords.length; i < transcriptWords.length; i++) {
+      highlightedText += `<span style="color: red;">${transcriptWords[i]}</span> `;
     }
-    sentenceIndex++;
-  }
-
-  // Handle extra words
-  while (transcriptIndex < transcriptWords.length) {
-    highlightedText += `<span style="color: red;">${transcriptWords[transcriptIndex]}</span> `;
-    transcriptIndex++;
   }
 
   recognizedTextDiv.innerHTML = highlightedText.trim();
