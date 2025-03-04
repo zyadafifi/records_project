@@ -121,7 +121,9 @@ function updateProgressCircle(score) {
 // Play sound effects using the Web Audio API
 function playSoundEffect(frequency, duration) {
   if (!audioContext) {
-    console.error("AudioContext not initialized. Call initializeAudioContext() first.");
+    console.error(
+      "AudioContext not initialized. Call initializeAudioContext() first."
+    );
     return;
   }
 
@@ -253,7 +255,8 @@ async function startAudioRecording() {
     micButton.style.color = "#ff0000";
     micButton.style.color = "#fff";
     micButton.disabled = true;
-    document.getElementById("recordingIndicator").style.display = "inline-block";
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
   } catch (error) {
     console.error("Error accessing microphone:", error);
     alert("Please allow microphone access to use this feature.");
@@ -283,7 +286,9 @@ async function loadLessons() {
   try {
     const url =
       "https://raw.githubusercontent.com/zyadafifi/lessons/main/lessons.json"; // Replace with your JSON URL
-    const response = await fetch(url, { headers: { Accept: "application/json" } });
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch lessons: ${response.statusText}`);
