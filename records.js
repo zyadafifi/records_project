@@ -94,9 +94,9 @@ function normalizeText(text) {
   return text.toLowerCase().replace(/[^\w\s]/g, "");
 }
 
-// Check if two words are similar (basic fuzzy matching)
-function isSimilar(word1, word2) {
-  return word1.includes(word2) || word2.includes(word1);
+// Check if two words are exactly the same
+function isExactMatch(word1, word2) {
+  return word1 === word2;
 }
 
 // Update the progress circle based on the pronunciation score
@@ -159,7 +159,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     const expectedWord = sentenceWords[i];
     const userWord = transcriptWords[i] || ""; // Handle cases where the user says fewer words
 
-    if (isSimilar(userWord, expectedWord)) {
+    if (isExactMatch(userWord, expectedWord)) {
       highlightedText += `<span style="color: green;">${expectedWord}</span> `;
       correctWords++;
     } else if (userWord === "") {
