@@ -177,13 +177,15 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     } else {
       // Incorrect word
       highlightedText += `<span style="color: red;">${expectedWord}</span> `;
+      highlightedText += `<span style="color: yellow;">${userWord}</span> `; // User's incorrect word in yellow
+      transcriptIndex++;
       sentenceIndex++;
     }
   }
 
   // Handle extra words spoken by the user
   while (transcriptIndex < transcriptWords.length) {
-    highlightedText += `<span style="color: red;">${transcriptWords[transcriptIndex]}</span> `;
+    highlightedText += `<span style="color: yellow;">${transcriptWords[transcriptIndex]}</span> `; // Extra words in yellow
     transcriptIndex++;
   }
 
