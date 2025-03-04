@@ -154,31 +154,37 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   let highlightedText = "";
   let missingWord = "";
 
-  // Compare words one by one
-  for (let i = 0; i < sentenceWords.length; i++) {
-    const expectedWord = sentenceWords[i];
-    const userWord = transcriptWords[i] || ""; // Handle cases where the user says fewer words
+  // Compare words one by one, aligning them correctly
+  let transcriptIndex = 0;
+  let sentenceIndex = 0;
+
+  while (sentenceIndex < sentenceWords.length) {
+    const expectedWord = sentenceWords[sentenceIndex];
+    const userWord = transcriptWords[transcriptIndex] || "";
 
     if (isExactMatch(userWord, expectedWord)) {
       highlightedText += `<span style="color: green;">${expectedWord}</span> `;
       correctWords++;
+      transcriptIndex++;
+      sentenceIndex++;
     } else if (userWord === "") {
       // Missing word
       highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
       if (!missingWord) {
         missingWord = expectedWord;
       }
+      sentenceIndex++;
     } else {
       // Incorrect word
       highlightedText += `<span style="color: red;">${expectedWord}</span> `;
+      sentenceIndex++;
     }
   }
 
   // Handle extra words spoken by the user
-  if (transcriptWords.length > sentenceWords.length) {
-    for (let i = sentenceWords.length; i < transcriptWords.length; i++) {
-      highlightedText += `<span style="color: red;">${transcriptWords[i]}</span> `;
-    }
+  while (transcriptIndex < transcriptWords.length) {
+    highlightedText += `<span style="color: red;">${transcriptWords[transcriptIndex]}</span> `;
+    transcriptIndex++;
   }
 
   recognizedTextDiv.innerHTML = highlightedText.trim();
