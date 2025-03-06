@@ -163,11 +163,8 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   let transcriptIndex = 0;
   let sentenceIndex = 0;
 
-  while (
-    sentenceIndex < sentenceWords.length ||
-    transcriptIndex < transcriptWords.length
-  ) {
-    const expectedWord = sentenceWords[sentenceIndex] || "";
+  while (sentenceIndex < sentenceWords.length) {
+    const expectedWord = sentenceWords[sentenceIndex];
     const userWord = transcriptWords[transcriptIndex] || "";
 
     if (isExactMatch(userWord, expectedWord)) {
@@ -183,20 +180,21 @@ function calculatePronunciationScore(transcript, expectedSentence) {
       missingWords.push(expectedWord);
       console.log(`Missing: "${expectedWord}"`);
       sentenceIndex++;
-    } else if (expectedWord === "") {
-      // Extra word spoken by the user
-      highlightedText += `<span style="color: red;">[Extra: ${userWord}]</span> `;
-      incorrectWords.push(userWord);
-      console.log(`Extra: "${userWord}"`);
-      transcriptIndex++;
     } else {
       // Incorrect word
       highlightedText += `<span style="color: red;">${expectedWord}</span> `;
       incorrectWords.push(expectedWord);
       console.log(`Incorrect: Expected "${expectedWord}", Got "${userWord}"`);
-      transcriptIndex++;
       sentenceIndex++;
     }
+  }
+
+  // Handle extra words spoken by the user
+  while (transcriptIndex < transcriptWords.length) {
+    const extraWord = transcriptWords[transcriptIndex];
+    highlightedText += `<span style="color: red;">[Extra: ${extraWord}]</span> `;
+    console.log(`Extra: "${extraWord}"`);
+    transcriptIndex++;
   }
 
   // Display the result
