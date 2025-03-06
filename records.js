@@ -292,14 +292,12 @@ async function loadLessons() {
     lessons = data.lessons;
     console.log("Lessons loaded successfully:", lessons);
 
-    // Get the quizId from the DOM element
-    const quizId = getQuizIdFromDOM();
-    console.log("Quiz ID from DOM:", quizId);
+    // Get the quizId from the URL
+    const quizId = getQuizIdFromURL();
+    console.log("Quiz ID from URL:", quizId);
 
     // Find the lesson with the matching quizId
-    currentLessonIndex = lessons.findIndex(
-      (lesson) => lesson.quizId === quizId
-    );
+    currentLessonIndex = lessons.findIndex((lesson) => lesson.quizId === quizId);
 
     if (currentLessonIndex === -1) {
       console.error("Lesson not found for quizId:", quizId);
@@ -313,14 +311,10 @@ async function loadLessons() {
   }
 }
 
-// Get the quiz ID from the DOM element
-function getQuizIdFromDOM() {
-  const quizLinkElement = document.querySelector("a[data-quiz-id]");
-  if (!quizLinkElement) {
-    console.error("Quiz link element not found.");
-    return null;
-  }
-  return quizLinkElement.getAttribute("data-quiz-id");
+// Get the quiz ID from the URL
+function getQuizIdFromURL() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get("quizId");
 }
 
 // Load lessons when the page loads
