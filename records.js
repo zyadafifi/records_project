@@ -145,7 +145,7 @@ function playSoundEffect(frequency, duration) {
   oscillator.stop(audioContext.currentTime + duration / 1000);
 }
 
-// Calculate pronunciation score
+// Calculate pronunciation score and log recognized words to the console
 function calculatePronunciationScore(transcript, expectedSentence) {
   const transcriptWords = normalizeText(transcript).split(/\s+/);
   const sentenceWords = normalizeText(expectedSentence).split(/\s+/);
@@ -154,6 +154,10 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   let highlightedText = "";
   let missingWords = [];
   let incorrectWords = [];
+
+  // Log the recognized words and expected words to the console
+  console.log("Recognized Words:", transcriptWords);
+  console.log("Expected Words:", sentenceWords);
 
   // Compare words one by one, aligning them correctly
   let transcriptIndex = 0;
@@ -170,22 +174,26 @@ function calculatePronunciationScore(transcript, expectedSentence) {
       // Correct word
       highlightedText += `<span style="color: green;">${expectedWord}</span> `;
       correctWords++;
+      console.log(`Correct: "${expectedWord}"`);
       transcriptIndex++;
       sentenceIndex++;
     } else if (userWord === "") {
       // Missing word
       highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
       missingWords.push(expectedWord);
+      console.log(`Missing: "${expectedWord}"`);
       sentenceIndex++;
     } else if (expectedWord === "") {
       // Extra word spoken by the user
       highlightedText += `<span style="color: red;">[Extra: ${userWord}]</span> `;
       incorrectWords.push(userWord);
+      console.log(`Extra: "${userWord}"`);
       transcriptIndex++;
     } else {
       // Incorrect word
       highlightedText += `<span style="color: red;">${expectedWord}</span> `;
       incorrectWords.push(expectedWord);
+      console.log(`Incorrect: Expected "${expectedWord}", Got "${userWord}"`);
       transcriptIndex++;
       sentenceIndex++;
     }
