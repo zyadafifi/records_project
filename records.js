@@ -147,8 +147,12 @@ function playSoundEffect(frequency, duration) {
 
 // Calculate pronunciation score and log recognized words to the console
 function calculatePronunciationScore(transcript, expectedSentence) {
-  const transcriptWords = normalizeText(transcript).split(/\s+/);
-  const sentenceWords = normalizeText(expectedSentence).split(/\s+/);
+  const transcriptWords = normalizeText(transcript)
+    .split(/\s+/)
+    .filter((word) => word.trim() !== "");
+  const sentenceWords = normalizeText(expectedSentence)
+    .split(/\s+/)
+    .filter((word) => word.trim() !== "");
 
   let correctWords = 0;
   let highlightedText = "";
@@ -165,7 +169,10 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
   while (sentenceIndex < sentenceWords.length) {
     const expectedWord = sentenceWords[sentenceIndex];
-    const userWord = transcriptWords[transcriptIndex] || "";
+    const userWord =
+      transcriptIndex < transcriptWords.length
+        ? transcriptWords[transcriptIndex]
+        : "";
 
     if (isExactMatch(userWord, expectedWord)) {
       // Correct word
@@ -174,17 +181,22 @@ function calculatePronunciationScore(transcript, expectedSentence) {
       console.log(`Correct: "${expectedWord}"`);
       transcriptIndex++;
       sentenceIndex++;
-    } else if (userWord === "") {
-      // Missing word
+    } else if (
+      transcriptIndex >= transcriptWords.length ||
+      (transcriptIndex + 1 < transcriptWords.length &&
+        isExactMatch(transcriptWords[transcriptIndex + 1], expectedWord))
+    ) {
+      // Missing word - user didn't say this word or skipped it
       highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
       missingWords.push(expectedWord);
       console.log(`Missing: "${expectedWord}"`);
       sentenceIndex++;
     } else {
-      // Incorrect word
+      // Incorrect word - user said something else
       highlightedText += `<span style="color: red;">${expectedWord}</span> `;
-      incorrectWords.push(expectedWord);
+      incorrectWords.push({ expected: expectedWord, got: userWord });
       console.log(`Incorrect: Expected "${expectedWord}", Got "${userWord}"`);
+      transcriptIndex++;
       sentenceIndex++;
     }
   }
