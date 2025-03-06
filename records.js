@@ -152,17 +152,22 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
   let correctWords = 0;
   let highlightedText = "";
-  let missingWord = "";
+  let missingWords = [];
+  let incorrectWords = [];
 
   // Compare words one by one, aligning them correctly
   let transcriptIndex = 0;
   let sentenceIndex = 0;
 
-  while (sentenceIndex < sentenceWords.length) {
-    const expectedWord = sentenceWords[sentenceIndex];
+  while (
+    sentenceIndex < sentenceWords.length ||
+    transcriptIndex < transcriptWords.length
+  ) {
+    const expectedWord = sentenceWords[sentenceIndex] || "";
     const userWord = transcriptWords[transcriptIndex] || "";
 
     if (isExactMatch(userWord, expectedWord)) {
+      // Correct word
       highlightedText += `<span style="color: green;">${expectedWord}</span> `;
       correctWords++;
       transcriptIndex++;
@@ -170,31 +175,34 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     } else if (userWord === "") {
       // Missing word
       highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
-      if (!missingWord) {
-        missingWord = expectedWord;
-      }
+      missingWords.push(expectedWord);
       sentenceIndex++;
+    } else if (expectedWord === "") {
+      // Extra word spoken by the user
+      highlightedText += `<span style="color: red;">[Extra: ${userWord}]</span> `;
+      incorrectWords.push(userWord);
+      transcriptIndex++;
     } else {
       // Incorrect word
-      highlightedText += `<span style="color: red;">${expectedWord}</span> `; // Expected word in red
-      transcriptIndex++; // Skip the user's incorrect word
+      highlightedText += `<span style="color: red;">${expectedWord}</span> `;
+      incorrectWords.push(expectedWord);
+      transcriptIndex++;
       sentenceIndex++;
     }
   }
 
-  // Handle extra words spoken by the user (do not display them)
-  while (transcriptIndex < transcriptWords.length) {
-    transcriptIndex++; // Skip extra words
-  }
-
+  // Display the result
   recognizedTextDiv.innerHTML = highlightedText.trim();
-  const pronunciationScore = (correctWords / sentenceWords.length) * 100;
 
-  if (missingWord) {
-    missingWordDiv.textContent = `"${missingWord}"`;
+  // Show missing words
+  if (missingWords.length > 0) {
+    missingWordDiv.textContent = `Missing: ${missingWords.join(", ")}`;
   } else {
     missingWordDiv.textContent = "";
   }
+
+  // Calculate pronunciation score
+  const pronunciationScore = (correctWords / sentenceWords.length) * 100;
 
   // Update the "Continue" button color based on the score
   if (pronunciationScore < 50) {
@@ -297,7 +305,9 @@ async function loadLessons() {
     console.log("Quiz ID from URL:", quizId);
 
     // Find the lesson with the matching quizId
-    currentLessonIndex = lessons.findIndex((lesson) => lesson.quizId === quizId);
+    currentLessonIndex = lessons.findIndex(
+      (lesson) => lesson.quizId === quizId
+    );
 
     if (currentLessonIndex === -1) {
       console.error("Lesson not found for quizId:", quizId);
