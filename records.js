@@ -163,50 +163,71 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   console.log("Recognized Words:", transcriptWords);
   console.log("Expected Words:", sentenceWords);
 
-  // Compare words one by one, aligning them correctly
-  let transcriptIndex = 0;
-  let sentenceIndex = 0;
+  // Create arrays to track which words have been matched
+  let matchedTranscriptIndices = new Array(transcriptWords.length).fill(false);
+  let matchedSentenceIndices = new Array(sentenceWords.length).fill(false);
 
-  while (sentenceIndex < sentenceWords.length) {
-    const expectedWord = sentenceWords[sentenceIndex];
-    const userWord =
-      transcriptIndex < transcriptWords.length
-        ? transcriptWords[transcriptIndex]
-        : "";
-
-    if (isExactMatch(userWord, expectedWord)) {
-      // Correct word
-      highlightedText += `<span style="color: green;">${expectedWord}</span> `;
-      correctWords++;
-      console.log(`Correct: "${expectedWord}"`);
-      transcriptIndex++;
-      sentenceIndex++;
-    } else if (
-      transcriptIndex >= transcriptWords.length ||
-      (transcriptIndex + 1 < transcriptWords.length &&
-        isExactMatch(transcriptWords[transcriptIndex + 1], expectedWord))
-    ) {
-      // Missing word - user didn't say this word or skipped it
-      highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
-      missingWords.push(expectedWord);
-      console.log(`Missing: "${expectedWord}"`);
-      sentenceIndex++;
-    } else {
-      // Incorrect word - user said something else
-      highlightedText += `<span style="color: red;">${expectedWord}</span> `;
-      incorrectWords.push({ expected: expectedWord, got: userWord });
-      console.log(`Incorrect: Expected "${expectedWord}", Got "${userWord}"`);
-      transcriptIndex++;
-      sentenceIndex++;
+  // First pass: find exact matches
+  for (let i = 0; i < sentenceWords.length; i++) {
+    for (let j = 0; j < transcriptWords.length; j++) {
+      if (
+        !matchedTranscriptIndices[j] &&
+        !matchedSentenceIndices[i] &&
+        isExactMatch(transcriptWords[j], sentenceWords[i])
+      ) {
+        matchedTranscriptIndices[j] = true;
+        matchedSentenceIndices[i] = true;
+        correctWords++;
+        break;
+      }
     }
   }
 
-  // Handle extra words spoken by the user
-  while (transcriptIndex < transcriptWords.length) {
-    const extraWord = transcriptWords[transcriptIndex];
-    highlightedText += `<span style="color: red;">[Extra: ${extraWord}]</span> `;
-    console.log(`Extra: "${extraWord}"`);
-    transcriptIndex++;
+  // Generate the highlighted text based on the matching results
+  for (let i = 0; i < sentenceWords.length; i++) {
+    const expectedWord = sentenceWords[i];
+
+    if (matchedSentenceIndices[i]) {
+      // Word was matched correctly
+      highlightedText += `<span style="color: green;">${expectedWord}</span> `;
+      console.log(`Correct: "${expectedWord}"`);
+    } else {
+      // Check if the word exists in the transcript but in wrong position
+      let found = false;
+      for (let j = 0; j < transcriptWords.length; j++) {
+        if (
+          !matchedTranscriptIndices[j] &&
+          transcriptWords[j].includes(expectedWord)
+        ) {
+          highlightedText += `<span style="color: red;">${expectedWord}</span> `;
+          incorrectWords.push({
+            expected: expectedWord,
+            got: transcriptWords[j],
+          });
+          console.log(
+            `Incorrect position: Expected "${expectedWord}" at different position`
+          );
+          matchedTranscriptIndices[j] = true;
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        // Word was completely missed
+        highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
+        missingWords.push(expectedWord);
+        console.log(`Missing: "${expectedWord}"`);
+      }
+    }
+  }
+
+  // Add any extra words spoken by the user
+  for (let j = 0; j < transcriptWords.length; j++) {
+    if (!matchedTranscriptIndices[j]) {
+      highlightedText += `<span style="color: red;">[Extra: ${transcriptWords[j]}]</span> `;
+      console.log(`Extra: "${transcriptWords[j]}"`);
+    }
   }
 
   // Display the result
