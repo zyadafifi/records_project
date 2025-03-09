@@ -106,9 +106,12 @@ function calculateSimilarity(word1, word2) {
   word1 = word1.toLowerCase();
   word2 = word2.toLowerCase();
 
-  // If one word contains the other, they're very similar
+  // If one word contains the other, they're moderately similar but not as high as before
   if (word1.includes(word2) || word2.includes(word1)) {
-    return 0.9;
+    // Adjust similarity based on length difference to make this more restrictive
+    const lengthDiff = Math.abs(word1.length - word2.length);
+    // The more different in length, the lower the similarity score
+    return Math.max(0.7 - lengthDiff * 0.1, 0.4); // Cap minimum at 0.4 for containment
   }
 
   // Count matching characters
@@ -123,7 +126,8 @@ function calculateSimilarity(word1, word2) {
 
   // Calculate similarity ratio based on the longer word's length
   const maxLength = Math.max(word1.length, word2.length);
-  return matchingChars / maxLength;
+  // Make the similarity score more restrictive
+  return (matchingChars / maxLength) * 0.9; // Reduce by 10% to be more restrictive
 }
 
 // Update the progress circle based on the pronunciation score
@@ -258,10 +262,9 @@ function calculatePronunciationScore(transcript, expectedSentence) {
       let mostSimilarWord = "";
       let highestSimilarity = 0;
 
-      // Simple similarity check - could be replaced with more sophisticated algorithm
+      // Simple similarity check with a more restrictive threshold
       for (let i = 0; i < sentenceWords.length; i++) {
-        // Check if the words share at least 60% of their characters
-        // This is a simple similarity metric that can be improved
+        // Calculate similarity between words
         const similarity = calculateSimilarity(
           transcriptWords[j],
           sentenceWords[i]
@@ -272,8 +275,9 @@ function calculatePronunciationScore(transcript, expectedSentence) {
           mostSimilarWord = sentenceWords[i];
         }
 
-        if (similarity > 0.6) {
-          // 60% similarity threshold
+        // IMPORTANT CHANGE: Increased similarity threshold from 0.6 to 0.75
+        // This makes the tool more strict in considering words similar
+        if (similarity > 0.75) {
           foundSimilar = true;
           break;
         }
