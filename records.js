@@ -222,11 +222,28 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     }
   }
 
-  // Add any extra words spoken by the user
+  // Check for extra words that are in the sentence but in the wrong position
   for (let j = 0; j < transcriptWords.length; j++) {
     if (!matchedTranscriptIndices[j]) {
-      highlightedText += `<span style="color: red;">[Extra: ${transcriptWords[j]}]</span> `;
-      console.log(`Extra: "${transcriptWords[j]}"`);
+      let foundInSentence = false;
+      for (let i = 0; i < sentenceWords.length; i++) {
+        if (transcriptWords[j] === sentenceWords[i]) {
+          highlightedText += `<span style="color: red;">${transcriptWords[j]}</span> `;
+          incorrectWords.push({
+            expected: sentenceWords[i],
+            got: transcriptWords[j],
+          });
+          console.log(`Incorrect position: "${transcriptWords[j]}"`);
+          foundInSentence = true;
+          break;
+        }
+      }
+
+      if (!foundInSentence) {
+        // Word was completely extra
+        highlightedText += `<span style="color: red;">[Extra: ${transcriptWords[j]}]</span> `;
+        console.log(`Extra: "${transcriptWords[j]}"`);
+      }
     }
   }
 
