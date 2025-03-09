@@ -99,6 +99,40 @@ function isExactMatch(word1, word2) {
   return word1 === word2;
 }
 
+// Calculate Levenshtein distance between two strings
+function levenshteinDistance(str1, str2) {
+  const m = str1.length;
+  const n = str2.length;
+
+  // Create a matrix of size (m+1) x (n+1)
+  const dp = Array(m + 1)
+    .fill()
+    .map(() => Array(n + 1).fill(0));
+
+  // Fill the first row and column
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  // Fill the rest of the matrix
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] =
+          1 +
+          Math.min(
+            dp[i - 1][j], // deletion
+            dp[i][j - 1], // insertion
+            dp[i - 1][j - 1] // substitution
+          );
+      }
+    }
+  }
+
+  return dp[m][n];
+}
+
 // Helper function to calculate similarity between two words
 // Returns a value between 0 (no similarity) and 1 (identical)
 function calculateSimilarity(word1, word2) {
@@ -106,28 +140,40 @@ function calculateSimilarity(word1, word2) {
   word1 = word1.toLowerCase();
   word2 = word2.toLowerCase();
 
-  // If one word contains the other, they're moderately similar but not as high as before
-  if (word1.includes(word2) || word2.includes(word1)) {
-    // Adjust similarity based on length difference to make this more restrictive
-    const lengthDiff = Math.abs(word1.length - word2.length);
-    // The more different in length, the lower the similarity score
-    return Math.max(0.7 - lengthDiff * 0.1, 0.4); // Cap minimum at 0.4 for containment
+  // If words are identical, return 1
+  if (word1 === word2) return 1;
+
+  // If length difference is too great, they're likely different words
+  const lengthDiff = Math.abs(word1.length - word2.length);
+  if (lengthDiff > Math.min(word1.length, word2.length)) {
+    return 0.1; // Very low similarity for words with vastly different lengths
   }
 
-  // Count matching characters
-  const minLength = Math.min(word1.length, word2.length);
-  let matchingChars = 0;
+  // Calculate Levenshtein distance
+  const distance = levenshteinDistance(word1, word2);
 
-  for (let i = 0; i < minLength; i++) {
-    if (word1[i] === word2[i]) {
-      matchingChars++;
-    }
+  // Calculate maximum possible distance
+  const maxDistance = Math.max(word1.length, word2.length);
+
+  // Convert distance to similarity score (1 - normalized distance)
+  let similarity = 1 - distance / maxDistance;
+
+  // Apply additional penalties for differences in word length
+  if (lengthDiff > 0) {
+    similarity *= 1 - (lengthDiff / maxDistance) * 0.5;
   }
 
-  // Calculate similarity ratio based on the longer word's length
-  const maxLength = Math.max(word1.length, word2.length);
-  // Make the similarity score more restrictive
-  return (matchingChars / maxLength) * 0.9; // Reduce by 10% to be more restrictive
+  // Penalize short words that differ by even one character more heavily
+  if (Math.min(word1.length, word2.length) <= 3 && distance > 0) {
+    similarity *= 0.7;
+  }
+
+  // If one word starts with the other but is much longer, reduce similarity
+  if ((word1.startsWith(word2) || word2.startsWith(word1)) && lengthDiff > 2) {
+    similarity *= 0.8;
+  }
+
+  return similarity;
 }
 
 // Update the progress circle based on the pronunciation score
@@ -214,37 +260,92 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     }
   }
 
+  // Second pass: find close matches for unmatched words
+  // Use an array to store all potential matches with similarity scores
+  let potentialMatches = [];
+
+  for (let i = 0; i < sentenceWords.length; i++) {
+    if (matchedSentenceIndices[i]) continue; // Skip already matched words
+
+    for (let j = 0; j < transcriptWords.length; j++) {
+      if (matchedTranscriptIndices[j]) continue; // Skip already matched words
+
+      const similarity = calculateSimilarity(
+        transcriptWords[j],
+        sentenceWords[i]
+      );
+      if (similarity > 0) {
+        potentialMatches.push({
+          sentenceIndex: i,
+          transcriptIndex: j,
+          similarity: similarity,
+        });
+      }
+    }
+  }
+
+  // Sort matches by similarity score (highest first)
+  potentialMatches.sort((a, b) => b.similarity - a.similarity);
+
+  // Apply matches greedily, starting with the highest similarity
+  for (const match of potentialMatches) {
+    if (
+      !matchedSentenceIndices[match.sentenceIndex] &&
+      !matchedTranscriptIndices[match.transcriptIndex]
+    ) {
+      // Apply match only if it exceeds our high similarity threshold
+      if (match.similarity >= 0.85) {
+        matchedSentenceIndices[match.sentenceIndex] = true;
+        matchedTranscriptIndices[match.transcriptIndex] = true;
+
+        // Award partial credit for close matches
+        correctWords += match.similarity;
+      }
+    }
+  }
+
   // Generate the highlighted text based on the matching results
   for (let i = 0; i < sentenceWords.length; i++) {
     const expectedWord = sentenceWords[i];
 
     if (matchedSentenceIndices[i]) {
-      // Word was matched correctly
+      // Word was matched correctly or closely
       highlightedText += `<span style="color: green;">${expectedWord}</span> `;
       console.log(`Correct: "${expectedWord}"`);
     } else {
-      // Check if the word exists in the transcript but in wrong position
-      let found = false;
+      // Find most similar word that wasn't matched yet
+      let mostSimilarWord = "";
+      let highestSimilarity = 0;
+      let mostSimilarIndex = -1;
+
       for (let j = 0; j < transcriptWords.length; j++) {
-        if (
-          !matchedTranscriptIndices[j] &&
-          transcriptWords[j].includes(expectedWord)
-        ) {
-          highlightedText += `<span style="color: red;">${expectedWord}</span> `;
-          incorrectWords.push({
-            expected: expectedWord,
-            got: transcriptWords[j],
-          });
-          console.log(
-            `Incorrect position: Expected "${expectedWord}" at different position`
+        if (!matchedTranscriptIndices[j]) {
+          const similarity = calculateSimilarity(
+            transcriptWords[j],
+            expectedWord
           );
-          matchedTranscriptIndices[j] = true;
-          found = true;
-          break;
+          if (similarity > highestSimilarity) {
+            highestSimilarity = similarity;
+            mostSimilarWord = transcriptWords[j];
+            mostSimilarIndex = j;
+          }
         }
       }
 
-      if (!found) {
+      if (highestSimilarity >= 0.5 && highestSimilarity < 0.85) {
+        // Word was attempted but not close enough
+        highlightedText += `<span style="color: red;">${expectedWord}</span> `;
+        incorrectWords.push({
+          expected: expectedWord,
+          got: mostSimilarWord,
+        });
+        console.log(
+          `Incorrect: Expected "${expectedWord}", got "${mostSimilarWord}" (similarity: ${highestSimilarity.toFixed(
+            2
+          )})`
+        );
+        matchedTranscriptIndices[mostSimilarIndex] = true;
+      } else {
         // Word was completely missed
         highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
         missingWords.push(expectedWord);
@@ -253,44 +354,35 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     }
   }
 
-  // Check for extra words that were spoken but not in the expected sentence
-  // Compare them against the expected words to classify as incorrect vs. truly extra
+  // Check for extra words that were spoken but not matched
   for (let j = 0; j < transcriptWords.length; j++) {
     if (!matchedTranscriptIndices[j]) {
-      // Check if this word is similar to any expected word
-      let foundSimilar = false;
+      // This is an extra word, check if it's similar to any expected word
       let mostSimilarWord = "";
       let highestSimilarity = 0;
 
-      // Simple similarity check with a more restrictive threshold
       for (let i = 0; i < sentenceWords.length; i++) {
-        // Calculate similarity between words
         const similarity = calculateSimilarity(
           transcriptWords[j],
           sentenceWords[i]
         );
-
         if (similarity > highestSimilarity) {
           highestSimilarity = similarity;
           mostSimilarWord = sentenceWords[i];
         }
-
-        // IMPORTANT CHANGE: Increased similarity threshold from 0.6 to 0.75
-        // This makes the tool more strict in considering words similar
-        if (similarity > 0.75) {
-          foundSimilar = true;
-          break;
-        }
       }
 
-      if (foundSimilar) {
-        // Word is likely an incorrect attempt at an expected word
+      // Very strict threshold for considering a word as "incorrect" vs "extra"
+      if (highestSimilarity >= 0.5) {
         highlightedText += `<span style="color: red;">[Incorrect: ${transcriptWords[j]}]</span> `;
         console.log(
-          `Incorrect: "${transcriptWords[j]}" (similar to expected words)`
+          `Incorrect: "${
+            transcriptWords[j]
+          }" (similar to "${mostSimilarWord}", score: ${highestSimilarity.toFixed(
+            2
+          )})`
         );
       } else {
-        // Word is truly extra (no similarity to any expected word)
         highlightedText += `<span style="color: red;">[Extra: ${transcriptWords[j]}]</span> `;
         console.log(`Extra: "${transcriptWords[j]}"`);
       }
@@ -307,7 +399,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     missingWordDiv.textContent = "";
   }
 
-  // Calculate pronunciation score
+  // Calculate pronunciation score with fractional correctness
   const pronunciationScore = (correctWords / sentenceWords.length) * 100;
 
   // Update the "Continue" button color based on the score
