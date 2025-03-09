@@ -99,6 +99,33 @@ function isExactMatch(word1, word2) {
   return word1 === word2;
 }
 
+// Helper function to calculate similarity between two words
+// Returns a value between 0 (no similarity) and 1 (identical)
+function calculateSimilarity(word1, word2) {
+  // Convert to lowercase
+  word1 = word1.toLowerCase();
+  word2 = word2.toLowerCase();
+
+  // If one word contains the other, they're very similar
+  if (word1.includes(word2) || word2.includes(word1)) {
+    return 0.9;
+  }
+
+  // Count matching characters
+  const minLength = Math.min(word1.length, word2.length);
+  let matchingChars = 0;
+
+  for (let i = 0; i < minLength; i++) {
+    if (word1[i] === word2[i]) {
+      matchingChars++;
+    }
+  }
+
+  // Calculate similarity ratio based on the longer word's length
+  const maxLength = Math.max(word1.length, word2.length);
+  return matchingChars / maxLength;
+}
+
 // Update the progress circle based on the pronunciation score
 function updateProgressCircle(score) {
   const circumference = 251.2; // 2 * π * r (r = 40)
@@ -222,25 +249,44 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     }
   }
 
-  // Check for extra words that are in the sentence but in the wrong position
+  // Check for extra words that were spoken but not in the expected sentence
+  // Compare them against the expected words to classify as incorrect vs. truly extra
   for (let j = 0; j < transcriptWords.length; j++) {
     if (!matchedTranscriptIndices[j]) {
-      let foundInSentence = false;
+      // Check if this word is similar to any expected word
+      let foundSimilar = false;
+      let mostSimilarWord = "";
+      let highestSimilarity = 0;
+
+      // Simple similarity check - could be replaced with more sophisticated algorithm
       for (let i = 0; i < sentenceWords.length; i++) {
-        if (transcriptWords[j] === sentenceWords[i]) {
-          highlightedText += `<span style="color: red;">${transcriptWords[j]}</span> `;
-          incorrectWords.push({
-            expected: sentenceWords[i],
-            got: transcriptWords[j],
-          });
-          console.log(`Incorrect position: "${transcriptWords[j]}"`);
-          foundInSentence = true;
+        // Check if the words share at least 60% of their characters
+        // This is a simple similarity metric that can be improved
+        const similarity = calculateSimilarity(
+          transcriptWords[j],
+          sentenceWords[i]
+        );
+
+        if (similarity > highestSimilarity) {
+          highestSimilarity = similarity;
+          mostSimilarWord = sentenceWords[i];
+        }
+
+        if (similarity > 0.6) {
+          // 60% similarity threshold
+          foundSimilar = true;
           break;
         }
       }
 
-      if (!foundInSentence) {
-        // Word was completely extra
+      if (foundSimilar) {
+        // Word is likely an incorrect attempt at an expected word
+        highlightedText += `<span style="color: red;">[Incorrect: ${transcriptWords[j]}]</span> `;
+        console.log(
+          `Incorrect: "${transcriptWords[j]}" (similar to expected words)`
+        );
+      } else {
+        // Word is truly extra (no similarity to any expected word)
         highlightedText += `<span style="color: red;">[Extra: ${transcriptWords[j]}]</span> `;
         console.log(`Extra: "${transcriptWords[j]}"`);
       }
