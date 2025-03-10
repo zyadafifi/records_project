@@ -422,6 +422,9 @@ function speakSentence() {
   // Check if currently recording - if so, don't allow listening
   if (isRecording) {
     console.log("Cannot listen while recording");
+    alert(
+      "Cannot listen to example while recording. Please finish recording first."
+    );
     return; // Exit the function without speaking
   }
 
@@ -437,6 +440,19 @@ function speakSentence() {
 function toggleListenButtons(disabled) {
   listenButton.disabled = disabled;
   listen2Button.disabled = disabled;
+
+  // Visual feedback on disabled buttons
+  if (disabled) {
+    listenButton.style.opacity = "0.5";
+    listen2Button.style.opacity = "0.5";
+    listenButton.title = "Cannot listen while recording";
+    listen2Button.title = "Cannot listen while recording";
+  } else {
+    listenButton.style.opacity = "1";
+    listen2Button.style.opacity = "1";
+    listenButton.title = "Listen to example";
+    listen2Button.title = "Listen to example";
+  }
 }
 
 // Start audio recording with error handling
@@ -492,6 +508,13 @@ async function startAudioRecording() {
 function playRecordedAudio() {
   if (!recordedAudioBlob) {
     alert("No recorded audio available.");
+    return;
+  }
+
+  // Prevent playing recorded audio during recording
+  if (isRecording) {
+    console.log("Cannot play audio while recording");
+    alert("Cannot play audio while recording. Please finish recording first.");
     return;
   }
 
