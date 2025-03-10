@@ -596,16 +596,23 @@ if (SpeechRecognition) {
   };
 
   retryButton.addEventListener("click", () => {
+    // First close the dialog to show the sentence again
+    closeDialog();
+
+    // Reset UI elements
     recognizedTextDiv.textContent = "";
     pronunciationScoreDiv.textContent = "0%";
+    micButton.style.display = "inline-block";
     retryButton.style.display = "none";
     retryButton.disabled = true;
+    missingWordDiv.textContent = "";
+    updateProgressCircle(0);
+
+    // Stop any ongoing recording
     if (mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.stop();
     }
     recognition.stop();
-    startAudioRecording();
-    recognition.start();
   });
 
   nextButton.addEventListener("click", () => {
