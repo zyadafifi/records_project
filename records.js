@@ -48,6 +48,7 @@ let SpeechRecognition =
 let mediaRecorder;
 let audioChunks = [];
 let recordedAudioBlob; // Stores the recorded audio blob
+let isRecording = false; // Flag to track recording state
 retryButton.style.display = "none"; // Hide retry button initially
 
 // AudioContext for sound effects
@@ -87,6 +88,10 @@ function updateSentence() {
   closeDialog();
   updateProgressCircle(0);
   nextButton.style.backgroundColor = "";
+
+  // Enable listen buttons in case they were disabled
+  listenButton.disabled = false;
+  listen2Button.disabled = false;
 }
 
 // Normalize text (remove punctuation and convert to lowercase)
@@ -414,6 +419,12 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
 // Speak the sentence using the Web Speech API
 function speakSentence() {
+  // Check if currently recording - if so, don't allow listening
+  if (isRecording) {
+    console.log("Cannot listen while recording");
+    return; // Exit the function without speaking
+  }
+
   if (lessons.length === 0) return; // Ensure lessons are loaded
   const currentLesson = lessons[currentLessonIndex];
   const sentence = currentLesson.sentences[currentSentenceIndex];
@@ -422,12 +433,22 @@ function speakSentence() {
   speechSynthesis.speak(utterance);
 }
 
+// Toggle listen buttons state
+function toggleListenButtons(disabled) {
+  listenButton.disabled = disabled;
+  listen2Button.disabled = disabled;
+}
+
 // Start audio recording with error handling
 async function startAudioRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
     mediaRecorder = new MediaRecorder(stream);
+
+    // Set recording flag to true and disable listen buttons
+    isRecording = true;
+    toggleListenButtons(true);
 
     mediaRecorder.ondataavailable = (event) => {
       audioChunks.push(event.data);
@@ -441,6 +462,13 @@ async function startAudioRecording() {
       retryButton.style.display = "inline-block";
       retryButton.disabled = false;
       document.getElementById("recordingIndicator").style.display = "none";
+
+      // Set recording flag to false and re-enable listen buttons
+      isRecording = false;
+      toggleListenButtons(false);
+
+      // Stop all tracks in the MediaStream to release the microphone
+      stream.getTracks().forEach((track) => track.stop());
     };
 
     mediaRecorder.start();
@@ -453,6 +481,10 @@ async function startAudioRecording() {
   } catch (error) {
     console.error("Error accessing microphone:", error);
     alert("Please allow microphone access to use this feature.");
+
+    // Ensure recording flag is reset and buttons are re-enabled in case of error
+    isRecording = false;
+    toggleListenButtons(false);
   }
 }
 
@@ -583,6 +615,10 @@ if (SpeechRecognition) {
     console.error("Speech Recognition Error:", event.error);
     recognizedTextDiv.textContent = "Speech Recognition Error: " + event.error;
 
+    // Reset recording state and re-enable listen buttons
+    isRecording = false;
+    toggleListenButtons(false);
+
     // Provide user feedback
     if (event.error === "not-allowed") {
       alert("Please allow microphone access to use speech recognition.");
@@ -608,6 +644,10 @@ if (SpeechRecognition) {
     missingWordDiv.textContent = "";
     updateProgressCircle(0);
 
+    // Reset recording state and re-enable listen buttons
+    isRecording = false;
+    toggleListenButtons(false);
+
     // Stop any ongoing recording
     if (mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.stop();
@@ -620,6 +660,11 @@ if (SpeechRecognition) {
     if (currentSentenceIndex < currentLesson.sentences.length - 1) {
       currentSentenceIndex++;
       updateSentence();
+
+      // Reset recording state and re-enable listen buttons
+      isRecording = false;
+      toggleListenButtons(false);
+
       if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.stop();
       }
