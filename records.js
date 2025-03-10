@@ -92,6 +92,9 @@ function updateSentence() {
   // Enable listen buttons in case they were disabled
   listenButton.disabled = false;
   listen2Button.disabled = false;
+
+  // Enable bookmark buttons in case they were disabled
+  toggleBookmarkButtons(false);
 }
 
 // Normalize text (remove punctuation and convert to lowercase)
@@ -455,6 +458,25 @@ function toggleListenButtons(disabled) {
   }
 }
 
+// Toggle bookmark buttons state
+function toggleBookmarkButtons(disabled) {
+  bookmarkIcon.disabled = disabled;
+  bookmarkIcon2.disabled = disabled;
+
+  // Visual feedback on disabled buttons
+  if (disabled) {
+    bookmarkIcon.style.opacity = "0.5";
+    bookmarkIcon2.style.opacity = "0.5";
+    bookmarkIcon.title = "Cannot play audio while recording";
+    bookmarkIcon2.title = "Cannot play audio while recording";
+  } else {
+    bookmarkIcon.style.opacity = "1";
+    bookmarkIcon2.style.opacity = "1";
+    bookmarkIcon.title = "Play recorded audio";
+    bookmarkIcon2.title = "Play recorded audio";
+  }
+}
+
 // Start audio recording with error handling
 async function startAudioRecording() {
   try {
@@ -462,9 +484,10 @@ async function startAudioRecording() {
     audioChunks = [];
     mediaRecorder = new MediaRecorder(stream);
 
-    // Set recording flag to true and disable listen buttons
+    // Set recording flag to true and disable listen/bookmark buttons
     isRecording = true;
     toggleListenButtons(true);
+    toggleBookmarkButtons(true);
 
     mediaRecorder.ondataavailable = (event) => {
       audioChunks.push(event.data);
@@ -479,9 +502,10 @@ async function startAudioRecording() {
       retryButton.disabled = false;
       document.getElementById("recordingIndicator").style.display = "none";
 
-      // Set recording flag to false and re-enable listen buttons
+      // Set recording flag to false and re-enable listen/bookmark buttons
       isRecording = false;
       toggleListenButtons(false);
+      toggleBookmarkButtons(false);
 
       // Stop all tracks in the MediaStream to release the microphone
       stream.getTracks().forEach((track) => track.stop());
@@ -501,6 +525,7 @@ async function startAudioRecording() {
     // Ensure recording flag is reset and buttons are re-enabled in case of error
     isRecording = false;
     toggleListenButtons(false);
+    toggleBookmarkButtons(false);
   }
 }
 
@@ -638,9 +663,10 @@ if (SpeechRecognition) {
     console.error("Speech Recognition Error:", event.error);
     recognizedTextDiv.textContent = "Speech Recognition Error: " + event.error;
 
-    // Reset recording state and re-enable listen buttons
+    // Reset recording state and re-enable listen/bookmark buttons
     isRecording = false;
     toggleListenButtons(false);
+    toggleBookmarkButtons(false);
 
     // Provide user feedback
     if (event.error === "not-allowed") {
@@ -667,9 +693,10 @@ if (SpeechRecognition) {
     missingWordDiv.textContent = "";
     updateProgressCircle(0);
 
-    // Reset recording state and re-enable listen buttons
+    // Reset recording state and re-enable listen/bookmark buttons
     isRecording = false;
     toggleListenButtons(false);
+    toggleBookmarkButtons(false);
 
     // Stop any ongoing recording
     if (mediaRecorder && mediaRecorder.state === "recording") {
@@ -684,9 +711,10 @@ if (SpeechRecognition) {
       currentSentenceIndex++;
       updateSentence();
 
-      // Reset recording state and re-enable listen buttons
+      // Reset recording state and re-enable listen/bookmark buttons
       isRecording = false;
       toggleListenButtons(false);
+      toggleBookmarkButtons(false);
 
       if (mediaRecorder && mediaRecorder.state === "recording") {
         mediaRecorder.stop();
