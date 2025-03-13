@@ -680,6 +680,7 @@ if (SpeechRecognition) {
       recognizedTextDiv.textContent = "";
       pronunciationScoreDiv.textContent = "0%";
       updateProgressCircle(0);
+      openDialog(); // Show the popup to inform the user
     } else if (event.error === "network") {
       alert("Network error. Please check your internet connection.");
     } else {
