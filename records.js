@@ -673,6 +673,13 @@ if (SpeechRecognition) {
       alert("Please allow microphone access to use speech recognition.");
     } else if (event.error === "no-speech") {
       alert("No speech detected. Please try again.");
+      // Reset UI to allow retry
+      micButton.style.display = "inline-block";
+      retryButton.style.display = "none";
+      retryButton.disabled = true;
+      recognizedTextDiv.textContent = "";
+      pronunciationScoreDiv.textContent = "0%";
+      updateProgressCircle(0);
     } else if (event.error === "network") {
       alert("Network error. Please check your internet connection.");
     } else {
