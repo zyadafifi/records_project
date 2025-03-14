@@ -15,7 +15,77 @@ const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
+// Mobile device detection
+function isMobileDevice() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+}
 
+// Initialize mobile-specific settings
+function initializeMobileSettings() {
+  if (isMobileDevice()) {
+    // Adjust UI for mobile
+    document.body.classList.add("mobile-device");
+
+    // Set speech recognition options for better mobile performance
+    if (SpeechRecognition) {
+      recognition.maxAlternatives = 1;
+      recognition.interimResults = false;
+    }
+
+    // Ensure proper AudioContext initialization on iOS
+    document.addEventListener("touchstart", handleTouchStart, { once: true });
+  }
+}
+
+// Handle touch start for iOS audio context initialization
+function handleTouchStart() {
+  initializeAudioContext();
+  resumeAudioContext();
+}
+
+// Fix iOS audio playback issues
+function setupIOSAudioPlayback() {
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    // Create silent audio element for iOS
+    const silentAudio = new Audio();
+    silentAudio.controls = false;
+    silentAudio.loop = true;
+    silentAudio.src =
+      "data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABAgCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQ//////////////////////////////////////////////////////////////////8AAAAATGF2YzU4LjU0AAAAAAAAAAAAAAAAJAXgAAAAAAAAQAIkkIEAAAAAAAD/+xBkAAMMCQBQUAAAQYs/CggAQgAAAQAAAQAAAAAAABAAAA0gAAAQAAA=";
+    silentAudio.preload = "auto";
+    silentAudio.load();
+
+    // Play silent audio on user interaction to unlock audio context
+    document.addEventListener(
+      "touchstart",
+      function () {
+        silentAudio.play().catch(function (error) {
+          console.log("Silent audio play failed:", error);
+        });
+      },
+      { once: true }
+    );
+  }
+}
+
+// Handle recording permission on iOS and Android
+function requestMicrophonePermission() {
+  return new Promise((resolve, reject) => {
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then((stream) => {
+        // Stop all tracks after getting permission
+        stream.getTracks().forEach((track) => track.stop());
+        resolve(true);
+      })
+      .catch((error) => {
+        console.error("Error requesting microphone permission:", error);
+        reject(error);
+      });
+  });
+}
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -549,12 +619,35 @@ function toggleBookmarkButtons(disabled) {
   }
 }
 
-// Start audio recording with error handling
+// Start audio recording with improved mobile handling
 async function startAudioRecording() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    // Request microphone permission first
+    if (isMobileDevice()) {
+      await requestMicrophonePermission();
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+
     audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
+
+    // Use lower bitrate for mobile
+    const options = isMobileDevice()
+      ? { audioBitsPerSecond: 16000, mimeType: "audio/webm" }
+      : { mimeType: "audio/webm" };
+
+    try {
+      mediaRecorder = new MediaRecorder(stream, options);
+    } catch (e) {
+      // Fallback for iOS which might not support webm
+      mediaRecorder = new MediaRecorder(stream);
+    }
 
     // Set recording flag to true and disable listen/bookmark buttons
     isRecording = true;
@@ -567,7 +660,12 @@ async function startAudioRecording() {
     };
 
     mediaRecorder.onstop = () => {
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      const audioType =
+        isMobileDevice() && /iPhone|iPad|iPod/i.test(navigator.userAgent)
+          ? "audio/mp4"
+          : "audio/webm";
+
+      recordedAudioBlob = new Blob(audioChunks, { type: audioType });
       micButton.innerHTML = '<i class="fas fa-microphone"></i>';
       micButton.style.backgroundColor = "";
       micButton.disabled = false;
@@ -607,7 +705,7 @@ async function startAudioRecording() {
   }
 }
 
-// Play the recorded audio
+// Play the recorded audio with iOS compatibility
 function playRecordedAudio() {
   if (!recordedAudioBlob) {
     alert("No recorded audio available.");
@@ -623,7 +721,33 @@ function playRecordedAudio() {
 
   const audioURL = URL.createObjectURL(recordedAudioBlob);
   const audio = new Audio(audioURL);
-  audio.play();
+
+  // For iOS, we need to wait for the loadedmetadata event
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    audio.addEventListener("loadedmetadata", function () {
+      // Force audio to play on iOS
+      audio.play().catch((error) => {
+        console.error("Audio playback error:", error);
+        alert("Audio playback failed. Please try again.");
+      });
+    });
+
+    // Set a timeout in case the loadedmetadata event doesn't fire
+    setTimeout(() => {
+      if (audio.paused) {
+        audio.play().catch((error) => {
+          console.error("Audio playback error (timeout):", error);
+          alert("Audio playback failed. Please try again.");
+        });
+      }
+    }, 1000);
+  } else {
+    // For non-iOS devices
+    audio.play().catch((error) => {
+      console.error("Audio playback error:", error);
+      alert("Audio playback failed. Please try again.");
+    });
+  }
 }
 
 // Event listeners
@@ -698,11 +822,29 @@ if (SpeechRecognition) {
     initializeAudioContext();
     await resumeAudioContext();
 
+    // For mobile devices, ensure we have permissions
+    if (isMobileDevice()) {
+      try {
+        await requestMicrophonePermission();
+      } catch (error) {
+        alert("Please allow microphone access to use this feature.");
+        return;
+      }
+    }
+
     micButton.style.display = "none";
     retryButton.style.display = "inline-block";
     retryButton.disabled = false;
     startAudioRecording();
-    recognition.start();
+
+    // Add short delay before starting recognition on mobile
+    if (isMobileDevice()) {
+      setTimeout(() => {
+        recognition.start();
+      }, 300);
+    } else {
+      recognition.start();
+    }
   });
 
   recognition.onresult = (event) => {
@@ -825,4 +967,39 @@ if (SpeechRecognition) {
     "Speech Recognition not supported in this browser.";
   micButton.disabled = true;
   retryButton.disabled = true;
+  // Initialize mobile-specific settings when the page loads
+  window.addEventListener("DOMContentLoaded", () => {
+    initializeMobileSettings();
+    setupIOSAudioPlayback();
+
+    // Add viewport meta tag for mobile devices if not already present
+    if (isMobileDevice() && !document.querySelector('meta[name="viewport"]')) {
+      const viewportMeta = document.createElement("meta");
+      viewportMeta.name = "viewport";
+      viewportMeta.content =
+        "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
+      document.getElementsByTagName("head")[0].appendChild(viewportMeta);
+    }
+
+    // Add CSS for mobile devices
+    if (isMobileDevice()) {
+      const style = document.createElement("style");
+      style.textContent = `
+      .mobile-device button {
+        min-height: 44px;
+        min-width: 44px;
+        margin: 8px;
+        padding: 12px;
+      }
+      .mobile-device .dialog-content {
+        width: 90%;
+        max-width: 350px;
+      }
+      .mobile-device #recordingIndicator {
+        font-size: 16px;
+      }
+    `;
+      document.head.appendChild(style);
+    }
+  });
 }
