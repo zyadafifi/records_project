@@ -15,6 +15,91 @@ const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
+// Function to request microphone permissions upfront
+function requestMicrophonePermissionsUpfront() {
+  // Create a permission request button
+  const permissionButton = document.createElement("button");
+  permissionButton.id = "permission-request-button";
+  permissionButton.className = "btn btn-primary permission-button";
+  permissionButton.innerHTML =
+    '<i class="fas fa-microphone"></i> Allow Microphone Access';
+
+  // Create a container for the permission message
+  const permissionContainer = document.createElement("div");
+  permissionContainer.id = "permission-container";
+  permissionContainer.className = "permission-container";
+  permissionContainer.innerHTML = `
+    <div class="permission-message">
+      <h3>Microphone Access Required</h3>
+      <p>This pronunciation tool needs access to your microphone to work properly.</p>
+    </div>
+  `;
+  permissionContainer.appendChild(permissionButton);
+
+  // Add the container to the page
+  document.body.appendChild(permissionContainer);
+
+  // Add CSS for the permission elements
+  const style = document.createElement("style");
+  style.textContent = `
+    .permission-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      color: white;
+      text-align: center;
+    }
+    .permission-message {
+      background-color: #333;
+      padding: 20px;
+      border-radius: 10px;
+      max-width: 80%;
+      margin-bottom: 20px;
+    }
+    .permission-button {
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // Add click event to the permission button
+  permissionButton.addEventListener("click", async () => {
+    try {
+      // Request microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+      // Stop the stream immediately - we just needed the permission
+      stream.getTracks().forEach((track) => track.stop());
+
+      // Remove the permission container
+      document.body.removeChild(permissionContainer);
+
+      // Initialize the audio context now that we have permission
+      initializeAudioContext();
+      await resumeAudioContext();
+
+      console.log("Microphone permission granted successfully");
+    } catch (error) {
+      console.error("Error requesting microphone permission:", error);
+      // Update the message to show the error
+      permissionContainer.querySelector(".permission-message").innerHTML = `
+        <h3>Microphone Access Denied</h3>
+        <p>You need to allow microphone access for this app to work.</p>
+        <p>Please check your browser settings and try again.</p>
+      `;
+    }
+  });
+}
 // Mobile device detection
 function isMobileDevice() {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
@@ -796,6 +881,9 @@ async function loadLessons() {
 
     // Update the UI with the first sentence
     updateSentence();
+
+    // Request microphone permissions upfront
+    requestMicrophonePermissionsUpfront();
   } catch (error) {
     console.error("Error loading lessons:", error);
   }
@@ -806,7 +894,33 @@ function getQuizIdFromURL() {
   const urlParams = new URLSearchParams(window.location.search);
   return urlParams.get("quizId");
 }
+// Function to check if microphone permissions are already granted
+async function checkMicrophonePermissions() {
+  try {
+    const permissionStatus = await navigator.permissions.query({
+      name: "microphone",
+    });
+    return permissionStatus.state === "granted";
+  } catch (error) {
+    console.log("Permission query not supported, will check on interaction");
+    return false;
+  }
+}
 
+// Add this to your DOMContentLoaded event
+window.addEventListener("DOMContentLoaded", async () => {
+  initializeMobileSettings();
+  setupIOSAudioPlayback();
+
+  // Check microphone permissions
+  const hasPermissions = await checkMicrophonePermissions();
+  if (!hasPermissions) {
+    console.log("Microphone permissions not yet granted");
+    // We'll handle this with the permission request dialog
+  }
+
+  // Rest of your DOMContentLoaded code...
+});
 // Load lessons when the page loads
 loadLessons();
 
@@ -818,32 +932,56 @@ if (SpeechRecognition) {
   recognition.interimResults = false;
 
   micButton.addEventListener("click", async () => {
-    // Initialize and resume AudioContext on user gesture
-    initializeAudioContext();
-    await resumeAudioContext();
+    // Check if we already have microphone permissions
+    try {
+      // Try to get the stream briefly to verify permissions
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Stop the stream immediately
+      stream.getTracks().forEach((track) => track.stop());
 
-    // For mobile devices, ensure we have permissions
-    if (isMobileDevice()) {
-      try {
-        await requestMicrophonePermission();
-      } catch (error) {
-        alert("Please allow microphone access to use this feature.");
-        return;
-      }
-    }
+      // Initialize and resume AudioContext on user gesture
+      initializeAudioContext();
+      await resumeAudioContext();
 
-    micButton.style.display = "none";
-    retryButton.style.display = "inline-block";
-    retryButton.disabled = false;
-    startAudioRecording();
-
-    // Add short delay before starting recognition on mobile
-    if (isMobileDevice()) {
-      setTimeout(() => {
-        recognition.start();
-      }, 300);
-    } else {
+      // Proceed with recording
+      micButton.style.display = "none";
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      startAudioRecording();
       recognition.start();
+    } catch (error) {
+      console.error("Microphone access error:", error);
+
+      // Show a permission request dialog if access is denied
+      if (
+        error.name === "NotAllowedError" ||
+        error.name === "PermissionDeniedError"
+      ) {
+        alert(
+          "This tool requires microphone access. Please allow microphone access in your browser settings and try again."
+        );
+
+        // On mobile, we can show additional guidance
+        if (isMobileDevice()) {
+          const mobilePermissionHelp = document.createElement("div");
+          mobilePermissionHelp.className = "mobile-permission-help";
+          mobilePermissionHelp.innerHTML = `
+            <div class="permission-message">
+              <h3>How to Enable Microphone Access</h3>
+              <p>For iOS: Go to Settings > Safari > Microphone and enable access</p>
+              <p>For Android: Go to Settings > Site Settings > Microphone and enable access</p>
+              <button id="close-permission-help" class="btn btn-primary">Got it</button>
+            </div>
+          `;
+          document.body.appendChild(mobilePermissionHelp);
+
+          document
+            .getElementById("close-permission-help")
+            .addEventListener("click", () => {
+              document.body.removeChild(mobilePermissionHelp);
+            });
+        }
+      }
     }
   });
 
