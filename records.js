@@ -97,6 +97,28 @@ function updateSentence() {
   toggleBookmarkButtons(false);
 }
 
+// Function to reset UI without changing the sentence
+function resetUI() {
+  // Reset UI elements
+  recognizedTextDiv.textContent = "";
+  pronunciationScoreDiv.textContent = "0%";
+  micButton.style.display = "inline-block";
+  micButton.style.color = "#fff";
+  micButton.style.backgroundColor = "";
+  micButton.disabled = false;
+  retryButton.style.display = "none";
+  retryButton.disabled = true;
+  missingWordDiv.textContent = "";
+  closeDialog();
+  updateProgressCircle(0);
+  document.getElementById("recordingIndicator").style.display = "none";
+
+  // Reset recording state and re-enable buttons
+  isRecording = false;
+  toggleListenButtons(false);
+  toggleBookmarkButtons(false);
+}
+
 // Normalize text (remove punctuation and convert to lowercase)
 function normalizeText(text) {
   return text.toLowerCase().replace(/[^\w\s]/g, "");
@@ -661,20 +683,20 @@ if (SpeechRecognition) {
 
   recognition.onerror = (event) => {
     console.error("Speech Recognition Error:", event.error);
-    recognizedTextDiv.textContent = "Speech Recognition Error: " + event.error;
 
-    // Reset recording state and re-enable listen/bookmark buttons
-    isRecording = false;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
+    // Stop any ongoing recording
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
 
-    // Provide user feedback
+    // Reset UI without changing the sentence
+    resetUI();
+
+    // Provide user feedback based on error type
     if (event.error === "not-allowed") {
       alert("Please allow microphone access to use speech recognition.");
     } else if (event.error === "no-speech") {
       alert("No speech detected. Please try again.");
-      // Reset the UI for the same sentence
-      updateSentence();
     } else if (event.error === "network") {
       alert("Network error. Please check your internet connection.");
     } else {
@@ -686,19 +708,8 @@ if (SpeechRecognition) {
     // First close the dialog to show the sentence again
     closeDialog();
 
-    // Reset UI elements
-    recognizedTextDiv.textContent = "";
-    pronunciationScoreDiv.textContent = "0%";
-    micButton.style.display = "inline-block";
-    retryButton.style.display = "none";
-    retryButton.disabled = true;
-    missingWordDiv.textContent = "";
-    updateProgressCircle(0);
-
-    // Reset recording state and re-enable listen/bookmark buttons
-    isRecording = false;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
+    // Reset UI without changing the sentence
+    resetUI();
 
     // Stop any ongoing recording
     if (mediaRecorder && mediaRecorder.state === "recording") {
