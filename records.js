@@ -41,38 +41,9 @@ const noSpeechBackdrop = document.createElement("div");
 noSpeechBackdrop.classList.add("dialog-backdrop", "no-speech-backdrop");
 document.body.appendChild(noSpeechBackdrop);
 
-// Create a browser compatibility alert popup
-const compatibilityPopup = document.createElement("div");
-compatibilityPopup.classList.add("dialog-container", "compatibility-popup");
-compatibilityPopup.innerHTML = `
-  <div class="dialog-content">
-    <div class="close-icon-container">
-      <span class="close-icon-compatibility">&times;</span>
-    </div>
-    <h3>Browser Compatibility Notice</h3>
-    <p>For the best experience:</p>
-    <ul>
-      <li>On iOS, please use Safari</li>
-      <li>On Android, please use Chrome</li>
-    </ul>
-    <button class="continue-button">Continue</button>
-  </div>
-`;
-document.body.appendChild(compatibilityPopup);
-
-// Create a backdrop for the compatibility popup
-const compatibilityBackdrop = document.createElement("div");
-compatibilityBackdrop.classList.add(
-  "dialog-backdrop",
-  "compatibility-backdrop"
-);
-document.body.appendChild(compatibilityBackdrop);
-
-// Hide the popups initially
+// Hide the no speech popup initially
 noSpeechPopup.style.display = "none";
 noSpeechBackdrop.style.display = "none";
-compatibilityPopup.style.display = "none";
-compatibilityBackdrop.style.display = "none";
 
 // Function to open the dialog
 function openDialog() {
@@ -98,18 +69,6 @@ function closeNoSpeechPopup() {
   noSpeechBackdrop.style.display = "none";
 }
 
-// Function to open compatibility popup
-function openCompatibilityPopup() {
-  compatibilityPopup.style.display = "block";
-  compatibilityBackdrop.style.display = "block";
-}
-
-// Function to close compatibility popup
-function closeCompatibilityPopup() {
-  compatibilityPopup.style.display = "none";
-  compatibilityBackdrop.style.display = "none";
-}
-
 // Event listeners for closing the dialog
 document.querySelector(".close-icon").addEventListener("click", closeDialog);
 dialogBackdrop.addEventListener("click", closeDialog);
@@ -125,15 +84,6 @@ document.querySelector(".try-again-button").addEventListener("click", () => {
 });
 noSpeechBackdrop.addEventListener("click", closeNoSpeechPopup);
 
-// Event listeners for closing the compatibility popup
-document
-  .querySelector(".close-icon-compatibility")
-  .addEventListener("click", closeCompatibilityPopup);
-document
-  .querySelector(".continue-button")
-  .addEventListener("click", closeCompatibilityPopup);
-compatibilityBackdrop.addEventListener("click", closeCompatibilityPopup);
-
 // Global variables
 let lessons = []; // Stores loaded lessons
 let currentLessonIndex = 0; // Tracks the current lesson
@@ -147,9 +97,6 @@ let audioChunks = [];
 let recordedAudioBlob; // Stores the recorded audio blob
 let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
-let isIOSDevice =
-  /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-let isAndroidDevice = /Android/.test(navigator.userAgent);
 retryButton.style.display = "none"; // Hide retry button initially
 
 // AudioContext for sound effects
@@ -545,7 +492,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   return Math.round(pronunciationScore);
 }
 
-// Speak the sentence using the Web Speech API with iOS compatibility fixes
+// Speak the sentence using the Web Speech API
 function speakSentence() {
   // Check if currently recording - if so, don't allow listening
   if (isRecording) {
@@ -557,45 +504,11 @@ function speakSentence() {
   }
 
   if (lessons.length === 0) return; // Ensure lessons are loaded
-
-  // Cancel any previous speech synthesis
-  if (window.speechSynthesis.speaking) {
-    window.speechSynthesis.cancel();
-  }
-
   const currentLesson = lessons[currentLessonIndex];
   const sentence = currentLesson.sentences[currentSentenceIndex];
   const utterance = new SpeechSynthesisUtterance(sentence);
   utterance.lang = "en-US";
-
-  // Workaround for iOS Safari speech synthesis limitation
-  if (isIOSDevice) {
-    // For iOS, we break sentences into chunks if they're too long
-    const maxIOSLength = 100; // iOS has issues with longer text
-
-    if (sentence.length > maxIOSLength) {
-      // Break into smaller chunks for iOS
-      const chunks = sentence.match(/.{1,100}(\s|$)/g) || [];
-
-      let i = 0;
-      function speakNextChunk() {
-        if (i < chunks.length) {
-          const chunkUtterance = new SpeechSynthesisUtterance(chunks[i]);
-          chunkUtterance.lang = "en-US";
-          chunkUtterance.onend = speakNextChunk;
-          i++;
-          speechSynthesis.speak(chunkUtterance);
-        }
-      }
-
-      speakNextChunk();
-    } else {
-      speechSynthesis.speak(utterance);
-    }
-  } else {
-    // For non-iOS devices, just speak normally
-    speechSynthesis.speak(utterance);
-  }
+  speechSynthesis.speak(utterance);
 }
 
 // Toggle listen buttons state
@@ -636,85 +549,12 @@ function toggleBookmarkButtons(disabled) {
   }
 }
 
-// Check browser compatibility for speech recognition
-function checkBrowserCompatibility() {
-  let compatibilityIssues = [];
-
-  // Check for Speech Recognition API
-  if (!SpeechRecognition) {
-    compatibilityIssues.push(
-      "Speech Recognition is not supported in this browser."
-    );
-  }
-
-  // Check for MediaRecorder API
-  if (!window.MediaRecorder) {
-    compatibilityIssues.push(
-      "Audio recording is not supported in this browser."
-    );
-  }
-
-  // Browser-specific issues
-  if (isIOSDevice) {
-    // For iOS devices
-    if (
-      !navigator.userAgent.includes("Safari") ||
-      navigator.userAgent.includes("CriOS") ||
-      navigator.userAgent.includes("FxiOS")
-    ) {
-      compatibilityIssues.push(
-        "On iOS, please use Safari for full functionality."
-      );
-    }
-  } else if (isAndroidDevice) {
-    // For Android devices
-    if (!navigator.userAgent.includes("Chrome")) {
-      compatibilityIssues.push(
-        "On Android, please use Chrome for full functionality."
-      );
-    }
-  }
-
-  // If there are compatibility issues, show them
-  if (compatibilityIssues.length > 0) {
-    console.warn("Browser compatibility issues:", compatibilityIssues);
-    openCompatibilityPopup();
-    return false;
-  }
-
-  return true;
-}
-
-// Start audio recording with error handling and mobile compatibility
+// Start audio recording with error handling
 async function startAudioRecording() {
   try {
-    // Request audio permission with constraints that work on mobile
-    const constraints = {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    };
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
-
-    // Use compatible MIME types for different platforms
-    let mimeType = "audio/webm";
-
-    // For iOS Safari, we need to use audio/mp4
-    if (isIOSDevice) {
-      mimeType = "audio/mp4";
-    }
-
-    // Fallback to default if selected MIME type is not supported
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      mimeType = ""; // Let the browser decide
-    }
-
-    const options = { mimeType };
-    mediaRecorder = new MediaRecorder(stream, options);
+    mediaRecorder = new MediaRecorder(stream);
 
     // Set recording flag to true and disable listen/bookmark buttons
     isRecording = true;
@@ -723,29 +563,11 @@ async function startAudioRecording() {
     toggleBookmarkButtons(true);
 
     mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-      }
+      audioChunks.push(event.data);
     };
 
     mediaRecorder.onstop = () => {
-      if (audioChunks.length === 0) {
-        console.error("No audio data recorded");
-        openNoSpeechPopup();
-        isRecording = false;
-        toggleListenButtons(false);
-        toggleBookmarkButtons(false);
-        micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-        micButton.style.backgroundColor = "";
-        micButton.disabled = false;
-        document.getElementById("recordingIndicator").style.display = "none";
-        return;
-      }
-
-      // Create audio blob with appropriate type
-      const audioType = isIOSDevice ? "audio/mp4" : "audio/webm";
-      recordedAudioBlob = new Blob(audioChunks, { type: audioType });
-
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
       micButton.innerHTML = '<i class="fas fa-microphone"></i>';
       micButton.style.backgroundColor = "";
       micButton.disabled = false;
@@ -767,18 +589,7 @@ async function startAudioRecording() {
       stream.getTracks().forEach((track) => track.stop());
     };
 
-    // For iOS, we need shorter recording times
-    const recordingTimeout = isIOSDevice ? 10000 : 30000; // 10 seconds for iOS, 30 for others
-
     mediaRecorder.start();
-
-    // Set a timeout to stop recording automatically
-    setTimeout(() => {
-      if (mediaRecorder && mediaRecorder.state === "recording") {
-        mediaRecorder.stop();
-      }
-    }, recordingTimeout);
-
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
     micButton.style.color = "#ff0000";
     micButton.style.color = "#fff";
@@ -787,34 +598,16 @@ async function startAudioRecording() {
       "inline-block";
   } catch (error) {
     console.error("Error accessing microphone:", error);
-
-    // More specific error messages
-    if (error.name === "NotAllowedError") {
-      alert(
-        "Microphone access was denied. Please allow microphone access to use this feature."
-      );
-    } else if (error.name === "NotFoundError") {
-      alert(
-        "No microphone found. Please make sure your device has a working microphone."
-      );
-    } else if (error.name === "NotReadableError") {
-      alert(
-        "Cannot access microphone. Please make sure no other app is using your microphone."
-      );
-    } else {
-      alert("Error accessing microphone: " + error.message);
-    }
+    alert("Please allow microphone access to use this feature.");
 
     // Ensure recording flag is reset and buttons are re-enabled in case of error
     isRecording = false;
     toggleListenButtons(false);
     toggleBookmarkButtons(false);
-    micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-    micButton.disabled = false;
   }
 }
 
-// Play the recorded audio with mobile compatibility
+// Play the recorded audio
 function playRecordedAudio() {
   if (!recordedAudioBlob) {
     alert("No recorded audio available.");
@@ -830,65 +623,7 @@ function playRecordedAudio() {
 
   const audioURL = URL.createObjectURL(recordedAudioBlob);
   const audio = new Audio(audioURL);
-
-  // Add error handling for mobile playback
-  audio.onerror = (error) => {
-    console.error("Audio playback error:", error);
-    alert("Error playing the recorded audio. Please try recording again.");
-  };
-
-  // Handle iOS specific issues with audio playback
-  if (isIOSDevice) {
-    // Force audio playback with user interaction on iOS
-    audio.setAttribute("playsinline", "");
-    audio.setAttribute("webkit-playsinline", "");
-  }
-
-  // Play the audio with promise support for mobile browsers
-  const playPromise = audio.play();
-
-  if (playPromise !== undefined) {
-    playPromise
-      .then(() => {
-        console.log("Audio playback started successfully");
-      })
-      .catch((error) => {
-        console.error("Playback error:", error);
-
-        // For iOS, we might need to try an alternative approach
-        if (isIOSDevice) {
-          // Create a temporary audio element in the DOM
-          const tempAudio = document.createElement("audio");
-          tempAudio.src = audioURL;
-          tempAudio.controls = true;
-          tempAudio.style.display = "none";
-          document.body.appendChild(tempAudio);
-
-          // Play with user gesture
-          tempAudio
-            .play()
-            .then(() => {
-              console.log("Alternative playback succeeded");
-            })
-            .catch((err) => {
-              console.error("Alternative playback failed:", err);
-              alert(
-                "Unable to play audio on this device. Please try using Safari browser."
-              );
-            })
-            .finally(() => {
-              // Clean up after playback or error
-              setTimeout(() => {
-                document.body.removeChild(tempAudio);
-              }, 5000);
-            });
-        } else {
-          alert(
-            "Unable to play the recorded audio. This may be due to browser restrictions."
-          );
-        }
-      });
-  }
+  audio.play();
 }
 
 // Event listeners
@@ -904,8 +639,6 @@ async function loadLessons() {
       "https://raw.githubusercontent.com/zyadafifi/lessons/main/lessons.json"; // Replace with your JSON URL
     const response = await fetch(url, {
       headers: { Accept: "application/json" },
-      mode: "cors", // Enable CORS for mobile browsers
-      cache: "no-cache", // Don't use cached data
     });
 
     if (!response.ok) {
@@ -934,17 +667,13 @@ async function loadLessons() {
 
     if (currentLessonIndex === -1) {
       console.error("Lesson not found for quizId:", quizId);
-      // Fall back to first lesson if none matches
-      currentLessonIndex = 0;
+      return;
     }
 
     // Update the UI with the first sentence
     updateSentence();
   } catch (error) {
     console.error("Error loading lessons:", error);
-    alert(
-      "Unable to load lessons. Please check your internet connection and try refreshing the page."
-    );
   }
 }
 
@@ -954,139 +683,15 @@ function getQuizIdFromURL() {
   return urlParams.get("quizId");
 }
 
-// Setup alternative method for iOS speech recognition
-function setupIOSSpeechRecognition() {
-  // Create a hidden file input element for iOS audio recording
-  const fileInput = document.createElement("input");
-  fileInput.type = "file";
-  fileInput.accept = "audio/*";
-  fileInput.capture = "microphone";
-  fileInput.style.display = "none";
-  document.body.appendChild(fileInput);
+// Load lessons when the page loads
+loadLessons();
 
-  fileInput.addEventListener("change", function (e) {
-    if (e.target.files.length > 0) {
-      const file = e.target.files[0];
-
-      // Create a placeholder for the recognition result
-      recognizedTextDiv.textContent = "Processing your recording...";
-
-      // Simulate recognition (on iOS devices we can't access Web Speech API reliably)
-      setTimeout(() => {
-        speechDetected = true;
-
-        // Get the current expected sentence
-        const currentLesson = lessons[currentLessonIndex];
-        const currentSentence = currentLesson.sentences[currentSentenceIndex];
-
-        // Create a simulated transcript (randomly score between 70-100%)
-        // This is just a fallback when proper speech recognition isn't available
-        const accuracy = Math.floor(Math.random() * 30) + 70;
-        let simulatedTranscript = currentSentence;
-
-        // If accuracy is less than 85%, introduce some errors
-        if (accuracy < 85) {
-          const words = currentSentence.split(" ");
-          // Randomly remove or modify some words
-          simulatedTranscript = words
-            .map((word) => {
-              if (Math.random() > 0.85) {
-                return ""; // Remove word occasionally
-              } else if (Math.random() > 0.85) {
-                return word + "s"; // Modify word occasionally
-              }
-              return word;
-            })
-            .filter((word) => word !== "")
-            .join(" ");
-        }
-
-        // Calculate score based on this text
-        const pronunciationScore = calculatePronunciationScore(
-          simulatedTranscript,
-          currentSentence
-        );
-
-        // Update UI
-        pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-        updateProgressCircle(pronunciationScore);
-
-        // Update total sentences spoken and overall score
-        totalSentencesSpoken++;
-        totalPronunciationScore += pronunciationScore;
-
-        // Show the dialog container
-        openDialog();
-
-        // Reset file input for next use
-        fileInput.value = "";
-      }, 2000);
-    }
-
-    // Re-enable the mic button
-    resetUI();
-  });
-
-  return fileInput;
-}
-
-// Main initialization function
-function init() {
-  // Check device type and set flags
-  checkBrowserCompatibility();
-
-  // Initialize audio context on page load
-  try {
-    initializeAudioContext();
-  } catch (e) {
-    console.warn("AudioContext initialization failed:", e);
-  }
-
-  // Load lessons
-  loadLessons();
-
-  // Mobile-specific initialization
-  if (isIOSDevice) {
-    console.log("iOS device detected, applying iOS-specific adaptations");
-    // Setup iOS fallback for speech recognition
-    const iosFileInput = setupIOSSpeechRecognition();
-
-    // Special handling for mic button on iOS
-    micButton.addEventListener("click", function (event) {
-      if (SpeechRecognition && !navigator.userAgent.includes("Safari")) {
-        // Non-Safari browsers on iOS: use file input as fallback
-        iosFileInput.click();
-      } else {
-        // Safari on iOS: try standard approach first
-        setupSpeechRecognition();
-        micButton.click(); // This will trigger the standard handler
-      }
-    });
-  } else {
-    // Standard initialization for non-iOS devices
-    setupSpeechRecognition();
-  }
-}
-
-// Set up speech recognition
-function setupSpeechRecognition() {
-  if (!SpeechRecognition) {
-    recognizedTextDiv.textContent =
-      "Speech Recognition not supported in this browser.";
-    micButton.disabled = true;
-    retryButton.disabled = true;
-    return;
-  }
-
+// Speech recognition logic with error handling
+if (SpeechRecognition) {
   const recognition = new SpeechRecognition();
   recognition.lang = "en-US";
   recognition.continuous = false;
   recognition.interimResults = false;
-
-  // For Android, increase timeout
-  if (isAndroidDevice) {
-    recognition.maxAlternatives = 5;
-  }
 
   micButton.addEventListener("click", async () => {
     // Initialize and resume AudioContext on user gesture
@@ -1097,22 +702,14 @@ function setupSpeechRecognition() {
     retryButton.style.display = "inline-block";
     retryButton.disabled = false;
     startAudioRecording();
-
-    try {
-      recognition.start();
-    } catch (e) {
-      console.error("Error starting speech recognition:", e);
-      // If recognition fails, we still have the audio recording
-    }
+    recognition.start();
   });
 
   recognition.onresult = (event) => {
     speechDetected = true; // Set the flag when speech is detected
 
     let transcript = "";
-    // Get the most confident result
     for (let i = 0; i < event.results.length; i++) {
-      // Get the most confident alternative
       transcript += event.results[i][0].transcript;
     }
     console.log("Recognized Transcript:", transcript);
@@ -1223,88 +820,9 @@ function setupSpeechRecognition() {
     );
     congratulationModal.hide(); // Hide the modal
   });
+} else {
+  recognizedTextDiv.textContent =
+    "Speech Recognition not supported in this browser.";
+  micButton.disabled = true;
+  retryButton.disabled = true;
 }
-
-// Add CSS style fixes for mobile devices
-function addMobileStyles() {
-  const style = document.createElement("style");
-  style.textContent = `
-    @media (max-width: 767px) {
-      button {
-        padding: 12px !important; /* Larger touch targets */
-        min-width: 44px !important;
-      }
-
-      #recordingIndicator {
-        width: 15px;
-        height: 15px;
-      }
-
-      .dialog-content {
-        width: 90% !important;
-        max-width: 90% !important;
-        padding: 15px !important;
-      }
-
-      /* Fix iOS scrolling issues */
-      body {
-        -webkit-overflow-scrolling: touch;
-      }
-
-      /* Fix for iOS input zooming */
-      input, select, textarea {
-        font-size: 16px !important;
-      }
-    }
-
-    /* Fix for iOS Safari bottom bar */
-    @supports (-webkit-touch-callout: none) {
-      body {
-        padding-bottom: env(safe-area-inset-bottom);
-      }
-    }
-
-    /* Pulse animation for recording indicator */
-    @keyframes pulse {
-      0% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.2); opacity: 0.8; }
-      100% { transform: scale(1); opacity: 1; }
-    }
-
-    #recordingIndicator {
-      animation: pulse 1s infinite;
-    }
-  `;
-  document.head.appendChild(style);
-}
-
-// Add viewport meta tag for proper mobile scaling if not already present
-function ensureViewportMeta() {
-  let viewportMeta = document.querySelector('meta[name="viewport"]');
-  if (!viewportMeta) {
-    viewportMeta = document.createElement("meta");
-    viewportMeta.name = "viewport";
-    viewportMeta.content =
-      "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no";
-    document.head.appendChild(viewportMeta);
-  }
-}
-
-// Document ready function
-function docReady(fn) {
-  if (
-    document.readyState === "complete" ||
-    document.readyState === "interactive"
-  ) {
-    setTimeout(fn, 1);
-  } else {
-    document.addEventListener("DOMContentLoaded", fn);
-  }
-}
-
-// Initialize everything when document is ready
-docReady(function () {
-  ensureViewportMeta();
-  addMobileStyles();
-  init();
-});
