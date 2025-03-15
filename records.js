@@ -581,7 +581,12 @@ async function startAudioRecording() {
       toggleBookmarkButtons(false);
 
       // Check if no speech was detected and show the popup
-      if (!speechDetected && audioChunks.length > 0) {
+      // BUT only if the dialog is not already open (which would indicate that speech was recognized)
+      if (
+        !speechDetected &&
+        audioChunks.length > 0 &&
+        dialogContainer.style.display !== "block"
+      ) {
         openNoSpeechPopup();
       }
 
@@ -729,7 +734,6 @@ if (SpeechRecognition) {
     // Show the dialog container
     openDialog();
   };
-
   recognition.onspeechend = () => {
     recognition.stop();
     retryButton.style.display = "inline-block";
@@ -745,8 +749,11 @@ if (SpeechRecognition) {
     // Handle "no-speech" error with custom popup
     if (event.error === "no-speech") {
       console.log("No speech detected");
-      // We'll let the mediaRecorder.onstop handler show the popup
-      // to ensure it only happens after recording completely stops
+      // Only show the no-speech popup if the dialog isn't already open
+      if (dialogContainer.style.display !== "block") {
+        // We'll mark that no speech was detected, and let mediaRecorder.onstop show the popup
+        speechDetected = false;
+      }
     }
 
     // Stop any ongoing recording
@@ -754,8 +761,10 @@ if (SpeechRecognition) {
       mediaRecorder.stop();
     }
 
-    // Reset UI without changing the sentence
-    resetUI();
+    // Reset UI without changing the sentence, but don't reset if we're showing no-speech popup
+    if (event.error !== "no-speech") {
+      resetUI();
+    }
 
     // Provide user feedback based on error type
     if (event.error === "not-allowed") {
