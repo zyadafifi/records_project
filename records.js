@@ -15,7 +15,7 @@ const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
-
+let recognitionErrorOccurred = false;
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -535,10 +535,17 @@ async function startAudioRecording() {
       toggleListenButtons(false);
       toggleBookmarkButtons(false);
 
-      // Check if no speech was detected and show an alert
-      if (!speechDetected && audioChunks.length > 0) {
+      // Check if no speech was detected and show an alert - only if not handled by recognition.onerror
+      if (
+        !speechDetected &&
+        audioChunks.length > 0 &&
+        !recognitionErrorOccurred
+      ) {
         alert("No speech detected. Please try again and speak clearly.");
       }
+
+      // Reset the error flag
+      recognitionErrorOccurred = false;
 
       // Stop all tracks in the MediaStream to release the microphone
       stream.getTracks().forEach((track) => track.stop());
@@ -653,6 +660,9 @@ if (SpeechRecognition) {
     initializeAudioContext();
     await resumeAudioContext();
 
+    // Reset error flag when starting a new recording
+    recognitionErrorOccurred = false;
+
     micButton.style.display = "none";
     retryButton.style.display = "inline-block";
     retryButton.disabled = false;
@@ -695,6 +705,9 @@ if (SpeechRecognition) {
 
   recognition.onerror = (event) => {
     console.error("Speech Recognition Error:", event.error);
+
+    // Set the error flag
+    recognitionErrorOccurred = true;
 
     // Handle "no-speech" error with an alert
     if (event.error === "no-speech") {
