@@ -81,9 +81,9 @@ document
   .addEventListener("click", closeNoSpeechPopup);
 document.querySelector(".try-again-button").addEventListener("click", () => {
   closeNoSpeechPopup();
-  resetUI();
-  micButton.click(); // Automatically start recording again
+  resetUI(); // Reset the UI without automatically starting recording
 });
+noSpeechBackdrop.addEventListener("click", closeNoSpeechPopup);
 noSpeechBackdrop.addEventListener("click", closeNoSpeechPopup);
 
 // Global variables
