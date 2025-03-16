@@ -23,13 +23,7 @@ function isMobileBrowser() {
     navigator.userAgent
   );
 }
-if (!SpeechRecognition) {
-  // Fallback to a server-side speech recognition API
-  // or provide clear instructions to use a supported browser
-  alert(
-    "Your browser doesn't support speech recognition. Please use Chrome on desktop or Android."
-  );
-}
+
 if (audioContext && audioContext.state === "suspended") {
   audioContext.resume();
 }
@@ -97,7 +91,13 @@ let recordedAudioBlob; // Stores the recorded audio blob
 let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
 retryButton.style.display = "none"; // Hide retry button initially
-
+if (!SpeechRecognition) {
+  // Fallback to a server-side speech recognition API
+  // or provide clear instructions to use a supported browser
+  alert(
+    "Your browser doesn't support speech recognition. Please use Chrome on desktop or Android."
+  );
+}
 // AudioContext for sound effects
 let audioContext;
 
