@@ -16,6 +16,7 @@ const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let recognitionErrorOccurred = false;
+
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -122,6 +123,9 @@ function resetUI() {
   speechDetected = false; // Reset speech detection flag
   toggleListenButtons(false);
   toggleBookmarkButtons(false);
+
+  // Reset the error flag
+  recognitionErrorOccurred = false;
 }
 
 // Normalize text (remove punctuation and convert to lowercase)
