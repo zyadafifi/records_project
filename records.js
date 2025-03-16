@@ -545,6 +545,7 @@ async function startAudioRecording() {
         audioChunks.length > 0 &&
         !recognitionErrorOccurred
       ) {
+        console.log("No speech detected during recording.");
         alert("No speech detected. Please try again and speak clearly.");
       }
 
@@ -715,7 +716,7 @@ if (SpeechRecognition) {
 
     // Handle "no-speech" error with an alert
     if (event.error === "no-speech") {
-      console.log("No speech detected");
+      console.log("No speech detected during recognition.");
       alert("No speech detected. Please try again and speak clearly.");
     }
 
