@@ -15,7 +15,8 @@ const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
-let recognitionErrorOccurred = false;
+let noSpeechTimeout;
+const NO_SPEECH_TIMEOUT_MS = 5000; // 5 seconds timeout to detect speech
 
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
@@ -126,6 +127,9 @@ function resetUI() {
 
   // Reset the error flag
   recognitionErrorOccurred = false;
+
+  // Clear the timeout
+  clearTimeout(noSpeechTimeout);
 }
 
 // Normalize text (remove punctuation and convert to lowercase)
@@ -521,6 +525,19 @@ async function startAudioRecording() {
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
 
+    // Set a timeout to check if speech is detected
+    clearTimeout(noSpeechTimeout);
+    noSpeechTimeout = setTimeout(() => {
+      // Only trigger if still recording and no speech detected
+      if (isRecording && !speechDetected && !recognitionErrorOccurred) {
+        console.log("No speech detected timeout triggered");
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+          mediaRecorder.stop();
+        }
+        alert("No speech detected. Please try again and speak clearly.");
+      }
+    }, NO_SPEECH_TIMEOUT_MS);
+
     mediaRecorder.ondataavailable = (event) => {
       audioChunks.push(event.data);
     };
@@ -539,18 +556,8 @@ async function startAudioRecording() {
       toggleListenButtons(false);
       toggleBookmarkButtons(false);
 
-      // Check if no speech was detected and show an alert - only if not handled by recognition.onerror
-      if (
-        !speechDetected &&
-        audioChunks.length > 0 &&
-        !recognitionErrorOccurred
-      ) {
-        console.log("No speech detected during recording.");
-        alert("No speech detected. Please try again and speak clearly.");
-      }
-
-      // Reset the error flag
-      recognitionErrorOccurred = false;
+      // Clear the timeout when recording stops
+      clearTimeout(noSpeechTimeout);
 
       // Stop all tracks in the MediaStream to release the microphone
       stream.getTracks().forEach((track) => track.stop());
@@ -571,6 +578,7 @@ async function startAudioRecording() {
     isRecording = false;
     toggleListenButtons(false);
     toggleBookmarkButtons(false);
+    clearTimeout(noSpeechTimeout);
   }
 }
 
@@ -677,6 +685,7 @@ if (SpeechRecognition) {
 
   recognition.onresult = (event) => {
     speechDetected = true; // Set the flag when speech is detected
+    clearTimeout(noSpeechTimeout); // Clear the timeout when speech is detected
 
     let transcript = "";
     for (let i = 0; i < event.results.length; i++) {
@@ -713,12 +722,7 @@ if (SpeechRecognition) {
 
     // Set the error flag
     recognitionErrorOccurred = true;
-
-    // Handle "no-speech" error with an alert
-    if (event.error === "no-speech") {
-      console.log("No speech detected during recognition.");
-      alert("No speech detected. Please try again and speak clearly.");
-    }
+    clearTimeout(noSpeechTimeout); // Clear the timeout on error
 
     // Stop any ongoing recording
     if (mediaRecorder && mediaRecorder.state === "recording") {
@@ -733,8 +737,9 @@ if (SpeechRecognition) {
       alert("Please allow microphone access to use speech recognition.");
     } else if (event.error === "network") {
       alert("Network error. Please check your internet connection.");
-    } else if (event.error !== "no-speech") {
-      // For errors other than "no-speech"
+    } else if (event.error === "no-speech") {
+      alert("No speech detected. Please try again and speak clearly.");
+    } else {
       alert("Speech recognition error. Please try again.");
     }
   };
@@ -745,6 +750,9 @@ if (SpeechRecognition) {
 
     // Reset UI without changing the sentence
     resetUI();
+
+    // Clear the timeout
+    clearTimeout(noSpeechTimeout);
 
     // Stop any ongoing recording
     if (mediaRecorder && mediaRecorder.state === "recording") {
