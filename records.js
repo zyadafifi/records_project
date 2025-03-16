@@ -119,6 +119,7 @@ function resetUI() {
 
   // Reset recording state and re-enable buttons
   isRecording = false;
+  speechDetected = false; // Reset speech detection flag
   toggleListenButtons(false);
   toggleBookmarkButtons(false);
 }
