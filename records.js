@@ -59,8 +59,10 @@ function closeDialog() {
 
 // Function to open no speech popup
 function openNoSpeechPopup() {
-  noSpeechPopup.style.display = "block";
-  noSpeechBackdrop.style.display = "block";
+  if (dialogContainer.style.display !== "block") {
+    noSpeechPopup.style.display = "block";
+    noSpeechBackdrop.style.display = "block";
+  }
 }
 
 // Function to close no speech popup
