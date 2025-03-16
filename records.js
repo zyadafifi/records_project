@@ -18,12 +18,6 @@ const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 5000; // 5 seconds timeout to detect speech
 
-function isMobileBrowser() {
-  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
-  );
-}
-
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -62,13 +56,7 @@ let recordedAudioBlob; // Stores the recorded audio blob
 let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
 retryButton.style.display = "none"; // Hide retry button initially
-if (!SpeechRecognition) {
-  // Fallback to a server-side speech recognition API
-  // or provide clear instructions to use a supported browser
-  alert(
-    "Your browser doesn't support speech recognition. Please use Chrome on desktop or Android."
-  );
-}
+
 // AudioContext for sound effects
 let audioContext;
 
@@ -87,35 +75,7 @@ async function resumeAudioContext() {
     console.log("AudioContext resumed.");
   }
 }
-if (audioContext && audioContext.state === "suspended") {
-  audioContext.resume();
-}
 
-// For iOS, add this to handle audio initialization
-document.addEventListener(
-  "touchstart",
-  function () {
-    if (audioContext && audioContext.state === "suspended") {
-      audioContext.resume();
-    }
-  },
-  { once: true }
-);
-async function requestMicrophoneAccess() {
-  try {
-    await navigator.mediaDevices.getUserMedia({ audio: true });
-    return true;
-  } catch (error) {
-    if (isMobileBrowser()) {
-      alert(
-        "Please allow microphone access in your browser settings. On iOS, you may need to enable microphone access in Settings > Privacy > Microphone."
-      );
-    } else {
-      alert("Please allow microphone access to use this feature.");
-    }
-    return false;
-  }
-}
 // Update the displayed sentence and reset UI
 function updateSentence() {
   if (lessons.length === 0) return; // Ensure lessons are loaded
