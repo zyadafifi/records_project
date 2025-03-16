@@ -21,29 +21,8 @@ const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
 document.body.appendChild(dialogBackdrop);
 
-// Create a no speech popup
-const noSpeechPopup = document.createElement("div");
-noSpeechPopup.classList.add("dialog-container", "no-speech-popup");
-noSpeechPopup.innerHTML = `
-  <div class="dialog-content">
-    <div class="close-icon-container">
-      <span class="close-icon-no-speech">&times;</span>
-    </div>
-    <h3>No Speech Detected</h3>
-    <p>We couldn't detect any speech. Please try again and speak clearly into your microphone.</p>
-    <button class="try-again-button">Try Again</button>
-  </div>
-`;
-document.body.appendChild(noSpeechPopup);
-
-// Create a backdrop for the no speech popup
-const noSpeechBackdrop = document.createElement("div");
-noSpeechBackdrop.classList.add("dialog-backdrop", "no-speech-backdrop");
-document.body.appendChild(noSpeechBackdrop);
-
-// Hide the no speech popup initially
-noSpeechPopup.style.display = "none";
-noSpeechBackdrop.style.display = "none";
+// Hide the dialog backdrop initially
+dialogBackdrop.style.display = "none";
 
 // Function to open the dialog
 function openDialog() {
@@ -57,34 +36,9 @@ function closeDialog() {
   dialogBackdrop.style.display = "none";
 }
 
-// Function to open no speech popup
-function openNoSpeechPopup() {
-  if (dialogContainer.style.display !== "block") {
-    noSpeechPopup.style.display = "block";
-    noSpeechBackdrop.style.display = "block";
-  }
-}
-
-// Function to close no speech popup
-function closeNoSpeechPopup() {
-  noSpeechPopup.style.display = "none";
-  noSpeechBackdrop.style.display = "none";
-}
-
 // Event listeners for closing the dialog
 document.querySelector(".close-icon").addEventListener("click", closeDialog);
 dialogBackdrop.addEventListener("click", closeDialog);
-
-// Event listeners for closing the no speech popup
-document
-  .querySelector(".close-icon-no-speech")
-  .addEventListener("click", closeNoSpeechPopup);
-document.querySelector(".try-again-button").addEventListener("click", () => {
-  closeNoSpeechPopup();
-  resetUI(); // Reset the UI without automatically starting recording
-});
-noSpeechBackdrop.addEventListener("click", closeNoSpeechPopup);
-noSpeechBackdrop.addEventListener("click", closeNoSpeechPopup);
 
 // Global variables
 let lessons = []; // Stores loaded lessons
@@ -136,7 +90,6 @@ function updateSentence() {
   retryButton.disabled = true;
   missingWordDiv.textContent = "";
   closeDialog();
-  closeNoSpeechPopup();
   updateProgressCircle(0);
   nextButton.style.backgroundColor = "";
 
@@ -161,7 +114,6 @@ function resetUI() {
   retryButton.disabled = true;
   missingWordDiv.textContent = "";
   closeDialog();
-  closeNoSpeechPopup();
   updateProgressCircle(0);
   document.getElementById("recordingIndicator").style.display = "none";
 
@@ -582,14 +534,9 @@ async function startAudioRecording() {
       toggleListenButtons(false);
       toggleBookmarkButtons(false);
 
-      // Check if no speech was detected and show the popup
-      // BUT only if the dialog is not already open (which would indicate that speech was recognized)
-      if (
-        !speechDetected &&
-        audioChunks.length > 0 &&
-        dialogContainer.style.display !== "block"
-      ) {
-        openNoSpeechPopup();
+      // Check if no speech was detected and show an alert
+      if (!speechDetected && audioChunks.length > 0) {
+        alert("No speech detected. Please try again and speak clearly.");
       }
 
       // Stop all tracks in the MediaStream to release the microphone
@@ -748,14 +695,10 @@ if (SpeechRecognition) {
   recognition.onerror = (event) => {
     console.error("Speech Recognition Error:", event.error);
 
-    // Handle "no-speech" error with custom popup
+    // Handle "no-speech" error with an alert
     if (event.error === "no-speech") {
       console.log("No speech detected");
-      // Only show the no-speech popup if the dialog isn't already open
-      if (dialogContainer.style.display !== "block") {
-        // We'll mark that no speech was detected, and let mediaRecorder.onstop show the popup
-        speechDetected = false;
-      }
+      alert("No speech detected. Please try again and speak clearly.");
     }
 
     // Stop any ongoing recording
@@ -763,10 +706,8 @@ if (SpeechRecognition) {
       mediaRecorder.stop();
     }
 
-    // Reset UI without changing the sentence, but don't reset if we're showing no-speech popup
-    if (event.error !== "no-speech") {
-      resetUI();
-    }
+    // Reset UI without changing the sentence
+    resetUI();
 
     // Provide user feedback based on error type
     if (event.error === "not-allowed") {
@@ -774,7 +715,7 @@ if (SpeechRecognition) {
     } else if (event.error === "network") {
       alert("Network error. Please check your internet connection.");
     } else if (event.error !== "no-speech") {
-      // For errors other than "no-speech" (which we handle with our custom popup)
+      // For errors other than "no-speech"
       alert("Speech recognition error. Please try again.");
     }
   };
@@ -782,7 +723,6 @@ if (SpeechRecognition) {
   retryButton.addEventListener("click", () => {
     // First close the dialog to show the sentence again
     closeDialog();
-    closeNoSpeechPopup();
 
     // Reset UI without changing the sentence
     resetUI();
