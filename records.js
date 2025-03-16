@@ -24,35 +24,6 @@ function isMobileBrowser() {
   );
 }
 
-if (audioContext && audioContext.state === "suspended") {
-  audioContext.resume();
-}
-
-// For iOS, add this to handle audio initialization
-document.addEventListener(
-  "touchstart",
-  function () {
-    if (audioContext && audioContext.state === "suspended") {
-      audioContext.resume();
-    }
-  },
-  { once: true }
-);
-async function requestMicrophoneAccess() {
-  try {
-    await navigator.mediaDevices.getUserMedia({ audio: true });
-    return true;
-  } catch (error) {
-    if (isMobileBrowser()) {
-      alert(
-        "Please allow microphone access in your browser settings. On iOS, you may need to enable microphone access in Settings > Privacy > Microphone."
-      );
-    } else {
-      alert("Please allow microphone access to use this feature.");
-    }
-    return false;
-  }
-}
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -116,7 +87,35 @@ async function resumeAudioContext() {
     console.log("AudioContext resumed.");
   }
 }
+if (audioContext && audioContext.state === "suspended") {
+  audioContext.resume();
+}
 
+// For iOS, add this to handle audio initialization
+document.addEventListener(
+  "touchstart",
+  function () {
+    if (audioContext && audioContext.state === "suspended") {
+      audioContext.resume();
+    }
+  },
+  { once: true }
+);
+async function requestMicrophoneAccess() {
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    return true;
+  } catch (error) {
+    if (isMobileBrowser()) {
+      alert(
+        "Please allow microphone access in your browser settings. On iOS, you may need to enable microphone access in Settings > Privacy > Microphone."
+      );
+    } else {
+      alert("Please allow microphone access to use this feature.");
+    }
+    return false;
+  }
+}
 // Update the displayed sentence and reset UI
 function updateSentence() {
   if (lessons.length === 0) return; // Ensure lessons are loaded
