@@ -18,6 +18,47 @@ const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 5000; // 5 seconds timeout to detect speech
 
+function isMobileBrowser() {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  );
+}
+if (!SpeechRecognition) {
+  // Fallback to a server-side speech recognition API
+  // or provide clear instructions to use a supported browser
+  alert(
+    "Your browser doesn't support speech recognition. Please use Chrome on desktop or Android."
+  );
+}
+if (audioContext && audioContext.state === "suspended") {
+  audioContext.resume();
+}
+
+// For iOS, add this to handle audio initialization
+document.addEventListener(
+  "touchstart",
+  function () {
+    if (audioContext && audioContext.state === "suspended") {
+      audioContext.resume();
+    }
+  },
+  { once: true }
+);
+async function requestMicrophoneAccess() {
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    return true;
+  } catch (error) {
+    if (isMobileBrowser()) {
+      alert(
+        "Please allow microphone access in your browser settings. On iOS, you may need to enable microphone access in Settings > Privacy > Microphone."
+      );
+    } else {
+      alert("Please allow microphone access to use this feature.");
+    }
+    return false;
+  }
+}
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
