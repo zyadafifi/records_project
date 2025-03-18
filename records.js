@@ -18,6 +18,9 @@ const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 5000; // 5 seconds timeout to detect speech
 
+// AssemblyAI API Key
+const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
+
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -48,8 +51,6 @@ let currentLessonIndex = 0; // Tracks the current lesson
 let currentSentenceIndex = 0; // Tracks the current sentence in the lesson
 let totalSentencesSpoken = 0; // Tracks total sentences spoken
 let totalPronunciationScore = 0; // Tracks total pronunciation score
-let SpeechRecognition =
-  window.SpeechRecognition || window.webkitSpeechRecognition; // Speech recognition API
 let mediaRecorder;
 let audioChunks = [];
 let recordedAudioBlob; // Stores the recorded audio blob
@@ -124,9 +125,6 @@ function resetUI() {
   speechDetected = false; // Reset speech detection flag
   toggleListenButtons(false);
   toggleBookmarkButtons(false);
-
-  // Reset the error flag
-  recognitionErrorOccurred = false;
 
   // Clear the timeout
   clearTimeout(noSpeechTimeout);
@@ -529,7 +527,7 @@ async function startAudioRecording() {
     clearTimeout(noSpeechTimeout);
     noSpeechTimeout = setTimeout(() => {
       // Only trigger if still recording and no speech detected
-      if (isRecording && !speechDetected && !recognitionErrorOccurred) {
+      if (isRecording && !speechDetected) {
         console.log("No speech detected timeout triggered");
         if (mediaRecorder && mediaRecorder.state === "recording") {
           mediaRecorder.stop();
@@ -542,7 +540,7 @@ async function startAudioRecording() {
       audioChunks.push(event.data);
     };
 
-    mediaRecorder.onstop = () => {
+    mediaRecorder.onstop = async () => {
       recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
       micButton.innerHTML = '<i class="fas fa-microphone"></i>';
       micButton.style.backgroundColor = "";
@@ -561,6 +559,25 @@ async function startAudioRecording() {
 
       // Stop all tracks in the MediaStream to release the microphone
       stream.getTracks().forEach((track) => track.stop());
+
+      // Upload the recorded audio to AssemblyAI for transcription
+      const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+      if (transcription) {
+        const currentLesson = lessons[currentLessonIndex];
+        const pronunciationScore = calculatePronunciationScore(
+          transcription,
+          currentLesson.sentences[currentSentenceIndex]
+        );
+        pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+        updateProgressCircle(pronunciationScore);
+
+        // Update total sentences spoken and overall score
+        totalSentencesSpoken++;
+        totalPronunciationScore += pronunciationScore;
+
+        // Show the dialog container
+        openDialog();
+      }
     };
 
     mediaRecorder.start();
@@ -579,6 +596,88 @@ async function startAudioRecording() {
     toggleListenButtons(false);
     toggleBookmarkButtons(false);
     clearTimeout(noSpeechTimeout);
+  }
+}
+
+// Upload audio to AssemblyAI and get transcription
+async function uploadAudioToAssemblyAI(audioBlob) {
+  try {
+    // Step 1: Upload the audio file to AssemblyAI
+    const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
+      method: "POST",
+      headers: {
+        authorization: ASSEMBLYAI_API_KEY,
+        "content-type": "application/octet-stream",
+      },
+      body: audioBlob,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Failed to upload audio: ${uploadResponse.statusText}`);
+    }
+
+    const uploadData = await uploadResponse.json();
+    const audioUrl = uploadData.upload_url;
+
+    // Step 2: Submit the transcription request
+    const transcriptionResponse = await fetch(
+      "https://api.assemblyai.com/v2/transcript",
+      {
+        method: "POST",
+        headers: {
+          authorization: ASSEMBLYAI_API_KEY,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          audio_url: audioUrl,
+        }),
+      }
+    );
+
+    if (!transcriptionResponse.ok) {
+      throw new Error(
+        `Failed to submit transcription request: ${transcriptionResponse.statusText}`
+      );
+    }
+
+    const transcriptionData = await transcriptionResponse.json();
+    const transcriptId = transcriptionData.id;
+
+    // Step 3: Poll for the transcription result
+    let transcriptionResult;
+    while (true) {
+      const statusResponse = await fetch(
+        `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
+        {
+          headers: {
+            authorization: ASSEMBLYAI_API_KEY,
+          },
+        }
+      );
+
+      if (!statusResponse.ok) {
+        throw new Error(
+          `Failed to get transcription status: ${statusResponse.statusText}`
+        );
+      }
+
+      const statusData = await statusResponse.json();
+      if (statusData.status === "completed") {
+        transcriptionResult = statusData.text;
+        break;
+      } else if (statusData.status === "error") {
+        throw new Error("Transcription failed");
+      }
+
+      // Wait for 1 second before polling again
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    return transcriptionResult;
+  } catch (error) {
+    console.error("Error in AssemblyAI transcription:", error);
+    alert("Failed to transcribe audio. Please try again.");
+    return null;
   }
 }
 
@@ -661,146 +760,68 @@ function getQuizIdFromURL() {
 // Load lessons when the page loads
 loadLessons();
 
-// Speech recognition logic with error handling
-if (SpeechRecognition) {
-  const recognition = new SpeechRecognition();
-  recognition.lang = "en-US";
-  recognition.continuous = false;
-  recognition.interimResults = false;
+// Event listeners for buttons
+micButton.addEventListener("click", async () => {
+  // Initialize and resume AudioContext on user gesture
+  initializeAudioContext();
+  await resumeAudioContext();
 
-  micButton.addEventListener("click", async () => {
-    // Initialize and resume AudioContext on user gesture
-    initializeAudioContext();
-    await resumeAudioContext();
+  micButton.style.display = "none";
+  retryButton.style.display = "inline-block";
+  retryButton.disabled = false;
+  startAudioRecording();
+});
 
-    // Reset error flag when starting a new recording
-    recognitionErrorOccurred = false;
+retryButton.addEventListener("click", () => {
+  // First close the dialog to show the sentence again
+  closeDialog();
 
-    micButton.style.display = "none";
-    retryButton.style.display = "inline-block";
-    retryButton.disabled = false;
-    startAudioRecording();
-    recognition.start();
-  });
+  // Reset UI without changing the sentence
+  resetUI();
 
-  recognition.onresult = (event) => {
-    speechDetected = true; // Set the flag when speech is detected
-    clearTimeout(noSpeechTimeout); // Clear the timeout when speech is detected
+  // Clear the timeout
+  clearTimeout(noSpeechTimeout);
 
-    let transcript = "";
-    for (let i = 0; i < event.results.length; i++) {
-      transcript += event.results[i][0].transcript;
-    }
-    console.log("Recognized Transcript:", transcript);
+  // Stop any ongoing recording
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
+});
 
-    const currentLesson = lessons[currentLessonIndex];
-    const pronunciationScore = calculatePronunciationScore(
-      transcript,
-      currentLesson.sentences[currentSentenceIndex]
-    );
-    pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-    updateProgressCircle(pronunciationScore);
+nextButton.addEventListener("click", () => {
+  const currentLesson = lessons[currentLessonIndex];
+  if (currentSentenceIndex < currentLesson.sentences.length - 1) {
+    currentSentenceIndex++;
+    updateSentence();
 
-    // Update total sentences spoken and overall score
-    totalSentencesSpoken++;
-    totalPronunciationScore += pronunciationScore;
+    // Reset recording state and re-enable listen/bookmark buttons
+    isRecording = false;
+    toggleListenButtons(false);
+    toggleBookmarkButtons(false);
 
-    // Show the dialog container
-    openDialog();
-  };
-  recognition.onspeechend = () => {
-    recognition.stop();
-    retryButton.style.display = "inline-block";
-    retryButton.disabled = false;
     if (mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.stop();
     }
-  };
-
-  recognition.onerror = (event) => {
-    console.error("Speech Recognition Error:", event.error);
-
-    // Set the error flag
-    recognitionErrorOccurred = true;
-    clearTimeout(noSpeechTimeout); // Clear the timeout on error
-
-    // Stop any ongoing recording
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-    }
-
-    // Reset UI without changing the sentence
-    resetUI();
-
-    // Provide user feedback based on error type
-    if (event.error === "not-allowed") {
-      alert("Please allow microphone access to use speech recognition.");
-    } else if (event.error === "network") {
-      alert("Network error. Please check your internet connection.");
-    } else if (event.error === "no-speech") {
-      alert("No speech detected. Please try again and speak clearly.");
-    } else {
-      alert("Speech recognition error. Please try again.");
-    }
-  };
-
-  retryButton.addEventListener("click", () => {
-    // First close the dialog to show the sentence again
-    closeDialog();
-
-    // Reset UI without changing the sentence
-    resetUI();
-
-    // Clear the timeout
-    clearTimeout(noSpeechTimeout);
-
-    // Stop any ongoing recording
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-    }
-    recognition.stop();
-  });
-
-  nextButton.addEventListener("click", () => {
-    const currentLesson = lessons[currentLessonIndex];
-    if (currentSentenceIndex < currentLesson.sentences.length - 1) {
-      currentSentenceIndex++;
-      updateSentence();
-
-      // Reset recording state and re-enable listen/bookmark buttons
-      isRecording = false;
-      toggleListenButtons(false);
-      toggleBookmarkButtons(false);
-
-      if (mediaRecorder && mediaRecorder.state === "recording") {
-        mediaRecorder.stop();
-      }
-    } else {
-      // All sentences in the current lesson completed
-      const congratulationModal = new bootstrap.Modal(
-        document.getElementById("congratulationModal")
-      );
-
-      // Update the modal content
-      sentencesSpokenDiv.textContent = totalSentencesSpoken;
-      overallScoreDiv.textContent = `${Math.round(
-        totalPronunciationScore / totalSentencesSpoken
-      )}%`;
-
-      congratulationModal.show(); // Show the congratulation modal
-    }
-  });
-
-  // Continue button logic
-  continueButton.addEventListener("click", () => {
-    const congratulationModal = bootstrap.Modal.getInstance(
+  } else {
+    // All sentences in the current lesson completed
+    const congratulationModal = new bootstrap.Modal(
       document.getElementById("congratulationModal")
     );
-    congratulationModal.hide(); // Hide the modal
-  });
-} else {
-  recognizedTextDiv.textContent =
-    "Speech Recognition not supported in this browser.";
-  micButton.disabled = true;
-  retryButton.disabled = true;
-}
+
+    // Update the modal content
+    sentencesSpokenDiv.textContent = totalSentencesSpoken;
+    overallScoreDiv.textContent = `${Math.round(
+      totalPronunciationScore / totalSentencesSpoken
+    )}%`;
+
+    congratulationModal.show(); // Show the congratulation modal
+  }
+});
+
+// Continue button logic
+continueButton.addEventListener("click", () => {
+  const congratulationModal = bootstrap.Modal.getInstance(
+    document.getElementById("congratulationModal")
+  );
+  congratulationModal.hide(); // Hide the modal
+});
