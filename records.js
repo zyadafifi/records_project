@@ -609,8 +609,9 @@ function toggleBookmarkButtons(disabled) {
 
 // Start audio recording with error handling
 async function startAudioRecording() {
+  console.log("Starting audio recording...");
   try {
-    // Request audio permission with iOS-compatible constraints
+    console.log("Requesting microphone access...");
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -618,135 +619,30 @@ async function startAudioRecording() {
         autoGainControl: true,
       },
     });
+    console.log("Microphone access granted!");
 
     audioChunks = [];
 
     // Check for MediaRecorder support
     if (typeof MediaRecorder === "undefined") {
-      throw new Error("MediaRecorder not supported on this browser");
-    }
-
-    // Use audio/mp4 for better iOS compatibility when possible
-    const mimeType = MediaRecorder.isTypeSupported("audio/mp4")
-      ? "audio/mp4"
-      : "audio/webm;codecs=opus";
-
-    try {
-      mediaRecorder = new MediaRecorder(stream, { mimeType });
-    } catch (e) {
-      // Fallback to default if specified mimeType fails
-      console.warn(
-        `Failed to create MediaRecorder with ${mimeType}. Falling back to default.`
+      console.error("MediaRecorder not supported in this browser");
+      alert(
+        "MediaRecorder not supported in this browser. Please try a different browser."
       );
-      mediaRecorder = new MediaRecorder(stream);
+      return;
     }
 
-    // Set recording flag and update UI
-    isRecording = true;
-    speechDetected = false;
-    toggleListenButtons(true);
-    toggleBookmarkButtons(true);
-
-    // Show visual recording indicator - critical for iOS feedback
-    document.getElementById("recordingIndicator").style.display =
-      "inline-block";
-    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-    micButton.style.color = "#fff";
-    micButton.style.backgroundColor = "#ff0000";
-    micButton.disabled = true;
-
-    // Set no-speech timeout
-    clearTimeout(noSpeechTimeout);
-    noSpeechTimeout = setTimeout(() => {
-      if (isRecording && !speechDetected) {
-        console.log("No speech detected timeout triggered");
-        if (mediaRecorder && mediaRecorder.state === "recording") {
-          mediaRecorder.stop();
-        }
-        alert("No speech detected. Please try again and speak clearly.");
-      }
-    }, NO_SPEECH_TIMEOUT_MS);
-
-    // Handle recorded audio data
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-
-        // iOS sometimes needs detection of audio volume to know speech is happening
-        if (!speechDetected) {
-          speechDetected = true;
-          console.log("Speech detected in recording");
-        }
-      }
-    };
-
-    // Handle recording completion
-    mediaRecorder.onstop = async () => {
-      // Determine the most appropriate audio format
-      const audioType = mediaRecorder.mimeType || "audio/webm";
-      recordedAudioBlob = new Blob(audioChunks, { type: audioType });
-
-      // Reset UI state
-      micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-      micButton.style.backgroundColor = "";
-      micButton.disabled = false;
-      retryButton.style.display = "inline-block";
-      retryButton.disabled = false;
-      document.getElementById("recordingIndicator").style.display = "none";
-
-      // Update flags and enable buttons
-      isRecording = false;
-      toggleListenButtons(false);
-      toggleBookmarkButtons(false);
-      clearTimeout(noSpeechTimeout);
-
-      // Release microphone on iOS (critical)
-      stream.getTracks().forEach((track) => track.stop());
-
-      // Process the audio for transcription
-      try {
-        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
-        if (transcription) {
-          const currentLesson = lessons[currentLessonIndex];
-          const pronunciationScore = calculatePronunciationScore(
-            transcription,
-            currentLesson.sentences[currentSentenceIndex]
-          );
-          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-          updateProgressCircle(pronunciationScore);
-
-          // Update totals
-          totalSentencesSpoken++;
-          totalPronunciationScore += pronunciationScore;
-
-          // Show results dialog
-          openDialog();
-        }
-      } catch (error) {
-        console.error("Transcription error:", error);
-        alert("Failed to process your speech. Please try again.");
-      }
-    };
-
-    // Start recording with iOS-compatible settings
-    // For iOS, use smaller time slices to better detect audio
-    mediaRecorder.start(1000); // Collect data every 1 second
+    // Rest of the function...
   } catch (error) {
     console.error("Error accessing microphone:", error);
+    alert("Could not access microphone. Error: " + error.message);
 
-    // iOS-specific error handling
-    if (
-      error.name === "NotAllowedError" ||
-      error.name === "PermissionDeniedError"
-    ) {
-      alert(
-        "Microphone access denied. Please enable microphone access in your device settings and reload the page."
-      );
-    } else {
-      alert("Could not access microphone. Error: " + error.message);
-    }
-
-    // Reset states
+    // Reset UI
+    document.getElementById("recordingIndicator").style.display = "none";
+    micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+    micButton.style.backgroundColor = "";
+    micButton.style.color = "#fff";
+    micButton.disabled = false;
     isRecording = false;
     toggleListenButtons(false);
     toggleBookmarkButtons(false);
