@@ -516,6 +516,7 @@ function toggleBookmarkButtons(disabled) {
 // Initialize the AssemblyAI WebSocket connection
 async function initializeWebSocket() {
   try {
+    console.log("Requesting token from AssemblyAI...");
     // Get the token from AssemblyAI token endpoint
     const response = await fetch(
       "https://api.assemblyai.com/v2/realtime/token",
@@ -531,13 +532,25 @@ async function initializeWebSocket() {
       }
     );
 
+    console.log("Token response status:", response.status);
+
+    if (!response.ok) {
+      console.error("Failed to get token. Status:", response.status);
+      throw new Error(`Failed to get token: ${response.statusText}`);
+    }
+
     const data = await response.json();
+    console.log("Token data received:", data);
+
     const token = data.token;
 
     if (!token) {
-      throw new Error("Failed to get token from AssemblyAI");
+      throw new Error(
+        "Failed to get token from AssemblyAI - no token in response"
+      );
     }
 
+    console.log("Initializing WebSocket connection...");
     // Initialize the WebSocket connection
     socket = new WebSocket(
       `wss://api.assemblyai.com/v2/realtime/ws?token=${token}`
@@ -557,6 +570,7 @@ async function initializeWebSocket() {
 
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      console.log("WebSocket message received:", data);
       if (data.message_type === "FinalTranscript") {
         speechDetected = true; // Set speech detection flag
         console.log("Final Transcript:", data.text);
@@ -568,16 +582,17 @@ async function initializeWebSocket() {
 
     socket.onerror = (error) => {
       console.error("WebSocket error:", error);
+      alert("Error with speech recognition: " + error.message);
     };
 
-    socket.onclose = () => {
-      console.log("WebSocket connection closed");
+    socket.onclose = (event) => {
+      console.log("WebSocket connection closed", event.code, event.reason);
     };
 
     return true;
   } catch (error) {
     console.error("Error initializing WebSocket:", error);
-    alert("Failed to initialize speech recognition. Please try again.");
+    alert("Failed to initialize speech recognition: " + error.message);
     return false;
   }
 }
