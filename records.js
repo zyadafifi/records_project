@@ -16,7 +16,8 @@ const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
-const NO_SPEECH_TIMEOUT_MS = 30000; // 30 seconds timeout to detect speech
+
+const NO_SPEECH_TIMEOUT_MS = 5000; // 5 seconds timeout to detect speech
 
 // AssemblyAI API Key
 const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
@@ -28,40 +29,6 @@ document.body.appendChild(dialogBackdrop);
 
 // Hide the dialog backdrop initially
 dialogBackdrop.style.display = "none";
-
-// Global variables
-let lessons = []; // Stores loaded lessons
-let currentLessonIndex = 0; // Tracks the current lesson
-let currentSentenceIndex = 0; // Tracks the current sentence in the lesson
-let totalSentencesSpoken = 0; // Tracks total sentences spoken
-let totalPronunciationScore = 0; // Tracks total pronunciation score
-let mediaRecorder;
-let audioChunks = [];
-let recordedAudioBlob; // Stores the recorded audio blob
-let isRecording = false; // Flag to track recording state
-let speechDetected = false; // Flag to track if speech was detected
-let socket; // WebSocket for real-time transcription
-let recognizedText = ""; // Stores the recognized text from streaming
-retryButton.style.display = "none"; // Hide retry button initially
-
-// AudioContext for sound effects
-let audioContext;
-
-// Function to initialize AudioContext
-function initializeAudioContext() {
-  if (!audioContext) {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    console.log("AudioContext initialized.");
-  }
-}
-
-// Function to resume AudioContext
-async function resumeAudioContext() {
-  if (audioContext && audioContext.state === "suspended") {
-    await audioContext.resume();
-    console.log("AudioContext resumed.");
-  }
-}
 
 // Function to open the dialog
 function openDialog() {
@@ -78,6 +45,58 @@ function closeDialog() {
 // Event listeners for closing the dialog
 document.querySelector(".close-icon").addEventListener("click", closeDialog);
 dialogBackdrop.addEventListener("click", closeDialog);
+
+// Global variables
+let lessons = []; // Stores loaded lessons
+let currentLessonIndex = 0; // Tracks the current lesson
+let currentSentenceIndex = 0; // Tracks the current sentence in the lesson
+let totalSentencesSpoken = 0; // Tracks total sentences spoken
+let totalPronunciationScore = 0; // Tracks total pronunciation score
+let mediaRecorder;
+let audioChunks = [];
+let recordedAudioBlob; // Stores the recorded audio blob
+let isRecording = false; // Flag to track recording state
+let speechDetected = false; // Flag to track if speech was detected
+retryButton.style.display = "none"; // Hide retry button initially
+
+// AudioContext for sound effects
+let audioContext;
+
+// Function to initialize AudioContext
+function initializeAudioContext() {
+  if (!audioContext) {
+    // Create AudioContext with proper iOS handling
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    audioContext = new AudioContext();
+
+    // iOS requires a touch to unlock audio
+    if (audioContext.state === "suspended") {
+      const unlockAudio = function () {
+        audioContext.resume().then(() => {
+          console.log("AudioContext unlocked on iOS");
+          // Remove event listeners once audio is unlocked
+          document.body.removeEventListener("touchstart", unlockAudio);
+          document.body.removeEventListener("touchend", unlockAudio);
+          document.body.removeEventListener("click", unlockAudio);
+        });
+      };
+
+      // Add multiple event listeners to ensure audio unlock
+      document.body.addEventListener("touchstart", unlockAudio, false);
+      document.body.addEventListener("touchend", unlockAudio, false);
+      document.body.addEventListener("click", unlockAudio, false);
+    }
+    console.log("AudioContext initialized with iOS compatibility.");
+  }
+}
+
+// Function to resume AudioContext
+async function resumeAudioContext() {
+  if (audioContext && audioContext.state === "suspended") {
+    await audioContext.resume();
+    console.log("AudioContext resumed.");
+  }
+}
 
 // Update the displayed sentence and reset UI
 function updateSentence() {
@@ -125,7 +144,6 @@ function resetUI() {
   // Reset recording state and re-enable buttons
   isRecording = false;
   speechDetected = false; // Reset speech detection flag
-  recognizedText = ""; // Reset recognized text
   toggleListenButtons(false);
   toggleBookmarkButtons(false);
 
@@ -241,29 +259,53 @@ function updateProgressCircle(score) {
 
 // Play sound effects using the Web Audio API
 function playSoundEffect(frequency, duration) {
-  if (!audioContext) {
-    console.error(
-      "AudioContext not initialized. Call initializeAudioContext() first."
-    );
-    return;
+  // Only proceed if AudioContext is ready
+  if (!audioContext || audioContext.state !== "running") {
+    console.warn("AudioContext not ready. Initializing...");
+    initializeAudioContext();
+
+    // If still not running, we need user interaction first
+    if (audioContext.state !== "running") {
+      console.warn("AudioContext needs user interaction first");
+      return; // Skip sound effect this time
+    }
   }
 
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
+  try {
+    // Create audio nodes
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
 
-  oscillator.frequency.value = frequency; // Frequency in Hz
-  oscillator.type = "sine"; // Type of waveform
+    // Configure oscillator
+    oscillator.type = "sine";
+    oscillator.frequency.value = frequency;
 
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
+    // Connect nodes
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
 
-  oscillator.start();
-  gainNode.gain.setValueAtTime(1, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(
-    0.001,
-    audioContext.currentTime + duration / 1000
-  );
-  oscillator.stop(audioContext.currentTime + duration / 1000);
+    // Start with zero gain and ramp up (prevents clicks on iOS)
+    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.7, audioContext.currentTime + 0.01);
+
+    // Ramp down before stopping (prevents clicks on iOS)
+    gainNode.gain.linearRampToValueAtTime(
+      0,
+      audioContext.currentTime + duration / 1000
+    );
+
+    // Start and schedule stop
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + duration / 1000);
+
+    // Clean up
+    oscillator.onended = () => {
+      oscillator.disconnect();
+      gainNode.disconnect();
+    };
+  } catch (error) {
+    console.error("Error playing sound effect:", error);
+  }
 }
 
 // Calculate pronunciation score and log recognized words to the console
@@ -458,21 +500,73 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
 // Speak the sentence using the Web Speech API
 function speakSentence() {
-  // Check if currently recording - if so, don't allow listening
+  // Check if currently recording
   if (isRecording) {
-    console.log("Cannot listen while recording");
     alert(
       "Cannot listen to example while recording. Please finish recording first."
     );
-    return; // Exit the function without speaking
+    return;
   }
 
-  if (lessons.length === 0) return; // Ensure lessons are loaded
-  const currentLesson = lessons[currentLessonIndex];
-  const sentence = currentLesson.sentences[currentSentenceIndex];
-  const utterance = new SpeechSynthesisUtterance(sentence);
-  utterance.lang = "en-US";
-  speechSynthesis.speak(utterance);
+  if (lessons.length === 0) return;
+
+  try {
+    // Cancel any ongoing speech
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+
+    const currentLesson = lessons[currentLessonIndex];
+    const sentence = currentLesson.sentences[currentSentenceIndex];
+    const utterance = new SpeechSynthesisUtterance(sentence);
+
+    // Set language and voice settings optimized for iOS
+    utterance.lang = "en-US";
+    utterance.rate = 0.9; // Slightly slower for better clarity on iOS
+    utterance.pitch = 1.0;
+
+    // Get available voices (important for iOS)
+    const voices = window.speechSynthesis.getVoices();
+
+    // Try to find a good English voice
+    if (voices.length > 0) {
+      // Look for a good English voice
+      const preferredVoices = [
+        "Samantha", // iOS English voice
+        "Alex", // Another iOS voice
+        "Google US English",
+        "Microsoft David",
+      ];
+
+      // Find first matching voice
+      for (const name of preferredVoices) {
+        const voice = voices.find((v) => v.name.includes(name));
+        if (voice) {
+          utterance.voice = voice;
+          break;
+        }
+      }
+
+      // If no preferred voice found, try to use any English voice
+      if (!utterance.voice) {
+        const englishVoice = voices.find(
+          (v) => v.lang.includes("en-US") || v.lang.includes("en-GB")
+        );
+        if (englishVoice) utterance.voice = englishVoice;
+      }
+    }
+
+    // Add event handlers for iOS debugging
+    utterance.onstart = () => console.log("Speech started");
+    utterance.onend = () => console.log("Speech ended");
+    utterance.onerror = (e) => console.error("Speech error:", e);
+
+    // Speak the sentence
+    window.speechSynthesis.speak(utterance);
+  } catch (error) {
+    console.error("Text-to-speech error:", error);
+    alert("Failed to play speech. Your device may not support text-to-speech.");
+  }
 }
 
 // Toggle listen buttons state
@@ -513,156 +607,86 @@ function toggleBookmarkButtons(disabled) {
   }
 }
 
-// Initialize the AssemblyAI WebSocket connection
-async function initializeWebSocket() {
-  try {
-    console.log("Requesting token from AssemblyAI...");
-    // Get the token from AssemblyAI token endpoint
-    const response = await fetch(
-      "https://api.assemblyai.com/v2/realtime/token",
-      {
-        method: "POST",
-        headers: {
-          authorization: ASSEMBLYAI_API_KEY,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          expires_in: 3600, // 1 hour validity
-        }),
-      }
-    );
-
-    console.log("Token response status:", response.status);
-
-    if (!response.ok) {
-      console.error("Failed to get token. Status:", response.status);
-      throw new Error(`Failed to get token: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log("Token data received:", data);
-
-    const token = data.token;
-
-    if (!token) {
-      throw new Error(
-        "Failed to get token from AssemblyAI - no token in response"
-      );
-    }
-
-    console.log("Initializing WebSocket connection...");
-    // Initialize the WebSocket connection
-    socket = new WebSocket(
-      `wss://api.assemblyai.com/v2/realtime/ws?token=${token}`
-    );
-
-    socket.onopen = () => {
-      console.log("WebSocket connection established");
-      // Send configuration to the server
-      socket.send(
-        JSON.stringify({
-          sample_rate: 16000,
-          encoding: "linear16",
-          audio_channels: 1,
-        })
-      );
-    };
-
-    socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      console.log("WebSocket message received:", data);
-      if (data.message_type === "FinalTranscript") {
-        speechDetected = true; // Set speech detection flag
-        console.log("Final Transcript:", data.text);
-
-        // Update the recognized text with the new transcript
-        recognizedText = data.text;
-      }
-    };
-
-    socket.onerror = (error) => {
-      console.error("WebSocket error:", error);
-      alert("Error with speech recognition: " + error.message);
-    };
-
-    socket.onclose = (event) => {
-      console.log("WebSocket connection closed", event.code, event.reason);
-    };
-
-    return true;
-  } catch (error) {
-    console.error("Error initializing WebSocket:", error);
-    alert("Failed to initialize speech recognition: " + error.message);
-    return false;
-  }
-}
-
-// Start audio recording with real-time transcription
+// Start audio recording with error handling
 async function startAudioRecording() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
+    // Request audio permission with iOS-compatible constraints
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
 
-    // Initialize WebSocket connection for real-time transcription
-    const socketInitialized = await initializeWebSocket();
-    if (!socketInitialized) {
-      return;
+    audioChunks = [];
+
+    // Check for MediaRecorder support
+    if (typeof MediaRecorder === "undefined") {
+      throw new Error("MediaRecorder not supported on this browser");
     }
 
-    // Set recording flag to true and disable listen/bookmark buttons
+    // Use audio/mp4 for better iOS compatibility when possible
+    const mimeType = MediaRecorder.isTypeSupported("audio/mp4")
+      ? "audio/mp4"
+      : "audio/webm;codecs=opus";
+
+    try {
+      mediaRecorder = new MediaRecorder(stream, { mimeType });
+    } catch (e) {
+      // Fallback to default if specified mimeType fails
+      console.warn(
+        `Failed to create MediaRecorder with ${mimeType}. Falling back to default.`
+      );
+      mediaRecorder = new MediaRecorder(stream);
+    }
+
+    // Set recording flag and update UI
     isRecording = true;
-    speechDetected = false; // Reset speech detection flag
-    recognizedText = ""; // Reset recognized text
+    speechDetected = false;
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
 
-    // Set a timeout to check if speech is detected
+    // Show visual recording indicator - critical for iOS feedback
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#fff";
+    micButton.style.backgroundColor = "#ff0000";
+    micButton.disabled = true;
+
+    // Set no-speech timeout
     clearTimeout(noSpeechTimeout);
     noSpeechTimeout = setTimeout(() => {
-      // Only trigger if still recording and no speech detected
       if (isRecording && !speechDetected) {
         console.log("No speech detected timeout triggered");
         if (mediaRecorder && mediaRecorder.state === "recording") {
           mediaRecorder.stop();
         }
-        if (socket && socket.readyState === WebSocket.OPEN) {
-          socket.close();
-        }
         alert("No speech detected. Please try again and speak clearly.");
       }
     }, NO_SPEECH_TIMEOUT_MS);
 
-    // Create a processor to handle audio data
-    const audioContext = new AudioContext();
-    const audioSource = audioContext.createMediaStreamSource(stream);
-    const processor = audioContext.createScriptProcessor(16384, 1, 1);
+    // Handle recorded audio data
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
 
-    processor.onaudioprocess = (event) => {
-      if (isRecording && socket && socket.readyState === WebSocket.OPEN) {
-        // Get raw audio data
-        const inputData = event.inputBuffer.getChannelData(0);
-
-        // Convert to 16-bit PCM
-        const pcmData = new Int16Array(inputData.length);
-        for (let i = 0; i < inputData.length; i++) {
-          pcmData[i] = inputData[i] * 32767;
+        // iOS sometimes needs detection of audio volume to know speech is happening
+        if (!speechDetected) {
+          speechDetected = true;
+          console.log("Speech detected in recording");
         }
-
-        // Send audio data to AssemblyAI
-        socket.send(pcmData.buffer);
       }
     };
 
-    audioSource.connect(processor);
-    processor.connect(audioContext.destination);
-
-    mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
-    };
-
+    // Handle recording completion
     mediaRecorder.onstop = async () => {
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      // Determine the most appropriate audio format
+      const audioType = mediaRecorder.mimeType || "audio/webm";
+      recordedAudioBlob = new Blob(audioChunks, { type: audioType });
+
+      // Reset UI state
       micButton.innerHTML = '<i class="fas fa-microphone"></i>';
       micButton.style.backgroundColor = "";
       micButton.disabled = false;
@@ -670,68 +694,145 @@ async function startAudioRecording() {
       retryButton.disabled = false;
       document.getElementById("recordingIndicator").style.display = "none";
 
-      // Set recording flag to false and re-enable listen/bookmark buttons
+      // Update flags and enable buttons
       isRecording = false;
       toggleListenButtons(false);
       toggleBookmarkButtons(false);
-
-      // Disconnect audio processing
-      audioSource.disconnect();
-      processor.disconnect();
-
-      // Close WebSocket connection
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        socket.close();
-      }
-
-      // Clear the timeout when recording stops
       clearTimeout(noSpeechTimeout);
 
-      // Stop all tracks in the MediaStream to release the microphone
+      // Release microphone on iOS (critical)
       stream.getTracks().forEach((track) => track.stop());
 
-      // Use the final recognized text from real-time transcription
-      if (recognizedText) {
-        const currentLesson = lessons[currentLessonIndex];
-        const pronunciationScore = calculatePronunciationScore(
-          recognizedText,
-          currentLesson.sentences[currentSentenceIndex]
-        );
-        pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-        updateProgressCircle(pronunciationScore);
+      // Process the audio for transcription
+      try {
+        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+        if (transcription) {
+          const currentLesson = lessons[currentLessonIndex];
+          const pronunciationScore = calculatePronunciationScore(
+            transcription,
+            currentLesson.sentences[currentSentenceIndex]
+          );
+          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+          updateProgressCircle(pronunciationScore);
 
-        // Update total sentences spoken and overall score
-        totalSentencesSpoken++;
-        totalPronunciationScore += pronunciationScore;
+          // Update totals
+          totalSentencesSpoken++;
+          totalPronunciationScore += pronunciationScore;
 
-        // Show the dialog container
-        openDialog();
-      } else {
-        alert("No speech was detected. Please try again.");
+          // Show results dialog
+          openDialog();
+        }
+      } catch (error) {
+        console.error("Transcription error:", error);
+        alert("Failed to process your speech. Please try again.");
       }
     };
 
-    mediaRecorder.start();
-    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-    micButton.style.color = "#ff0000";
-    micButton.style.color = "#fff";
-    micButton.disabled = true;
-    document.getElementById("recordingIndicator").style.display =
-      "inline-block";
+    // Start recording with iOS-compatible settings
+    // For iOS, use smaller time slices to better detect audio
+    mediaRecorder.start(1000); // Collect data every 1 second
   } catch (error) {
     console.error("Error accessing microphone:", error);
-    alert("Please allow microphone access to use this feature.");
 
-    // Ensure recording flag is reset and buttons are re-enabled in case of error
+    // iOS-specific error handling
+    if (
+      error.name === "NotAllowedError" ||
+      error.name === "PermissionDeniedError"
+    ) {
+      alert(
+        "Microphone access denied. Please enable microphone access in your device settings and reload the page."
+      );
+    } else {
+      alert("Could not access microphone. Error: " + error.message);
+    }
+
+    // Reset states
     isRecording = false;
     toggleListenButtons(false);
     toggleBookmarkButtons(false);
     clearTimeout(noSpeechTimeout);
+  }
+}
 
-    // Close WebSocket connection if there was an error
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.close();
+// Upload audio to AssemblyAI and get transcription
+async function uploadAudioToAssemblyAI(audioBlob) {
+  try {
+    // Step 1: Upload the audio file to AssemblyAI
+    const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
+      method: "POST",
+      headers: {
+        authorization: ASSEMBLYAI_API_KEY,
+        "content-type": "application/octet-stream",
+      },
+      body: audioBlob,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Failed to upload audio: ${uploadResponse.statusText}`);
     }
+
+    const uploadData = await uploadResponse.json();
+    const audioUrl = uploadData.upload_url;
+
+    // Step 2: Submit the transcription request
+    const transcriptionResponse = await fetch(
+      "https://api.assemblyai.com/v2/transcript",
+      {
+        method: "POST",
+        headers: {
+          authorization: ASSEMBLYAI_API_KEY,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          audio_url: audioUrl,
+        }),
+      }
+    );
+
+    if (!transcriptionResponse.ok) {
+      throw new Error(
+        `Failed to submit transcription request: ${transcriptionResponse.statusText}`
+      );
+    }
+
+    const transcriptionData = await transcriptionResponse.json();
+    const transcriptId = transcriptionData.id;
+
+    // Step 3: Poll for the transcription result
+    let transcriptionResult;
+    while (true) {
+      const statusResponse = await fetch(
+        `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
+        {
+          headers: {
+            authorization: ASSEMBLYAI_API_KEY,
+          },
+        }
+      );
+
+      if (!statusResponse.ok) {
+        throw new Error(
+          `Failed to get transcription status: ${statusResponse.statusText}`
+        );
+      }
+
+      const statusData = await statusResponse.json();
+      if (statusData.status === "completed") {
+        transcriptionResult = statusData.text;
+        break;
+      } else if (statusData.status === "error") {
+        throw new Error("Transcription failed");
+      }
+
+      // Wait for 1 second before polling again
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    return transcriptionResult;
+  } catch (error) {
+    console.error("Error in AssemblyAI transcription:", error);
+    alert("Failed to transcribe audio. Please try again.");
+    return null;
   }
 }
 
@@ -742,16 +843,47 @@ function playRecordedAudio() {
     return;
   }
 
-  // Prevent playing recorded audio during recording
   if (isRecording) {
-    console.log("Cannot play audio while recording");
     alert("Cannot play audio while recording. Please finish recording first.");
     return;
   }
 
-  const audioURL = URL.createObjectURL(recordedAudioBlob);
-  const audio = new Audio(audioURL);
-  audio.play();
+  try {
+    // Create object URL for the audio blob
+    const audioURL = URL.createObjectURL(recordedAudioBlob);
+
+    // Use a single Audio element and ensure it's created on user interaction
+    const audio = new Audio(audioURL);
+
+    // For iOS, we need to ensure audio playback is triggered directly from user action
+    const playPromise = audio.play();
+
+    // Handle play promise for iOS
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          console.log("Audio playback started successfully");
+        })
+        .catch((error) => {
+          console.error("Audio playback failed:", error);
+
+          // Special handling for iOS autoplay restrictions
+          if (error.name === "NotAllowedError") {
+            alert(
+              "Audio playback failed. Please ensure your device isn't on silent mode and try again."
+            );
+          }
+        });
+    }
+
+    // Clean up object URL when done
+    audio.onended = () => {
+      URL.revokeObjectURL(audioURL);
+    };
+  } catch (error) {
+    console.error("Error playing audio:", error);
+    alert("Failed to play audio. Error: " + error.message);
+  }
 }
 
 // Event listeners
@@ -812,7 +944,38 @@ function getQuizIdFromURL() {
 }
 
 // Load lessons when the page loads
-loadLessons();
+document.addEventListener("DOMContentLoaded", function () {
+  // Set up click handlers for iOS audio unlocking
+  const unlockIOSAudio = function () {
+    // Initialize audio context on first user interaction
+    initializeAudioContext();
+
+    if (audioContext && audioContext.state === "suspended") {
+      audioContext.resume();
+    }
+
+    // Also initialize speech synthesis for iOS
+    if ("speechSynthesis" in window) {
+      // iOS requires getting voices during a user action
+      window.speechSynthesis.getVoices();
+    }
+  };
+
+  // Attach to various user interaction events
+  document.body.addEventListener("touchstart", unlockIOSAudio, { once: true });
+  document.body.addEventListener("mousedown", unlockIOSAudio, { once: true });
+  document.body.addEventListener("keydown", unlockIOSAudio, { once: true });
+
+  // Make sure we preload speech synthesis voices (iOS specific)
+  if ("speechSynthesis" in window && "onvoiceschanged" in speechSynthesis) {
+    speechSynthesis.onvoiceschanged = function () {
+      console.log("Voices loaded:", speechSynthesis.getVoices().length);
+    };
+  }
+
+  // Load lessons when the page loads
+  loadLessons();
+});
 
 // Event listeners for buttons
 micButton.addEventListener("click", async () => {
@@ -840,11 +1003,6 @@ retryButton.addEventListener("click", () => {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     mediaRecorder.stop();
   }
-
-  // Close WebSocket connection if it's open
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.close();
-  }
 });
 
 nextButton.addEventListener("click", () => {
@@ -861,11 +1019,6 @@ nextButton.addEventListener("click", () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.stop();
     }
-
-    // Close WebSocket connection if it's open
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.close();
-    }
   } else {
     // All sentences in the current lesson completed
     const congratulationModal = new bootstrap.Modal(
@@ -874,44 +1027,18 @@ nextButton.addEventListener("click", () => {
 
     // Update the modal content
     sentencesSpokenDiv.textContent = totalSentencesSpoken;
+    overallScoreDiv.textContent = `${Math.round(
+      totalPronunciationScore / totalSentencesSpoken
+    )}%`;
 
-    // Calculate and display overall score
-    const overallScore =
-      totalSentencesSpoken > 0
-        ? Math.round(totalPronunciationScore / totalSentencesSpoken)
-        : 0;
-    overallScoreDiv.textContent = `${overallScore}%`;
-
-    // Show the congratulation modal
-    congratulationModal.show();
-
-    // Reset for the next lesson
-    currentSentenceIndex = 0;
-    totalSentencesSpoken = 0;
-    totalPronunciationScore = 0;
+    congratulationModal.show(); // Show the congratulation modal
   }
 });
 
-// Event listener for continue button
+// Continue button logic
 continueButton.addEventListener("click", () => {
-  // Move to the next lesson if available
-  if (currentLessonIndex < lessons.length - 1) {
-    currentLessonIndex++;
-    currentSentenceIndex = 0;
-    updateSentence();
-  } else {
-    // All lessons completed
-    alert("Congratulations! You have completed all lessons.");
-    // Redirect to a completion page or home page
-    window.location.href = "index.html";
-  }
-
-  // Hide the congratulation modal
   const congratulationModal = bootstrap.Modal.getInstance(
     document.getElementById("congratulationModal")
   );
-
-  if (congratulationModal) {
-    congratulationModal.hide();
-  }
+  congratulationModal.hide(); // Hide the modal
 });
