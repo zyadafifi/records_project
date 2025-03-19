@@ -16,7 +16,7 @@ const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
-const NO_SPEECH_TIMEOUT_MS = 30000; // 10 seconds timeout to detect speech
+const NO_SPEECH_TIMEOUT_MS = 30000; // 30 seconds timeout to detect speech
 
 // AssemblyAI API Key
 const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
@@ -29,22 +29,6 @@ document.body.appendChild(dialogBackdrop);
 // Hide the dialog backdrop initially
 dialogBackdrop.style.display = "none";
 
-// Function to open the dialog
-function openDialog() {
-  dialogContainer.style.display = "block";
-  dialogBackdrop.style.display = "block";
-}
-
-// Function to close the dialog
-function closeDialog() {
-  dialogContainer.style.display = "none";
-  dialogBackdrop.style.display = "none";
-}
-
-// Event listeners for closing the dialog
-document.querySelector(".close-icon").addEventListener("click", closeDialog);
-dialogBackdrop.addEventListener("click", closeDialog);
-
 // Global variables
 let lessons = []; // Stores loaded lessons
 let currentLessonIndex = 0; // Tracks the current lesson
@@ -56,6 +40,8 @@ let audioChunks = [];
 let recordedAudioBlob; // Stores the recorded audio blob
 let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
+let socket; // WebSocket for real-time transcription
+let recognizedText = ""; // Stores the recognized text from streaming
 retryButton.style.display = "none"; // Hide retry button initially
 
 // AudioContext for sound effects
@@ -76,6 +62,22 @@ async function resumeAudioContext() {
     console.log("AudioContext resumed.");
   }
 }
+
+// Function to open the dialog
+function openDialog() {
+  dialogContainer.style.display = "block";
+  dialogBackdrop.style.display = "block";
+}
+
+// Function to close the dialog
+function closeDialog() {
+  dialogContainer.style.display = "none";
+  dialogBackdrop.style.display = "none";
+}
+
+// Event listeners for closing the dialog
+document.querySelector(".close-icon").addEventListener("click", closeDialog);
+dialogBackdrop.addEventListener("click", closeDialog);
 
 // Update the displayed sentence and reset UI
 function updateSentence() {
@@ -123,6 +125,7 @@ function resetUI() {
   // Reset recording state and re-enable buttons
   isRecording = false;
   speechDetected = false; // Reset speech detection flag
+  recognizedText = ""; // Reset recognized text
   toggleListenButtons(false);
   toggleBookmarkButtons(false);
 
@@ -510,16 +513,92 @@ function toggleBookmarkButtons(disabled) {
   }
 }
 
-// Start audio recording with error handling
+// Initialize the AssemblyAI WebSocket connection
+async function initializeWebSocket() {
+  try {
+    // Get the token from AssemblyAI token endpoint
+    const response = await fetch(
+      "https://api.assemblyai.com/v2/realtime/token",
+      {
+        method: "POST",
+        headers: {
+          authorization: ASSEMBLYAI_API_KEY,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          expires_in: 3600, // 1 hour validity
+        }),
+      }
+    );
+
+    const data = await response.json();
+    const token = data.token;
+
+    if (!token) {
+      throw new Error("Failed to get token from AssemblyAI");
+    }
+
+    // Initialize the WebSocket connection
+    socket = new WebSocket(
+      `wss://api.assemblyai.com/v2/realtime/ws?token=${token}`
+    );
+
+    socket.onopen = () => {
+      console.log("WebSocket connection established");
+      // Send configuration to the server
+      socket.send(
+        JSON.stringify({
+          sample_rate: 16000,
+          encoding: "linear16",
+          audio_channels: 1,
+        })
+      );
+    };
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.message_type === "FinalTranscript") {
+        speechDetected = true; // Set speech detection flag
+        console.log("Final Transcript:", data.text);
+
+        // Update the recognized text with the new transcript
+        recognizedText = data.text;
+      }
+    };
+
+    socket.onerror = (error) => {
+      console.error("WebSocket error:", error);
+    };
+
+    socket.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+
+    return true;
+  } catch (error) {
+    console.error("Error initializing WebSocket:", error);
+    alert("Failed to initialize speech recognition. Please try again.");
+    return false;
+  }
+}
+
+// Start audio recording with real-time transcription
 async function startAudioRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
     mediaRecorder = new MediaRecorder(stream);
 
+    // Initialize WebSocket connection for real-time transcription
+    const socketInitialized = await initializeWebSocket();
+    if (!socketInitialized) {
+      return;
+    }
+
     // Set recording flag to true and disable listen/bookmark buttons
     isRecording = true;
     speechDetected = false; // Reset speech detection flag
+    recognizedText = ""; // Reset recognized text
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
 
@@ -532,9 +611,36 @@ async function startAudioRecording() {
         if (mediaRecorder && mediaRecorder.state === "recording") {
           mediaRecorder.stop();
         }
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.close();
+        }
         alert("No speech detected. Please try again and speak clearly.");
       }
     }, NO_SPEECH_TIMEOUT_MS);
+
+    // Create a processor to handle audio data
+    const audioContext = new AudioContext();
+    const audioSource = audioContext.createMediaStreamSource(stream);
+    const processor = audioContext.createScriptProcessor(16384, 1, 1);
+
+    processor.onaudioprocess = (event) => {
+      if (isRecording && socket && socket.readyState === WebSocket.OPEN) {
+        // Get raw audio data
+        const inputData = event.inputBuffer.getChannelData(0);
+
+        // Convert to 16-bit PCM
+        const pcmData = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          pcmData[i] = inputData[i] * 32767;
+        }
+
+        // Send audio data to AssemblyAI
+        socket.send(pcmData.buffer);
+      }
+    };
+
+    audioSource.connect(processor);
+    processor.connect(audioContext.destination);
 
     mediaRecorder.ondataavailable = (event) => {
       audioChunks.push(event.data);
@@ -554,18 +660,26 @@ async function startAudioRecording() {
       toggleListenButtons(false);
       toggleBookmarkButtons(false);
 
+      // Disconnect audio processing
+      audioSource.disconnect();
+      processor.disconnect();
+
+      // Close WebSocket connection
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+
       // Clear the timeout when recording stops
       clearTimeout(noSpeechTimeout);
 
       // Stop all tracks in the MediaStream to release the microphone
       stream.getTracks().forEach((track) => track.stop());
 
-      // Upload the recorded audio to AssemblyAI for transcription
-      const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
-      if (transcription) {
+      // Use the final recognized text from real-time transcription
+      if (recognizedText) {
         const currentLesson = lessons[currentLessonIndex];
         const pronunciationScore = calculatePronunciationScore(
-          transcription,
+          recognizedText,
           currentLesson.sentences[currentSentenceIndex]
         );
         pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
@@ -577,6 +691,8 @@ async function startAudioRecording() {
 
         // Show the dialog container
         openDialog();
+      } else {
+        alert("No speech was detected. Please try again.");
       }
     };
 
@@ -596,88 +712,11 @@ async function startAudioRecording() {
     toggleListenButtons(false);
     toggleBookmarkButtons(false);
     clearTimeout(noSpeechTimeout);
-  }
-}
 
-// Upload audio to AssemblyAI and get transcription
-async function uploadAudioToAssemblyAI(audioBlob) {
-  try {
-    // Step 1: Upload the audio file to AssemblyAI
-    const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
-      method: "POST",
-      headers: {
-        authorization: ASSEMBLYAI_API_KEY,
-        "content-type": "application/octet-stream",
-      },
-      body: audioBlob,
-    });
-
-    if (!uploadResponse.ok) {
-      throw new Error(`Failed to upload audio: ${uploadResponse.statusText}`);
+    // Close WebSocket connection if there was an error
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.close();
     }
-
-    const uploadData = await uploadResponse.json();
-    const audioUrl = uploadData.upload_url;
-
-    // Step 2: Submit the transcription request
-    const transcriptionResponse = await fetch(
-      "https://api.assemblyai.com/v2/transcript",
-      {
-        method: "POST",
-        headers: {
-          authorization: ASSEMBLYAI_API_KEY,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          audio_url: audioUrl,
-        }),
-      }
-    );
-
-    if (!transcriptionResponse.ok) {
-      throw new Error(
-        `Failed to submit transcription request: ${transcriptionResponse.statusText}`
-      );
-    }
-
-    const transcriptionData = await transcriptionResponse.json();
-    const transcriptId = transcriptionData.id;
-
-    // Step 3: Poll for the transcription result
-    let transcriptionResult;
-    while (true) {
-      const statusResponse = await fetch(
-        `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
-        {
-          headers: {
-            authorization: ASSEMBLYAI_API_KEY,
-          },
-        }
-      );
-
-      if (!statusResponse.ok) {
-        throw new Error(
-          `Failed to get transcription status: ${statusResponse.statusText}`
-        );
-      }
-
-      const statusData = await statusResponse.json();
-      if (statusData.status === "completed") {
-        transcriptionResult = statusData.text;
-        break;
-      } else if (statusData.status === "error") {
-        throw new Error("Transcription failed");
-      }
-
-      // Wait for 1 second before polling again
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-
-    return transcriptionResult;
-  } catch (error) {
-    console.error("Error in AssemblyAI transcription:", error);
-    alert("Failed to transcribe audio. Please try again.");
-    return null;
   }
 }
 
@@ -786,6 +825,11 @@ retryButton.addEventListener("click", () => {
   if (mediaRecorder && mediaRecorder.state === "recording") {
     mediaRecorder.stop();
   }
+
+  // Close WebSocket connection if it's open
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.close();
+  }
 });
 
 nextButton.addEventListener("click", () => {
@@ -802,6 +846,11 @@ nextButton.addEventListener("click", () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
       mediaRecorder.stop();
     }
+
+    // Close WebSocket connection if it's open
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.close();
+    }
   } else {
     // All sentences in the current lesson completed
     const congratulationModal = new bootstrap.Modal(
@@ -810,18 +859,44 @@ nextButton.addEventListener("click", () => {
 
     // Update the modal content
     sentencesSpokenDiv.textContent = totalSentencesSpoken;
-    overallScoreDiv.textContent = `${Math.round(
-      totalPronunciationScore / totalSentencesSpoken
-    )}%`;
 
-    congratulationModal.show(); // Show the congratulation modal
+    // Calculate and display overall score
+    const overallScore =
+      totalSentencesSpoken > 0
+        ? Math.round(totalPronunciationScore / totalSentencesSpoken)
+        : 0;
+    overallScoreDiv.textContent = `${overallScore}%`;
+
+    // Show the congratulation modal
+    congratulationModal.show();
+
+    // Reset for the next lesson
+    currentSentenceIndex = 0;
+    totalSentencesSpoken = 0;
+    totalPronunciationScore = 0;
   }
 });
 
-// Continue button logic
+// Event listener for continue button
 continueButton.addEventListener("click", () => {
+  // Move to the next lesson if available
+  if (currentLessonIndex < lessons.length - 1) {
+    currentLessonIndex++;
+    currentSentenceIndex = 0;
+    updateSentence();
+  } else {
+    // All lessons completed
+    alert("Congratulations! You have completed all lessons.");
+    // Redirect to a completion page or home page
+    window.location.href = "index.html";
+  }
+
+  // Hide the congratulation modal
   const congratulationModal = bootstrap.Modal.getInstance(
     document.getElementById("congratulationModal")
   );
-  congratulationModal.hide(); // Hide the modal
+
+  if (congratulationModal) {
+    congratulationModal.hide();
+  }
 });
