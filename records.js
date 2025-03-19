@@ -16,7 +16,6 @@ const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
-
 const NO_SPEECH_TIMEOUT_MS = 5000; // 5 seconds timeout to detect speech
 
 // AssemblyAI API Key
@@ -65,28 +64,8 @@ let audioContext;
 // Function to initialize AudioContext
 function initializeAudioContext() {
   if (!audioContext) {
-    // Create AudioContext with proper iOS handling
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    audioContext = new AudioContext();
-
-    // iOS requires a touch to unlock audio
-    if (audioContext.state === "suspended") {
-      const unlockAudio = function () {
-        audioContext.resume().then(() => {
-          console.log("AudioContext unlocked on iOS");
-          // Remove event listeners once audio is unlocked
-          document.body.removeEventListener("touchstart", unlockAudio);
-          document.body.removeEventListener("touchend", unlockAudio);
-          document.body.removeEventListener("click", unlockAudio);
-        });
-      };
-
-      // Add multiple event listeners to ensure audio unlock
-      document.body.addEventListener("touchstart", unlockAudio, false);
-      document.body.addEventListener("touchend", unlockAudio, false);
-      document.body.addEventListener("click", unlockAudio, false);
-    }
-    console.log("AudioContext initialized with iOS compatibility.");
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    console.log("AudioContext initialized.");
   }
 }
 
@@ -259,53 +238,29 @@ function updateProgressCircle(score) {
 
 // Play sound effects using the Web Audio API
 function playSoundEffect(frequency, duration) {
-  // Only proceed if AudioContext is ready
-  if (!audioContext || audioContext.state !== "running") {
-    console.warn("AudioContext not ready. Initializing...");
-    initializeAudioContext();
-
-    // If still not running, we need user interaction first
-    if (audioContext.state !== "running") {
-      console.warn("AudioContext needs user interaction first");
-      return; // Skip sound effect this time
-    }
-  }
-
-  try {
-    // Create audio nodes
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    // Configure oscillator
-    oscillator.type = "sine";
-    oscillator.frequency.value = frequency;
-
-    // Connect nodes
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    // Start with zero gain and ramp up (prevents clicks on iOS)
-    gainNode.gain.setValueAtTime(0, audioContext.currentTime);
-    gainNode.gain.linearRampToValueAtTime(0.7, audioContext.currentTime + 0.01);
-
-    // Ramp down before stopping (prevents clicks on iOS)
-    gainNode.gain.linearRampToValueAtTime(
-      0,
-      audioContext.currentTime + duration / 1000
+  if (!audioContext) {
+    console.error(
+      "AudioContext not initialized. Call initializeAudioContext() first."
     );
-
-    // Start and schedule stop
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + duration / 1000);
-
-    // Clean up
-    oscillator.onended = () => {
-      oscillator.disconnect();
-      gainNode.disconnect();
-    };
-  } catch (error) {
-    console.error("Error playing sound effect:", error);
+    return;
   }
+
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+
+  oscillator.frequency.value = frequency; // Frequency in Hz
+  oscillator.type = "sine"; // Type of waveform
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  oscillator.start();
+  gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(
+    0.001,
+    audioContext.currentTime + duration / 1000
+  );
+  oscillator.stop(audioContext.currentTime + duration / 1000);
 }
 
 // Calculate pronunciation score and log recognized words to the console
@@ -500,73 +455,21 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
 // Speak the sentence using the Web Speech API
 function speakSentence() {
-  // Check if currently recording
+  // Check if currently recording - if so, don't allow listening
   if (isRecording) {
+    console.log("Cannot listen while recording");
     alert(
       "Cannot listen to example while recording. Please finish recording first."
     );
-    return;
+    return; // Exit the function without speaking
   }
 
-  if (lessons.length === 0) return;
-
-  try {
-    // Cancel any ongoing speech
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-
-    const currentLesson = lessons[currentLessonIndex];
-    const sentence = currentLesson.sentences[currentSentenceIndex];
-    const utterance = new SpeechSynthesisUtterance(sentence);
-
-    // Set language and voice settings optimized for iOS
-    utterance.lang = "en-US";
-    utterance.rate = 0.9; // Slightly slower for better clarity on iOS
-    utterance.pitch = 1.0;
-
-    // Get available voices (important for iOS)
-    const voices = window.speechSynthesis.getVoices();
-
-    // Try to find a good English voice
-    if (voices.length > 0) {
-      // Look for a good English voice
-      const preferredVoices = [
-        "Samantha", // iOS English voice
-        "Alex", // Another iOS voice
-        "Google US English",
-        "Microsoft David",
-      ];
-
-      // Find first matching voice
-      for (const name of preferredVoices) {
-        const voice = voices.find((v) => v.name.includes(name));
-        if (voice) {
-          utterance.voice = voice;
-          break;
-        }
-      }
-
-      // If no preferred voice found, try to use any English voice
-      if (!utterance.voice) {
-        const englishVoice = voices.find(
-          (v) => v.lang.includes("en-US") || v.lang.includes("en-GB")
-        );
-        if (englishVoice) utterance.voice = englishVoice;
-      }
-    }
-
-    // Add event handlers for iOS debugging
-    utterance.onstart = () => console.log("Speech started");
-    utterance.onend = () => console.log("Speech ended");
-    utterance.onerror = (e) => console.error("Speech error:", e);
-
-    // Speak the sentence
-    window.speechSynthesis.speak(utterance);
-  } catch (error) {
-    console.error("Text-to-speech error:", error);
-    alert("Failed to play speech. Your device may not support text-to-speech.");
-  }
+  if (lessons.length === 0) return; // Ensure lessons are loaded
+  const currentLesson = lessons[currentLessonIndex];
+  const sentence = currentLesson.sentences[currentSentenceIndex];
+  const utterance = new SpeechSynthesisUtterance(sentence);
+  utterance.lang = "en-US";
+  speechSynthesis.speak(utterance);
 }
 
 // Toggle listen buttons state
@@ -609,40 +512,86 @@ function toggleBookmarkButtons(disabled) {
 
 // Start audio recording with error handling
 async function startAudioRecording() {
-  console.log("Starting audio recording...");
   try {
-    console.log("Requesting microphone access...");
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
-    console.log("Microphone access granted!");
-
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
 
-    // Check for MediaRecorder support
-    if (typeof MediaRecorder === "undefined") {
-      console.error("MediaRecorder not supported in this browser");
-      alert(
-        "MediaRecorder not supported in this browser. Please try a different browser."
-      );
-      return;
-    }
+    // Set recording flag to true and disable listen/bookmark buttons
+    isRecording = true;
+    speechDetected = false; // Reset speech detection flag
+    toggleListenButtons(true);
+    toggleBookmarkButtons(true);
 
-    // Rest of the function...
+    // Set a timeout to check if speech is detected
+    clearTimeout(noSpeechTimeout);
+    noSpeechTimeout = setTimeout(() => {
+      // Only trigger if still recording and no speech detected
+      if (isRecording && !speechDetected) {
+        console.log("No speech detected timeout triggered");
+        if (mediaRecorder && mediaRecorder.state === "recording") {
+          mediaRecorder.stop();
+        }
+        alert("No speech detected. Please try again and speak clearly.");
+      }
+    }, NO_SPEECH_TIMEOUT_MS);
+
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+      micButton.style.backgroundColor = "";
+      micButton.disabled = false;
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      document.getElementById("recordingIndicator").style.display = "none";
+
+      // Set recording flag to false and re-enable listen/bookmark buttons
+      isRecording = false;
+      toggleListenButtons(false);
+      toggleBookmarkButtons(false);
+
+      // Clear the timeout when recording stops
+      clearTimeout(noSpeechTimeout);
+
+      // Stop all tracks in the MediaStream to release the microphone
+      stream.getTracks().forEach((track) => track.stop());
+
+      // Upload the recorded audio to AssemblyAI for transcription
+      const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+      if (transcription) {
+        const currentLesson = lessons[currentLessonIndex];
+        const pronunciationScore = calculatePronunciationScore(
+          transcription,
+          currentLesson.sentences[currentSentenceIndex]
+        );
+        pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+        updateProgressCircle(pronunciationScore);
+
+        // Update total sentences spoken and overall score
+        totalSentencesSpoken++;
+        totalPronunciationScore += pronunciationScore;
+
+        // Show the dialog container
+        openDialog();
+      }
+    };
+
+    mediaRecorder.start();
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#ff0000";
+    micButton.style.color = "#fff";
+    micButton.disabled = true;
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
   } catch (error) {
     console.error("Error accessing microphone:", error);
-    alert("Could not access microphone. Error: " + error.message);
+    alert("Please allow microphone access to use this feature.");
 
-    // Reset UI
-    document.getElementById("recordingIndicator").style.display = "none";
-    micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-    micButton.style.backgroundColor = "";
-    micButton.style.color = "#fff";
-    micButton.disabled = false;
+    // Ensure recording flag is reset and buttons are re-enabled in case of error
     isRecording = false;
     toggleListenButtons(false);
     toggleBookmarkButtons(false);
@@ -739,47 +688,16 @@ function playRecordedAudio() {
     return;
   }
 
+  // Prevent playing recorded audio during recording
   if (isRecording) {
+    console.log("Cannot play audio while recording");
     alert("Cannot play audio while recording. Please finish recording first.");
     return;
   }
 
-  try {
-    // Create object URL for the audio blob
-    const audioURL = URL.createObjectURL(recordedAudioBlob);
-
-    // Use a single Audio element and ensure it's created on user interaction
-    const audio = new Audio(audioURL);
-
-    // For iOS, we need to ensure audio playback is triggered directly from user action
-    const playPromise = audio.play();
-
-    // Handle play promise for iOS
-    if (playPromise !== undefined) {
-      playPromise
-        .then(() => {
-          console.log("Audio playback started successfully");
-        })
-        .catch((error) => {
-          console.error("Audio playback failed:", error);
-
-          // Special handling for iOS autoplay restrictions
-          if (error.name === "NotAllowedError") {
-            alert(
-              "Audio playback failed. Please ensure your device isn't on silent mode and try again."
-            );
-          }
-        });
-    }
-
-    // Clean up object URL when done
-    audio.onended = () => {
-      URL.revokeObjectURL(audioURL);
-    };
-  } catch (error) {
-    console.error("Error playing audio:", error);
-    alert("Failed to play audio. Error: " + error.message);
-  }
+  const audioURL = URL.createObjectURL(recordedAudioBlob);
+  const audio = new Audio(audioURL);
+  audio.play();
 }
 
 // Event listeners
@@ -840,38 +758,7 @@ function getQuizIdFromURL() {
 }
 
 // Load lessons when the page loads
-document.addEventListener("DOMContentLoaded", function () {
-  // Set up click handlers for iOS audio unlocking
-  const unlockIOSAudio = function () {
-    // Initialize audio context on first user interaction
-    initializeAudioContext();
-
-    if (audioContext && audioContext.state === "suspended") {
-      audioContext.resume();
-    }
-
-    // Also initialize speech synthesis for iOS
-    if ("speechSynthesis" in window) {
-      // iOS requires getting voices during a user action
-      window.speechSynthesis.getVoices();
-    }
-  };
-
-  // Attach to various user interaction events
-  document.body.addEventListener("touchstart", unlockIOSAudio, { once: true });
-  document.body.addEventListener("mousedown", unlockIOSAudio, { once: true });
-  document.body.addEventListener("keydown", unlockIOSAudio, { once: true });
-
-  // Make sure we preload speech synthesis voices (iOS specific)
-  if ("speechSynthesis" in window && "onvoiceschanged" in speechSynthesis) {
-    speechSynthesis.onvoiceschanged = function () {
-      console.log("Voices loaded:", speechSynthesis.getVoices().length);
-    };
-  }
-
-  // Load lessons when the page loads
-  loadLessons();
-});
+loadLessons();
 
 // Event listeners for buttons
 micButton.addEventListener("click", async () => {
