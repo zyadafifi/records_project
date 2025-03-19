@@ -16,7 +16,7 @@ const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
-const NO_SPEECH_TIMEOUT_MS = 10000; // 10 seconds timeout to detect speech
+const NO_SPEECH_TIMEOUT_MS = 15000; // 10 seconds timeout to detect speech
 
 // AssemblyAI API Key
 const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
