@@ -539,17 +539,17 @@ function toggleBookmarkButtons(disabled) {
 // Start audio recording with error handling
 async function startAudioRecording() {
   try {
-    const stream = await navigator.mediaDevices.getUserMedia({ 
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
         sampleRate: 48000,
-        channelCount: 1
-      }
+        channelCount: 1,
+      },
     });
-    
+
     audioChunks = [];
-    const options = { mimeType: 'audio/webm;codecs=opus' };
+    const options = { mimeType: "audio/webm;codecs=opus" };
     mediaRecorder = new MediaRecorder(stream, options);
 
     // Set recording flag to true and disable listen/bookmark buttons
@@ -579,12 +579,14 @@ async function startAudioRecording() {
 
     mediaRecorder.onstop = async () => {
       try {
-        recordedAudioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-        
+        recordedAudioBlob = new Blob(audioChunks, {
+          type: "audio/webm;codecs=opus",
+        });
+
         // Debug: Create a URL for the recorded audio to verify quality
         const audioURL = URL.createObjectURL(recordedAudioBlob);
         console.log("Recorded audio URL:", audioURL);
-        
+
         micButton.innerHTML = '<i class="fas fa-microphone"></i>';
         micButton.style.backgroundColor = "";
         micButton.disabled = false;
@@ -604,7 +606,9 @@ async function startAudioRecording() {
         stream.getTracks().forEach((track) => track.stop());
 
         // Upload the recorded audio to Google Cloud Speech-to-Text for transcription
-        const transcription = await transcribeAudioWithGoogle(recordedAudioBlob);
+        const transcription = await transcribeAudioWithGoogle(
+          recordedAudioBlob
+        );
         if (transcription) {
           const currentLesson = lessons[currentLessonIndex];
           const pronunciationScore = calculatePronunciationScore(
@@ -649,7 +653,7 @@ async function transcribeAudioWithGoogle(audioBlob) {
   try {
     // Convert Blob to base64
     const base64Audio = await blobToBase64(audioBlob);
-    
+
     // Remove the data URL prefix
     const base64Data = base64Audio.split(",")[1];
 
