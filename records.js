@@ -22,59 +22,194 @@ const NO_SPEECH_TIMEOUT_MS = 5000;
 // Google Cloud API Key
 const GOOGLE_CLOUD_API_KEY = "AIzaSyAGEKiq1X3cGWkS-CLS3oepkO6xoK_5j6M";
 
-// Create a backdrop for the dialog
+// Dialog backdrop
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
 document.body.appendChild(dialogBackdrop);
-
-// Hide the dialog backdrop initially
 dialogBackdrop.style.display = "none";
 
-// Function to open the dialog
-function openDialog() {
-  dialogContainer.style.display = "block";
-  dialogBackdrop.style.display = "block";
-}
-
-// Function to close the dialog
-function closeDialog() {
-  dialogContainer.style.display = "none";
-  dialogBackdrop.style.display = "none";
-}
-
-// Event listeners for closing the dialog
-document.querySelector(".close-icon").addEventListener("click", closeDialog);
-dialogBackdrop.addEventListener("click", closeDialog);
-
 // Global variables
-let lessons = []; // Stores loaded lessons
-let currentLessonIndex = 0; // Tracks the current lesson
-let currentSentenceIndex = 0; // Tracks the current sentence in the lesson
-let totalSentencesSpoken = 0; // Tracks total sentences spoken
-let totalPronunciationScore = 0; // Tracks total pronunciation score
+let lessons = [];
+let currentLessonIndex = 0;
+let currentSentenceIndex = 0;
+let totalSentencesSpoken = 0;
+let totalPronunciationScore = 0;
 let mediaRecorder;
 let audioChunks = [];
-let recordedAudioBlob; // Stores the recorded audio blob
-let isRecording = false; // Flag to track recording state
-let speechDetected = false; // Flag to track if speech was detected
-let audioContext; // For sound effects
+let recordedAudioBlob;
+let isRecording = false;
+let speechDetected = false;
+let audioContext;
+let silenceTimer;
+const SILENCE_DETECTION_TIMEOUT = 2000; // 2 seconds of silence to stop recording
 
-retryButton.style.display = "none"; // Hide retry button initially
-
-// Function to initialize AudioContext
+// Initialize and resume AudioContext
 function initializeAudioContext() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    console.log("AudioContext initialized.");
   }
 }
 
-// Function to resume AudioContext
 async function resumeAudioContext() {
   if (audioContext && audioContext.state === "suspended") {
     await audioContext.resume();
-    console.log("AudioContext resumed.");
   }
+}
+
+// Recording functions with improved silence detection
+async function startAudioRecording() {
+  try {
+    initializeAudioContext();
+    await resumeAudioContext();
+
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 48000,
+        channelCount: 1,
+      },
+    });
+
+    audioChunks = [];
+    const options = { mimeType: "audio/webm;codecs=opus" };
+    mediaRecorder = new MediaRecorder(stream, options);
+
+    isRecording = true;
+    speechDetected = false;
+    toggleListenButtons(true);
+    toggleBookmarkButtons(true);
+
+    // Start no speech timeout
+    clearTimeout(noSpeechTimeout);
+    noSpeechTimeout = setTimeout(() => {
+      if (isRecording && !speechDetected) {
+        console.log("No speech detected - stopping recording");
+        stopRecording();
+      }
+    }, NO_SPEECH_TIMEOUT_MS);
+
+    // Setup silence detection
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    const microphone = audioContext.createMediaStreamSource(stream);
+    microphone.connect(analyser);
+    analyser.fftSize = 256;
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    function checkSilence() {
+      analyser.getByteFrequencyData(dataArray);
+      let sum = 0;
+      for (let i = 0; i < bufferLength; i++) {
+        sum += dataArray[i];
+      }
+      const average = sum / bufferLength;
+
+      if (average > 20) {
+        // Sound detected
+        speechDetected = true;
+        clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(() => {
+          if (isRecording) {
+            console.log("Silence detected - stopping recording");
+            stopRecording();
+          }
+        }, SILENCE_DETECTION_TIMEOUT);
+      }
+
+      if (isRecording) {
+        requestAnimationFrame(checkSilence);
+      }
+    }
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    };
+
+    mediaRecorder.onstop = async () => {
+      try {
+        recordedAudioBlob = new Blob(audioChunks, {
+          type: "audio/webm;codecs=opus",
+        });
+        updateUIAfterRecording();
+
+        const transcription = await transcribeAudioWithGoogle(
+          recordedAudioBlob
+        );
+        if (transcription) {
+          processTranscription(transcription);
+        }
+      } catch (error) {
+        console.error("Error in recording stop handler:", error);
+        alert("Error processing recording. Please try again.");
+      } finally {
+        cleanupRecording(stream);
+      }
+    };
+
+    mediaRecorder.start(100); // Collect data every 100ms
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#ff0000";
+    micButton.disabled = true;
+    recordingIndicator.style.display = "inline-block";
+
+    // Start silence detection
+    checkSilence();
+  } catch (error) {
+    console.error("Error accessing microphone:", error);
+    alert("Please allow microphone access to use this feature.");
+    handleRecordingError();
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
+}
+
+function updateUIAfterRecording() {
+  micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+  micButton.style.backgroundColor = "";
+  micButton.disabled = false;
+  retryButton.style.display = "inline-block";
+  retryButton.disabled = false;
+  recordingIndicator.style.display = "none";
+}
+
+function processTranscription(transcription) {
+  const currentLesson = lessons[currentLessonIndex];
+  const pronunciationScore = calculatePronunciationScore(
+    transcription,
+    currentLesson.sentences[currentSentenceIndex]
+  );
+  pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+  updateProgressCircle(pronunciationScore);
+  totalSentencesSpoken++;
+  totalPronunciationScore += pronunciationScore;
+  openDialog();
+}
+
+function cleanupRecording(stream) {
+  isRecording = false;
+  toggleListenButtons(false);
+  toggleBookmarkButtons(false);
+  clearTimeout(noSpeechTimeout);
+  clearTimeout(silenceTimer);
+  if (stream) {
+    stream.getTracks().forEach((track) => track.stop());
+  }
+}
+
+function handleRecordingError() {
+  isRecording = false;
+  toggleListenButtons(false);
+  toggleBookmarkButtons(false);
+  clearTimeout(noSpeechTimeout);
+  clearTimeout(silenceTimer);
 }
 
 // Update the displayed sentence and reset UI
