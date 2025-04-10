@@ -625,7 +625,6 @@ async function startAudioRecording() {
 }
 
 // Transcribe audio using Google Cloud Speech-to-Text API
-// Updated transcribeAudioWithGoogle function with better error handling
 async function transcribeAudioWithGoogle(audioBlob) {
   try {
     // Convert Blob to base64
@@ -647,7 +646,6 @@ async function transcribeAudioWithGoogle(audioBlob) {
             sampleRateHertz: 16000,
             languageCode: "en-US",
             enableAutomaticPunctuation: true,
-            model: "default",
           },
           audio: {
             content: base64Data,
@@ -656,110 +654,20 @@ async function transcribeAudioWithGoogle(audioBlob) {
       }
     );
 
-    const data = await response.json();
-
     if (!response.ok) {
-      // Handle API errors
-      let errorMessage = data.error?.message || "Unknown API error";
-      console.error("Speech-to-Text API error details:", data.error);
-      throw new Error(`Speech-to-Text API error: ${errorMessage}`);
+      throw new Error(`Speech-to-Text API error: ${response.statusText}`);
     }
 
+    const data = await response.json();
     if (data.results && data.results[0] && data.results[0].alternatives[0]) {
       return data.results[0].alternatives[0].transcript;
     } else {
-      console.warn("No transcription results returned, full response:", data);
-      throw new Error("No speech detected in audio");
+      throw new Error("No transcription results returned");
     }
   } catch (error) {
     console.error("Error with Speech-to-Text API:", error);
-
-    // Show user-friendly error messages
-    let userMessage = "Failed to transcribe audio. Please try again.";
-    if (error.message.includes("quota")) {
-      userMessage =
-        "Speech recognition quota exceeded. Please try again later.";
-    } else if (error.message.includes("invalid audio")) {
-      userMessage = "Audio quality too poor. Please speak louder and clearer.";
-    }
-
-    alert(userMessage);
+    alert("Failed to transcribe audio. Please try again.");
     return null;
-  }
-}
-
-// Updated startAudioRecording function to ensure proper audio format
-async function startAudioRecording() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        sampleRate: 16000, // Match Google's recommended sample rate
-        channelCount: 1, // Mono audio
-        echoCancellation: false,
-        noiseSuppression: false,
-        autoGainControl: false,
-      },
-    });
-
-    audioChunks = [];
-    const options = {
-      mimeType: "audio/webm;codecs=opus",
-      audioBitsPerSecond: 16000, // 16kHz sample rate
-    };
-
-    mediaRecorder = new MediaRecorder(stream, options);
-
-    // ... rest of your existing recording code ...
-  } catch (error) {
-    console.error("Recording setup error:", error);
-    alert("Failed to initialize microphone. Please check permissions.");
-    // Reset states
-    isRecording = false;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
-  }
-}
-
-// Helper function to convert audio format if needed
-async function prepareAudioForGoogle(audioBlob) {
-  try {
-    // Create an AudioContext to resample if needed
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)(
-      {
-        sampleRate: 16000,
-      }
-    );
-
-    const arrayBuffer = await audioBlob.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-    // Convert to mono if needed
-    if (audioBuffer.numberOfChannels > 1) {
-      const monoBuffer = audioContext.createBuffer(
-        1,
-        audioBuffer.length,
-        audioBuffer.sampleRate
-      );
-      const monoData = monoBuffer.getChannelData(0);
-      for (let i = 0; i < audioBuffer.length; i++) {
-        // Simple averaging of channels
-        let sum = 0;
-        for (
-          let channel = 0;
-          channel < audioBuffer.numberOfChannels;
-          channel++
-        ) {
-          sum += audioBuffer.getChannelData(channel)[i];
-        }
-        monoData[i] = sum / audioBuffer.numberOfChannels;
-      }
-      return monoBuffer;
-    }
-
-    return audioBuffer;
-  } catch (error) {
-    console.error("Audio preparation error:", error);
-    return audioBlob; // Fallback to original if processing fails
   }
 }
 
