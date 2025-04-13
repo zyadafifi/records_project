@@ -1205,3 +1205,48 @@ function handleRecordingError() {
   micButton.disabled = false;
   recordingIndicator.style.display = "none";
 }
+
+// Check if the API key is valid
+async function checkApiKeyValidity() {
+  try {
+    // Make a simple request to the Speech-to-Text API to check if the key is valid
+    const response = await fetch(
+      `https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_CLOUD_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          config: {
+            encoding: "WEBM_OPUS",
+            sampleRateHertz: 48000,
+            languageCode: "en-US",
+          },
+          audio: {
+            content: "", // Empty content just to test the API key
+          },
+        }),
+      }
+    );
+
+    // If we get a 400 error, it means the API key is valid but the request is invalid (which is expected)
+    // If we get a 403 error, it means the API key is invalid
+    if (response.status === 403) {
+      console.error("API key is invalid or has insufficient permissions");
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error checking API key validity:", error);
+    return false;
+  }
+}
+
+// Dialog backdrop
+const dialogBackdrop = document.createElement("div");
+dialogBackdrop.classList.add("dialog-backdrop");
+document.body.appendChild(dialogBackdrop);
+dialogBackdrop.style.display = "none";
