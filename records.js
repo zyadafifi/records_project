@@ -1,4 +1,4 @@
-/ DOM Elements
+/** DOM Elements */
 const sentenceElement = document.getElementById("sentence");
 const micButton = document.getElementById("micButton");
 const retryButton = document.getElementById("retryButton");
@@ -15,18 +15,19 @@ const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
+const recordingIndicator = document.getElementById("recordingIndicator");
+
+/** Global variables and constants */
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 5000; // 5 seconds timeout to detect speech
 
 // AssemblyAI API Key
-const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
+const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2";
 
-// Create a backdrop for the dialog
+// Create and initialize dialog backdrop
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
 document.body.appendChild(dialogBackdrop);
-
-// Hide the dialog backdrop initially
 dialogBackdrop.style.display = "none";
 
 // Function to open the dialog
@@ -825,3 +826,56 @@ continueButton.addEventListener("click", () => {
   );
   congratulationModal.hide(); // Hide the modal
 });
+
+/** Initialize lessons */
+async function initializeLesson() {
+  try {
+    const url =
+      "https://raw.githubusercontent.com/zyadafifi/lessons/main/lessons.json";
+    const response = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "Cache-Control": "no-cache",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch lessons: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data || !data.lessons || !Array.isArray(data.lessons)) {
+      throw new Error("Invalid lessons data format");
+    }
+
+    lessons = data.lessons;
+
+    // Get and validate quizId
+    const quizId = getQuizIdFromURL();
+    if (!quizId) {
+      throw new Error("No quizId found in URL");
+    }
+
+    // Find matching lesson
+    currentLessonIndex = lessons.findIndex(
+      (lesson) => lesson.quizId === quizId
+    );
+    if (currentLessonIndex === -1) {
+      throw new Error(`No lesson found for quizId: ${quizId}`);
+    }
+
+    // Update UI with first sentence
+    updateSentence();
+    console.log("Lesson initialized successfully");
+  } catch (error) {
+    console.error("Failed to initialize lesson:", error);
+    if (sentenceElement) {
+      sentenceElement.textContent =
+        "Error loading lesson. Please refresh the page.";
+    }
+  }
+}
+
+// Initialize when DOM is ready
+document.addEventListener("DOMContentLoaded", initializeLesson);
