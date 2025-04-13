@@ -1,4 +1,4 @@
-// DOM Elements initialization
+/ DOM Elements
 const sentenceElement = document.getElementById("sentence");
 const micButton = document.getElementById("micButton");
 const retryButton = document.getElementById("retryButton");
@@ -15,14 +15,16 @@ const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
-const recordingIndicator = document.getElementById("recordingIndicator");
+let noSpeechTimeout;
+const NO_SPEECH_TIMEOUT_MS = 5000; // 5 seconds timeout to detect speech
+
+// AssemblyAI API Key
+const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
+
+// Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
 document.body.appendChild(dialogBackdrop);
-
-// Constants
-const NO_SPEECH_TIMEOUT_MS = 5000;
-const ASSEMBLYAI_API_KEY = "YOUR_ASSEMBLYAI_API_KEY"; // Replace with your actual API key
 
 // Hide the dialog backdrop initially
 dialogBackdrop.style.display = "none";
@@ -72,25 +74,6 @@ async function resumeAudioContext() {
   if (audioContext && audioContext.state === "suspended") {
     await audioContext.resume();
     console.log("AudioContext resumed.");
-  }
-}
-
-// Function to load and display the first sentence
-async function initializeLesson() {
-  try {
-    await loadLessons();
-    if (lessons.length > 0 && lessons[currentLessonIndex]) {
-      console.log("Current lesson:", lessons[currentLessonIndex]);
-      updateSentence();
-    } else {
-      console.error("No lessons available or current lesson is invalid");
-      sentenceElement.textContent =
-        "Error loading lesson. Please refresh the page.";
-    }
-  } catch (error) {
-    console.error("Error initializing lesson:", error);
-    sentenceElement.textContent =
-      "Error loading lesson. Please refresh the page.";
   }
 }
 
@@ -723,18 +706,13 @@ listen2Button.addEventListener("click", speakSentence);
 bookmarkIcon.addEventListener("click", playRecordedAudio);
 bookmarkIcon2.addEventListener("click", playRecordedAudio);
 
-// Update loadLessons function to be more robust
+// Load lessons from the JSON file
 async function loadLessons() {
   try {
     const url =
-      "https://raw.githubusercontent.com/zyadafifi/lessons/main/lessons.json";
-    console.log("Fetching lessons from:", url);
-
+      "https://raw.githubusercontent.com/zyadafifi/lessons/main/lessons.json"; // Replace with your JSON URL
     const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        "Cache-Control": "no-cache",
-      },
+      headers: { Accept: "application/json" },
     });
 
     if (!response.ok) {
@@ -742,22 +720,19 @@ async function loadLessons() {
     }
 
     const data = await response.json();
-    console.log("Raw lesson data:", data);
+    console.log("Fetched data:", data); // Log the fetched data for debugging
 
-    if (!data || !Array.isArray(data.lessons) || data.lessons.length === 0) {
-      throw new Error("Invalid or empty lessons data received");
+    // Ensure the data has the expected structure
+    if (!data || !data.lessons) {
+      throw new Error("Invalid JSON structure: 'lessons' array not found");
     }
 
     lessons = data.lessons;
-    console.log("Processed lessons:", lessons);
+    console.log("Lessons loaded successfully:", lessons);
 
     // Get the quizId from the URL
     const quizId = getQuizIdFromURL();
-    console.log("Looking for quizId:", quizId);
-
-    if (!quizId) {
-      throw new Error("No quizId provided in URL");
-    }
+    console.log("Quiz ID from URL:", quizId);
 
     // Find the lesson with the matching quizId
     currentLessonIndex = lessons.findIndex(
@@ -765,17 +740,14 @@ async function loadLessons() {
     );
 
     if (currentLessonIndex === -1) {
-      throw new Error(`No lesson found for quizId: ${quizId}`);
+      console.error("Lesson not found for quizId:", quizId);
+      return;
     }
 
-    console.log("Found lesson at index:", currentLessonIndex);
-    return true;
+    // Update the UI with the first sentence
+    updateSentence();
   } catch (error) {
-    console.error("Error in loadLessons:", error);
-    alert(
-      "Failed to load lessons. Please check your internet connection and refresh the page."
-    );
-    return false;
+    console.error("Error loading lessons:", error);
   }
 }
 
@@ -785,8 +757,8 @@ function getQuizIdFromURL() {
   return urlParams.get("quizId");
 }
 
-// Call initializeLesson when the page loads
-document.addEventListener("DOMContentLoaded", initializeLesson);
+// Load lessons when the page loads
+loadLessons();
 
 // Event listeners for buttons
 micButton.addEventListener("click", async () => {
