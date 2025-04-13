@@ -125,30 +125,61 @@ async function startAudioRecording() {
     isRecording = false;
     speechDetected = false;
 
-    // Initialize audio with optimized settings
+    // Initialize audio with iOS handling
     initializeAudioContext();
     if (audioContext.state === "suspended") {
       await audioContext.resume();
     }
 
-    const stream = await navigator.mediaDevices.getUserMedia({
+    // iOS-compatible constraints with optimizations
+    const constraints = {
       audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        sampleRate: 48000, // Consistent sample rate
-        channelCount: 1, // Mono for faster processing
+        echoCancellation: { exact: true },
+        noiseSuppression: { exact: true },
+        autoGainControl: { exact: true },
       },
-    });
+    };
 
-    // Optimized MediaRecorder settings
-    mediaRecorder = new MediaRecorder(stream, {
-      mimeType: "audio/webm;codecs=opus",
+    // Add sample rate only if not on iOS
+    if (!isIOS) {
+      constraints.audio.sampleRate = 48000;
+      constraints.audio.channelCount = 1;
+    }
+
+    // Get audio stream with fallback for iOS
+    const stream = await navigator.mediaDevices
+      .getUserMedia(constraints)
+      .catch(async (err) => {
+        console.error("Initial getUserMedia error:", err);
+        // Fallback to basic audio constraints for iOS
+        return await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+      });
+
+    // Determine supported mime type for iOS
+    let mimeType = "audio/webm;codecs=opus";
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      if (MediaRecorder.isTypeSupported("audio/mp4")) {
+        mimeType = "audio/mp4";
+      } else {
+        mimeType = ""; // Let browser choose format
+      }
+    }
+
+    // Create MediaRecorder with iOS compatible settings
+    const options = {
       audioBitsPerSecond: 128000,
-    });
+    };
+    if (mimeType) {
+      options.mimeType = mimeType;
+    }
 
-    // Reduced chunk collection interval for faster processing
-    const CHUNK_INTERVAL = 500; // Collect chunks every 500ms
+    console.log("Creating MediaRecorder with options:", options);
+    mediaRecorder = new MediaRecorder(stream, options);
+
+    // Optimized chunk collection
+    const CHUNK_INTERVAL = isIOS ? 1000 : 500; // Longer interval for iOS
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         audioChunks.push(event.data);
@@ -156,7 +187,6 @@ async function startAudioRecording() {
           `Chunk received: ${event.data.size} bytes, Total chunks: ${audioChunks.length}`
         );
 
-        // Stop recording if maximum chunks reached
         if (audioChunks.length >= MAX_CHUNKS) {
           console.log("Maximum chunks reached, stopping recording");
           stopRecording();
@@ -164,7 +194,7 @@ async function startAudioRecording() {
       }
     };
 
-    // Handle recording stop
+    // Handle recording stop with iOS cleanup
     mediaRecorder.onstop = async () => {
       console.log("MediaRecorder stopped");
       clearTimeout(recordingTimeout);
@@ -177,14 +207,12 @@ async function startAudioRecording() {
           return;
         }
 
-        const recordedBlob = new Blob(audioChunks, {
-          type: "audio/webm;codecs=opus",
-        });
-        console.log(
-          `Recording complete. Total size: ${recordedBlob.size} bytes`
-        );
+        const blobOptions = {
+          type: mimeType || "audio/webm;codecs=opus",
+        };
+        recordedAudioBlob = new Blob(audioChunks, blobOptions);
 
-        if (recordedBlob.size < 1000) {
+        if (recordedAudioBlob.size < 1000) {
           console.warn("Recording too small, likely no speech");
           alert("No speech detected. Please try again and speak clearly.");
           handleRecordingError();
@@ -192,11 +220,13 @@ async function startAudioRecording() {
         }
 
         // Store the blob and update UI
-        recordedAudioBlob = recordedBlob;
+        window.recordedAudioBlob = recordedAudioBlob;
         updateUIAfterRecording();
 
         // Process the recording
-        const transcription = await transcribeAudioWithGoogle(recordedBlob);
+        const transcription = await transcribeAudioWithGoogle(
+          recordedAudioBlob
+        );
         if (transcription) {
           processTranscription(transcription);
         }
@@ -206,26 +236,26 @@ async function startAudioRecording() {
         handleRecordingError();
       } finally {
         // Cleanup
-        stream.getTracks().forEach((track) => track.stop());
-        isRecording = false;
-        toggleListenButtons(false);
-        toggleBookmarkButtons(false);
+        stream.getTracks().forEach((track) => {
+          track.stop();
+          console.log("Media track stopped");
+        });
       }
     };
 
-    // Start recording with reduced interval
+    // Start recording
     isRecording = true;
     mediaRecorder.start(CHUNK_INTERVAL);
-    console.log("Recording started with optimized settings");
+    console.log("Recording started with mime type:", mimeType);
 
-    // Reduced maximum recording time
-    const OPTIMIZED_RECORDING_TIME = 10000; // 10 seconds maximum
+    // Adjusted recording time for iOS
+    const RECORDING_TIME = isIOS ? 12000 : 10000; // Slightly longer for iOS
     recordingTimeout = setTimeout(() => {
       if (isRecording) {
         console.log("Maximum recording time reached, stopping recording");
         stopRecording();
       }
-    }, OPTIMIZED_RECORDING_TIME);
+    }, RECORDING_TIME);
 
     // Update UI
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
@@ -236,10 +266,19 @@ async function startAudioRecording() {
     toggleBookmarkButtons(true);
   } catch (error) {
     console.error("Error starting recording:", error);
+    if (
+      error.name === "NotAllowedError" ||
+      error.name === "PermissionDeniedError"
+    ) {
+      alert(
+        "Microphone access denied. Please grant microphone permissions and try again."
+      );
+    } else {
+      alert(
+        "Error accessing microphone. Please ensure microphone permissions are granted."
+      );
+    }
     handleRecordingError();
-    alert(
-      "Error accessing microphone. Please ensure microphone permissions are granted."
-    );
   }
 }
 
