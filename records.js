@@ -510,7 +510,11 @@ function toggleBookmarkButtons(disabled) {
   }
 }
 
-// Start audio recording with error handling
+// Constants for recording
+const RECORDING_DURATION = 5000; // 5 seconds recording time
+let recordingTimeout;
+
+// Start audio recording with automatic stop
 async function startAudioRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -519,22 +523,8 @@ async function startAudioRecording() {
 
     // Set recording flag to true and disable listen/bookmark buttons
     isRecording = true;
-    speechDetected = false; // Reset speech detection flag
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
-
-    // Set a timeout to check if speech is detected
-    clearTimeout(noSpeechTimeout);
-    noSpeechTimeout = setTimeout(() => {
-      // Only trigger if still recording and no speech detected
-      if (isRecording && !speechDetected) {
-        console.log("No speech detected timeout triggered");
-        if (mediaRecorder && mediaRecorder.state === "recording") {
-          mediaRecorder.stop();
-        }
-        alert("No speech detected. Please try again and speak clearly.");
-      }
-    }, NO_SPEECH_TIMEOUT_MS);
 
     mediaRecorder.ondataavailable = (event) => {
       audioChunks.push(event.data);
@@ -553,9 +543,6 @@ async function startAudioRecording() {
       isRecording = false;
       toggleListenButtons(false);
       toggleBookmarkButtons(false);
-
-      // Clear the timeout when recording stops
-      clearTimeout(noSpeechTimeout);
 
       // Stop all tracks in the MediaStream to release the microphone
       stream.getTracks().forEach((track) => track.stop());
@@ -580,13 +567,20 @@ async function startAudioRecording() {
       }
     };
 
+    // Start recording
     mediaRecorder.start();
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
     micButton.style.color = "#ff0000";
-    micButton.style.color = "#fff";
     micButton.disabled = true;
     document.getElementById("recordingIndicator").style.display =
       "inline-block";
+
+    // Set timeout to automatically stop recording after RECORDING_DURATION
+    recordingTimeout = setTimeout(() => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+      }
+    }, RECORDING_DURATION);
   } catch (error) {
     console.error("Error accessing microphone:", error);
     alert("Please allow microphone access to use this feature.");
@@ -595,7 +589,6 @@ async function startAudioRecording() {
     isRecording = false;
     toggleListenButtons(false);
     toggleBookmarkButtons(false);
-    clearTimeout(noSpeechTimeout);
   }
 }
 
@@ -772,15 +765,18 @@ micButton.addEventListener("click", async () => {
   startAudioRecording();
 });
 
+// Update the retry button handler to clear the timeout
 retryButton.addEventListener("click", () => {
+  // Clear any existing recording timeout
+  if (recordingTimeout) {
+    clearTimeout(recordingTimeout);
+  }
+
   // First close the dialog to show the sentence again
   closeDialog();
 
   // Reset UI without changing the sentence
   resetUI();
-
-  // Clear the timeout
-  clearTimeout(noSpeechTimeout);
 
   // Stop any ongoing recording
   if (mediaRecorder && mediaRecorder.state === "recording") {
