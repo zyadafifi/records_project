@@ -112,27 +112,48 @@ async function startAudioRecording() {
     });
 
     audioChunks = [];
-    // Use a more compatible audio format
-    const options = {
-      mimeType: "audio/webm;codecs=opus",
-      audioBitsPerSecond: 128000, // Higher bitrate for better quality
-    };
 
-    // Check if the browser supports the specified MIME type
-    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      console.warn(
-        "WebM with Opus codec not supported, trying alternative formats"
-      );
-      if (MediaRecorder.isTypeSupported("audio/webm")) {
-        options.mimeType = "audio/webm";
-      } else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) {
-        options.mimeType = "audio/ogg;codecs=opus";
-      } else {
+    // Determine the best audio format for the browser and API compatibility
+    let mimeType = "audio/webm;codecs=opus";
+    let audioBitsPerSecond = 128000;
+
+    // Check browser compatibility
+    if (!MediaRecorder.isTypeSupported(mimeType)) {
+      console.warn("WebM with Opus codec not supported, trying alternatives");
+
+      // Try different formats in order of preference
+      const formats = [
+        "audio/webm",
+        "audio/ogg;codecs=opus",
+        "audio/mp4",
+        "audio/wav",
+      ];
+
+      for (const format of formats) {
+        if (MediaRecorder.isTypeSupported(format)) {
+          mimeType = format;
+          console.log(`Using alternative format: ${mimeType}`);
+          break;
+        }
+      }
+
+      // If no supported format found, use default
+      if (
+        mimeType === "audio/webm;codecs=opus" &&
+        !MediaRecorder.isTypeSupported(mimeType)
+      ) {
         console.warn("No supported audio format found, using default");
-        options.mimeType = "";
+        mimeType = "";
       }
     }
 
+    // Create MediaRecorder with the best compatible format
+    const options = {
+      mimeType: mimeType,
+      audioBitsPerSecond: audioBitsPerSecond,
+    };
+
+    console.log("Recording with options:", options);
     mediaRecorder = new MediaRecorder(stream, options);
 
     isRecording = true;
@@ -192,12 +213,13 @@ async function startAudioRecording() {
 
     mediaRecorder.onstop = async () => {
       try {
+        // Create the audio blob with the correct MIME type
         recordedAudioBlob = new Blob(audioChunks, {
-          type: options.mimeType || "audio/webm;codecs=opus",
+          type: mimeType || "audio/webm;codecs=opus",
         });
 
         console.log(
-          `Recording stopped. Total size: ${recordedAudioBlob.size} bytes`
+          `Recording stopped. Total size: ${recordedAudioBlob.size} bytes, type: ${recordedAudioBlob.type}`
         );
 
         // Check if the audio blob is too small (likely no speech)
@@ -210,12 +232,70 @@ async function startAudioRecording() {
 
         updateUIAfterRecording();
 
-        const transcription = await transcribeAudioWithGoogle(
-          recordedAudioBlob
-        );
-        if (transcription) {
-          processTranscription(transcription);
+        // Convert the audio to a format compatible with the Speech-to-Text API if needed
+        let audioForTranscription = recordedAudioBlob;
+
+        // If we're not using WebM with Opus codec, we might need to convert
+        if (mimeType !== "audio/webm;codecs=opus" && mimeType !== "") {
+          console.log(
+            "Converting audio to WebM with Opus codec for API compatibility"
+          );
+          try {
+            // Create an audio element to play the recorded audio
+            const audioElement = new Audio();
+            audioElement.src = URL.createObjectURL(recordedAudioBlob);
+
+            // Create a MediaRecorder to capture the audio from the audio element
+            const audioContext = new AudioContext();
+            const source = audioContext.createMediaElementSource(audioElement);
+            const destination = audioContext.createMediaStreamDestination();
+            source.connect(destination);
+
+            // Create a new MediaRecorder with WebM/Opus
+            const converter = new MediaRecorder(destination.stream, {
+              mimeType: "audio/webm;codecs=opus",
+              audioBitsPerSecond: 128000,
+            });
+
+            const convertedChunks = [];
+            converter.ondataavailable = (e) => {
+              if (e.data.size > 0) {
+                convertedChunks.push(e.data);
+              }
+            };
+
+            converter.onstop = () => {
+              audioForTranscription = new Blob(convertedChunks, {
+                type: "audio/webm;codecs=opus",
+              });
+              console.log(
+                `Converted audio size: ${audioForTranscription.size} bytes`
+              );
+
+              // Proceed with transcription
+              transcribeAudio(audioForTranscription);
+            };
+
+            // Start recording and playing
+            converter.start();
+            audioElement.play();
+
+            // Stop after the audio finishes playing
+            audioElement.onended = () => {
+              converter.stop();
+              audioContext.close();
+            };
+
+            return; // Exit early, transcription will be handled in the onstop callback
+          } catch (conversionError) {
+            console.error("Error converting audio format:", conversionError);
+            // Fall back to using the original audio
+            audioForTranscription = recordedAudioBlob;
+          }
         }
+
+        // If we didn't need conversion or conversion failed, proceed with transcription
+        transcribeAudio(audioForTranscription);
       } catch (error) {
         console.error("Error in recording stop handler:", error);
         alert("Error processing recording. Please try again.");
@@ -224,7 +304,21 @@ async function startAudioRecording() {
       }
     };
 
-    mediaRecorder.start(100); // Collect data every 100ms
+    // Helper function to handle transcription
+    async function transcribeAudio(audioBlob) {
+      try {
+        const transcription = await transcribeAudioWithGoogle(audioBlob);
+        if (transcription) {
+          processTranscription(transcription);
+        }
+      } catch (error) {
+        console.error("Error during transcription:", error);
+        alert("Failed to transcribe audio. Please try again.");
+      }
+    }
+
+    // Start recording with a smaller timeslice for more frequent data chunks
+    mediaRecorder.start(100);
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
     micButton.style.color = "#ff0000";
     micButton.disabled = true;
@@ -754,6 +848,9 @@ async function transcribeAudioWithGoogle(audioBlob) {
     // Remove the data URL prefix
     const base64Data = base64Audio.split(",")[1];
 
+    // Log the size of the audio data for debugging
+    console.log(`Audio data size: ${base64Data.length} characters`);
+
     // Prepare the API request body with improved configuration
     const requestBody = {
       config: {
@@ -762,7 +859,7 @@ async function transcribeAudioWithGoogle(audioBlob) {
         languageCode: "en-US",
         enableAutomaticPunctuation: true,
         model: "default",
-        useEnhanced: true, // Enable enhanced model for better accuracy
+        useEnhanced: true,
         metadata: {
           recordingDeviceType: "OTHER_INDOOR_DEVICE",
           originalMediaType: "AUDIO",
@@ -772,6 +869,12 @@ async function transcribeAudioWithGoogle(audioBlob) {
         content: base64Data,
       },
     };
+
+    // Log a sample of the request body for debugging (first 100 chars)
+    console.log(
+      "Request body sample:",
+      JSON.stringify(requestBody).substring(0, 100) + "..."
+    );
 
     console.log("Sending request to Speech-to-Text API...");
 
@@ -797,6 +900,22 @@ async function transcribeAudioWithGoogle(audioBlob) {
     if (!response.ok) {
       const errorDetails = await response.json();
       console.error("API Error Details:", errorDetails);
+
+      // Check for specific 400 error details
+      if (response.status === 400) {
+        if (errorDetails.error && errorDetails.error.message) {
+          console.error("Specific error message:", errorDetails.error.message);
+
+          // Handle common 400 errors
+          if (errorDetails.error.message.includes("audio content")) {
+            throw new Error("Invalid audio content format or encoding");
+          } else if (errorDetails.error.message.includes("sample rate")) {
+            throw new Error("Invalid sample rate configuration");
+          } else if (errorDetails.error.message.includes("encoding")) {
+            throw new Error("Unsupported audio encoding format");
+          }
+        }
+      }
 
       // Provide more specific error messages based on status code
       if (response.status === 403) {
@@ -842,6 +961,12 @@ async function transcribeAudioWithGoogle(audioBlob) {
       alert(
         "The service is currently busy. Please try again in a few minutes."
       );
+    } else if (
+      error.message.includes("audio content") ||
+      error.message.includes("encoding") ||
+      error.message.includes("sample rate")
+    ) {
+      alert("There's an issue with the audio format. Please try again.");
     } else {
       alert("Failed to transcribe audio. Please try again.");
     }
@@ -856,6 +981,7 @@ async function fallbackTranscription(audioBlob) {
     const base64Audio = await blobToBase64(audioBlob);
     const base64Data = base64Audio.split(",")[1];
 
+    // Try with a simpler configuration
     const requestBody = {
       config: {
         encoding: "WEBM_OPUS",
@@ -863,12 +989,14 @@ async function fallbackTranscription(audioBlob) {
         languageCode: "en-US",
         enableAutomaticPunctuation: true,
         model: "default",
-        useEnhanced: false, // Try without enhanced model
+        useEnhanced: false,
       },
       audio: {
         content: base64Data,
       },
     };
+
+    console.log("Attempting fallback with simplified configuration");
 
     const response = await fetch(
       `https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_CLOUD_API_KEY}`,
@@ -882,6 +1010,8 @@ async function fallbackTranscription(audioBlob) {
     );
 
     if (!response.ok) {
+      const errorDetails = await response.json();
+      console.error("Fallback API Error Details:", errorDetails);
       throw new Error(`Fallback transcription failed: ${response.statusText}`);
     }
 
