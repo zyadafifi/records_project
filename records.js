@@ -97,9 +97,18 @@ async function resumeAudioContext() {
 // Recording functions with improved silence detection
 async function startAudioRecording() {
   try {
+    console.log("Starting audio recording...");
+
+    // Reset any existing state
+    audioChunks = [];
+    isRecording = false;
+    speechDetected = false;
+
+    // Initialize audio context
     initializeAudioContext();
     await resumeAudioContext();
 
+    // Get microphone access
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -111,7 +120,7 @@ async function startAudioRecording() {
       },
     });
 
-    audioChunks = [];
+    console.log("Microphone access granted");
 
     // Determine the best audio format for the browser and API compatibility
     let mimeType = "audio/webm;codecs=opus";
@@ -156,10 +165,17 @@ async function startAudioRecording() {
     console.log("Recording with options:", options);
     mediaRecorder = new MediaRecorder(stream, options);
 
+    // Set recording state
     isRecording = true;
     speechDetected = false;
+
+    // Update UI
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#ff0000";
+    micButton.disabled = true;
+    recordingIndicator.style.display = "inline-block";
 
     // Start no speech timeout
     clearTimeout(noSpeechTimeout);
@@ -204,7 +220,7 @@ async function startAudioRecording() {
       }
     }
 
-    // FIX: Set a flag to prevent duplicate data handling
+    // Set a flag to prevent duplicate data handling
     let isProcessingData = false;
 
     mediaRecorder.ondataavailable = (event) => {
@@ -217,6 +233,7 @@ async function startAudioRecording() {
     };
 
     mediaRecorder.onstop = async () => {
+      console.log("MediaRecorder onstop event triggered");
       try {
         // Create the audio blob with the correct MIME type
         recordedAudioBlob = new Blob(audioChunks, {
@@ -312,9 +329,13 @@ async function startAudioRecording() {
     // Helper function to handle transcription
     async function transcribeAudio(audioBlob) {
       try {
+        console.log("Starting transcription process...");
         const transcription = await transcribeAudioWithGoogle(audioBlob);
         if (transcription) {
+          console.log("Transcription successful:", transcription);
           processTranscription(transcription);
+        } else {
+          console.warn("Transcription returned null or empty result");
         }
       } catch (error) {
         console.error("Error during transcription:", error);
@@ -322,12 +343,9 @@ async function startAudioRecording() {
       }
     }
 
-    // FIX: Start recording with a larger timeslice to reduce the number of data events
-    mediaRecorder.start(1000); // Changed from 100ms to 1000ms (1 second)
-    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-    micButton.style.color = "#ff0000";
-    micButton.disabled = true;
-    recordingIndicator.style.display = "inline-block";
+    // Start recording with a larger timeslice to reduce the number of data events
+    mediaRecorder.start(1000); // 1 second timeslice
+    console.log("MediaRecorder started");
 
     // Start silence detection
     checkSilence();
@@ -344,9 +362,24 @@ function stopRecording() {
     try {
       // Set a flag to prevent multiple stop calls
       if (isRecording) {
+        console.log("Stopping recording...");
         isRecording = false;
+
+        // Clear any existing timeouts
+        clearTimeout(noSpeechTimeout);
+        clearTimeout(silenceTimer);
+
+        // Stop the MediaRecorder
         mediaRecorder.stop();
         console.log("MediaRecorder stopped");
+
+        // Update UI immediately
+        micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+        micButton.style.color = "#fff";
+        micButton.disabled = false;
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+        recordingIndicator.style.display = "none";
       }
     } catch (error) {
       console.error("Error stopping MediaRecorder:", error);
@@ -354,45 +387,79 @@ function stopRecording() {
   }
 }
 
-function updateUIAfterRecording() {
-  micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-  micButton.style.backgroundColor = "";
-  micButton.disabled = false;
-  retryButton.style.display = "inline-block";
-  retryButton.disabled = false;
-  recordingIndicator.style.display = "none";
+// FIX: Update the cleanupRecording function to ensure proper cleanup
+function cleanupRecording(stream) {
+  try {
+    console.log("Cleaning up recording resources...");
+
+    // Stop all tracks in the MediaStream to release the microphone
+    if (stream) {
+      stream.getTracks().forEach((track) => {
+        track.stop();
+        console.log("MediaStream track stopped");
+      });
+    }
+
+    // Reset recording state
+    isRecording = false;
+    speechDetected = false;
+
+    // Re-enable buttons
+    toggleListenButtons(false);
+    toggleBookmarkButtons(false);
+
+    // Clear timeouts
+    clearTimeout(noSpeechTimeout);
+    clearTimeout(silenceTimer);
+
+    console.log("Recording cleanup completed");
+  } catch (error) {
+    console.error("Error in cleanupRecording:", error);
+  }
 }
 
+// FIX: Update the updateUIAfterRecording function to ensure UI is updated properly
+function updateUIAfterRecording() {
+  console.log("Updating UI after recording...");
+
+  // Update microphone button
+  micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+  micButton.style.color = "#fff";
+  micButton.style.backgroundColor = "";
+  micButton.disabled = false;
+
+  // Update retry button
+  retryButton.style.display = "inline-block";
+  retryButton.disabled = false;
+
+  // Hide recording indicator
+  recordingIndicator.style.display = "none";
+
+  console.log("UI updated after recording");
+}
+
+// FIX: Update the processTranscription function to ensure it's called correctly
 function processTranscription(transcription) {
+  console.log("Processing transcription:", transcription);
+
   const currentLesson = lessons[currentLessonIndex];
   const pronunciationScore = calculatePronunciationScore(
     transcription,
     currentLesson.sentences[currentSentenceIndex]
   );
+
+  // Update UI with pronunciation score
   pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
   updateProgressCircle(pronunciationScore);
+
+  // Update overall statistics
   totalSentencesSpoken++;
   totalPronunciationScore += pronunciationScore;
+
+  // Show the dialog with results
   openDialog();
-}
 
-function cleanupRecording(stream) {
-  isRecording = false;
-  toggleListenButtons(false);
-  toggleBookmarkButtons(false);
-  clearTimeout(noSpeechTimeout);
-  clearTimeout(silenceTimer);
-  if (stream) {
-    stream.getTracks().forEach((track) => track.stop());
-  }
-}
-
-function handleRecordingError() {
-  isRecording = false;
-  toggleListenButtons(false);
-  toggleBookmarkButtons(false);
-  clearTimeout(noSpeechTimeout);
-  clearTimeout(silenceTimer);
+  console.log("Transcription processed, score:", pronunciationScore);
 }
 
 // Update the displayed sentence and reset UI
