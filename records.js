@@ -22,6 +22,44 @@ const NO_SPEECH_TIMEOUT_MS = 5000;
 // Google Cloud API Key
 const GOOGLE_CLOUD_API_KEY = "AIzaSyAGEKiq1X3cGWkS-CLS3oepkO6xoK_5j6M";
 
+// Check if the API key is valid
+async function checkApiKeyValidity() {
+  try {
+    // Make a simple request to the Speech-to-Text API to check if the key is valid
+    const response = await fetch(
+      `https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_CLOUD_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          config: {
+            encoding: "WEBM_OPUS",
+            sampleRateHertz: 48000,
+            languageCode: "en-US",
+          },
+          audio: {
+            content: "", // Empty content just to test the API key
+          },
+        }),
+      }
+    );
+
+    // If we get a 400 error, it means the API key is valid but the request is invalid (which is expected)
+    // If we get a 403 error, it means the API key is invalid
+    if (response.status === 403) {
+      console.error("API key is invalid or has insufficient permissions");
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error checking API key validity:", error);
+    return false;
+  }
+}
+
 // Dialog backdrop
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -68,11 +106,33 @@ async function startAudioRecording() {
         noiseSuppression: true,
         sampleRate: 48000,
         channelCount: 1,
+        autoGainControl: true,
+        latency: 0,
       },
     });
 
     audioChunks = [];
-    const options = { mimeType: "audio/webm;codecs=opus" };
+    // Use a more compatible audio format
+    const options = {
+      mimeType: "audio/webm;codecs=opus",
+      audioBitsPerSecond: 128000, // Higher bitrate for better quality
+    };
+
+    // Check if the browser supports the specified MIME type
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      console.warn(
+        "WebM with Opus codec not supported, trying alternative formats"
+      );
+      if (MediaRecorder.isTypeSupported("audio/webm")) {
+        options.mimeType = "audio/webm";
+      } else if (MediaRecorder.isTypeSupported("audio/ogg;codecs=opus")) {
+        options.mimeType = "audio/ogg;codecs=opus";
+      } else {
+        console.warn("No supported audio format found, using default");
+        options.mimeType = "";
+      }
+    }
+
     mediaRecorder = new MediaRecorder(stream, options);
 
     isRecording = true;
@@ -126,14 +186,28 @@ async function startAudioRecording() {
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         audioChunks.push(event.data);
+        console.log(`Audio chunk received: ${event.data.size} bytes`);
       }
     };
 
     mediaRecorder.onstop = async () => {
       try {
         recordedAudioBlob = new Blob(audioChunks, {
-          type: "audio/webm;codecs=opus",
+          type: options.mimeType || "audio/webm;codecs=opus",
         });
+
+        console.log(
+          `Recording stopped. Total size: ${recordedAudioBlob.size} bytes`
+        );
+
+        // Check if the audio blob is too small (likely no speech)
+        if (recordedAudioBlob.size < 1000) {
+          console.warn("Audio recording too small, likely no speech detected");
+          alert("No speech detected. Please try again and speak clearly.");
+          updateUIAfterRecording();
+          return;
+        }
+
         updateUIAfterRecording();
 
         const transcription = await transcribeAudioWithGoogle(
@@ -671,118 +745,6 @@ function toggleBookmarkButtons(disabled) {
   }
 }
 
-// Start audio recording with error handling
-async function startAudioRecording() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        sampleRate: 48000,
-        channelCount: 1,
-      },
-    });
-
-    audioChunks = [];
-    const options = { mimeType: "audio/webm;codecs=opus" };
-    mediaRecorder = new MediaRecorder(stream, options);
-
-    // Set recording flag to true and disable listen/bookmark buttons
-    isRecording = true;
-    speechDetected = false; // Reset speech detection flag
-    toggleListenButtons(true);
-    toggleBookmarkButtons(true);
-
-    // Set a timeout to check if speech is detected
-    clearTimeout(noSpeechTimeout);
-    noSpeechTimeout = setTimeout(() => {
-      // Only trigger if still recording and no speech detected
-      if (isRecording && !speechDetected) {
-        console.log("No speech detected timeout triggered");
-        if (mediaRecorder && mediaRecorder.state === "recording") {
-          mediaRecorder.stop();
-        }
-      }
-    }, NO_SPEECH_TIMEOUT_MS);
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-        speechDetected = true; // Assume speech was detected if we get data
-      }
-    };
-
-    mediaRecorder.onstop = async () => {
-      try {
-        recordedAudioBlob = new Blob(audioChunks, {
-          type: "audio/webm;codecs=opus",
-        });
-
-        // Debug: Create a URL for the recorded audio to verify quality
-        const audioURL = URL.createObjectURL(recordedAudioBlob);
-        console.log("Recorded audio URL:", audioURL);
-
-        micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-        micButton.style.backgroundColor = "";
-        micButton.disabled = false;
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-        recordingIndicator.style.display = "none";
-
-        // Set recording flag to false and re-enable listen/bookmark buttons
-        isRecording = false;
-        toggleListenButtons(false);
-        toggleBookmarkButtons(false);
-
-        // Clear the timeout when recording stops
-        clearTimeout(noSpeechTimeout);
-
-        // Stop all tracks in the MediaStream to release the microphone
-        stream.getTracks().forEach((track) => track.stop());
-
-        // Upload the recorded audio to Google Cloud Speech-to-Text for transcription
-        const transcription = await transcribeAudioWithGoogle(
-          recordedAudioBlob
-        );
-        if (transcription) {
-          const currentLesson = lessons[currentLessonIndex];
-          const pronunciationScore = calculatePronunciationScore(
-            transcription,
-            currentLesson.sentences[currentSentenceIndex]
-          );
-          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-          updateProgressCircle(pronunciationScore);
-
-          // Update total sentences spoken and overall score
-          totalSentencesSpoken++;
-          totalPronunciationScore += pronunciationScore;
-
-          // Show the dialog container
-          openDialog();
-        }
-      } catch (error) {
-        console.error("Error in recording stop handler:", error);
-        alert("Error processing recording. Please try again.");
-      }
-    };
-
-    mediaRecorder.start(100); // Collect data every 100ms for better responsiveness
-    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-    micButton.style.color = "#ff0000";
-    micButton.disabled = true;
-    recordingIndicator.style.display = "inline-block";
-  } catch (error) {
-    console.error("Error accessing microphone:", error);
-    alert("Please allow microphone access to use this feature.");
-
-    // Ensure recording flag is reset and buttons are re-enabled in case of error
-    isRecording = false;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
-    clearTimeout(noSpeechTimeout);
-  }
-}
-
 // Transcribe audio using Google Cloud Speech-to-Text API
 async function transcribeAudioWithGoogle(audioBlob) {
   try {
@@ -792,14 +754,19 @@ async function transcribeAudioWithGoogle(audioBlob) {
     // Remove the data URL prefix
     const base64Data = base64Audio.split(",")[1];
 
-    // Prepare the API request body
+    // Prepare the API request body with improved configuration
     const requestBody = {
       config: {
-        encoding: "WEBM_OPUS", // Changed from LINEAR16 to better match our recording format
-        sampleRateHertz: 48000, // Updated sample rate to match typical browser recording
+        encoding: "WEBM_OPUS",
+        sampleRateHertz: 48000,
         languageCode: "en-US",
         enableAutomaticPunctuation: true,
-        model: "default", // Using the default model for better accuracy
+        model: "default",
+        useEnhanced: true, // Enable enhanced model for better accuracy
+        metadata: {
+          recordingDeviceType: "OTHER_INDOOR_DEVICE",
+          originalMediaType: "AUDIO",
+        },
       },
       audio: {
         content: base64Data,
@@ -807,6 +774,102 @@ async function transcribeAudioWithGoogle(audioBlob) {
     };
 
     console.log("Sending request to Speech-to-Text API...");
+
+    // Add a timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    const response = await fetch(
+      `https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_CLOUD_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      const errorDetails = await response.json();
+      console.error("API Error Details:", errorDetails);
+
+      // Provide more specific error messages based on status code
+      if (response.status === 403) {
+        throw new Error("API key is invalid or has insufficient permissions");
+      } else if (response.status === 400) {
+        throw new Error("Invalid request format or audio data");
+      } else if (response.status === 429) {
+        throw new Error("API quota exceeded. Please try again later");
+      } else {
+        throw new Error(`Speech-to-Text API error: ${response.statusText}`);
+      }
+    }
+
+    const data = await response.json();
+    console.log("API Response:", data);
+
+    if (data.results && data.results[0] && data.results[0].alternatives[0]) {
+      return data.results[0].alternatives[0].transcript;
+    } else {
+      console.warn("No transcription results returned. Full response:", data);
+
+      // Try a fallback approach with a different configuration
+      if (audioBlob.size > 0) {
+        console.log(
+          "Attempting fallback transcription with different configuration..."
+        );
+        return await fallbackTranscription(audioBlob);
+      } else {
+        throw new Error(
+          "No transcription results returned and audio blob is empty"
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Error with Speech-to-Text API:", error);
+
+    // Provide more user-friendly error messages
+    if (error.name === "AbortError") {
+      alert("The transcription request timed out. Please try again.");
+    } else if (error.message.includes("API key")) {
+      alert("There's an issue with the API key. Please contact support.");
+    } else if (error.message.includes("quota")) {
+      alert(
+        "The service is currently busy. Please try again in a few minutes."
+      );
+    } else {
+      alert("Failed to transcribe audio. Please try again.");
+    }
+
+    return null;
+  }
+}
+
+// Fallback transcription method with different configuration
+async function fallbackTranscription(audioBlob) {
+  try {
+    const base64Audio = await blobToBase64(audioBlob);
+    const base64Data = base64Audio.split(",")[1];
+
+    const requestBody = {
+      config: {
+        encoding: "WEBM_OPUS",
+        sampleRateHertz: 48000,
+        languageCode: "en-US",
+        enableAutomaticPunctuation: true,
+        model: "default",
+        useEnhanced: false, // Try without enhanced model
+      },
+      audio: {
+        content: base64Data,
+      },
+    };
+
     const response = await fetch(
       `https://speech.googleapis.com/v1/speech:recognize?key=${GOOGLE_CLOUD_API_KEY}`,
       {
@@ -819,24 +882,19 @@ async function transcribeAudioWithGoogle(audioBlob) {
     );
 
     if (!response.ok) {
-      const errorDetails = await response.json();
-      console.error("API Error Details:", errorDetails);
-      throw new Error(`Speech-to-Text API error: ${response.statusText}`);
+      throw new Error(`Fallback transcription failed: ${response.statusText}`);
     }
 
     const data = await response.json();
-    console.log("API Response:", data);
 
     if (data.results && data.results[0] && data.results[0].alternatives[0]) {
       return data.results[0].alternatives[0].transcript;
     } else {
-      console.warn("No transcription results returned. Full response:", data);
-      throw new Error("No transcription results returned");
+      throw new Error("Fallback transcription returned no results");
     }
   } catch (error) {
-    console.error("Error with Speech-to-Text API:", error);
-    alert("Failed to transcribe audio. Please try again.");
-    return null;
+    console.error("Fallback transcription error:", error);
+    throw error; // Re-throw to be caught by the main function
   }
 }
 
@@ -878,6 +936,17 @@ bookmarkIcon2.addEventListener("click", playRecordedAudio);
 // Load lessons from the JSON file
 async function loadLessons() {
   try {
+    // Check API key validity first
+    const isApiKeyValid = await checkApiKeyValidity();
+    if (!isApiKeyValid) {
+      console.error(
+        "Google Cloud API key is invalid or has insufficient permissions"
+      );
+      alert(
+        "There's an issue with the Speech-to-Text API. Some features may not work correctly."
+      );
+    }
+
     const url =
       "https://raw.githubusercontent.com/zyadafifi/lessons/main/lessons.json";
     const response = await fetch(url, {
