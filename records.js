@@ -691,47 +691,176 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
 // Speak the sentence using Google Cloud Text-to-Speech API
 async function speakSentence() {
-  // Check if currently recording - if so, don't allow listening
-  if (isRecording) {
-    console.log("Cannot listen while recording");
-    alert(
-      "Cannot listen to example while recording. Please finish recording first."
-    );
-    return; // Exit the function without speaking
-  }
-
-  if (lessons.length === 0) return; // Ensure lessons are loaded
-  const currentLesson = lessons[currentLessonIndex];
-  const sentence = currentLesson.sentences[currentSentenceIndex];
-
   try {
-    const response = await fetch(
-      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_CLOUD_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          input: { text: sentence },
-          voice: { languageCode: "en-US", name: "en-US-Wavenet-D" },
-          audioConfig: { audioEncoding: "MP3" },
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Text-to-Speech API error: ${response.statusText}`);
+    // Check if currently recording
+    if (isRecording) {
+      console.log("Cannot listen while recording");
+      alert(
+        "Cannot listen to example while recording. Please finish recording first."
+      );
+      return;
     }
 
-    const data = await response.json();
-    const audioContent = data.audioContent;
-    const audio = new Audio(`data:audio/mp3;base64,${audioContent}`);
-    audio.play();
+    if (lessons.length === 0) {
+      console.warn("No lessons loaded");
+      return;
+    }
+
+    const currentLesson = lessons[currentLessonIndex];
+    const sentence = currentLesson.sentences[currentSentenceIndex];
+
+    console.log("Attempting to speak sentence:", sentence);
+
+    // Create and play audio using a more reliable method
+    const audio = new Audio();
+
+    // Show loading state
+    listenButton.disabled = true;
+    listen2Button.disabled = true;
+    listenButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    listen2Button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+    try {
+      const response = await fetch(
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_CLOUD_API_KEY}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            input: { text: sentence },
+            voice: { languageCode: "en-US", name: "en-US-Wavenet-D" },
+            audioConfig: {
+              audioEncoding: "MP3",
+              speakingRate: 0.9, // Slightly slower for better clarity
+              pitch: 0, // Natural pitch
+              volumeGainDb: 0, // Normal volume
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Text-to-Speech API error: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      if (!data.audioContent) {
+        throw new Error("No audio content received from API");
+      }
+
+      // Create audio source and play
+      audio.src = `data:audio/mp3;base64,${data.audioContent}`;
+
+      // Add error handling for audio playback
+      audio.onerror = (error) => {
+        console.error("Audio playback error:", error);
+        alert("Failed to play audio. Please try again.");
+        resetListenButtons();
+      };
+
+      // Reset buttons when audio finishes
+      audio.onended = () => {
+        resetListenButtons();
+      };
+
+      // Play the audio
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          console.error("Audio play error:", error);
+          alert("Failed to play audio. Please try again.");
+          resetListenButtons();
+        });
+      }
+    } catch (error) {
+      console.error("Error with Text-to-Speech API:", error);
+      alert("Failed to generate speech. Please try again.");
+      resetListenButtons();
+    }
   } catch (error) {
-    console.error("Error with Text-to-Speech API:", error);
+    console.error("Error in speakSentence:", error);
     alert("Failed to play audio. Please try again.");
+    resetListenButtons();
   }
+}
+
+// Helper function to reset listen buttons
+function resetListenButtons() {
+  listenButton.disabled = false;
+  listen2Button.disabled = false;
+  listenButton.innerHTML = '<i class="fas fa-volume-up"></i>';
+  listen2Button.innerHTML = '<i class="fas fa-volume-up"></i>';
+}
+
+// Play the recorded audio
+function playRecordedAudio() {
+  try {
+    if (isRecording) {
+      console.log("Cannot play audio while recording");
+      alert(
+        "Cannot play audio while recording. Please finish recording first."
+      );
+      return;
+    }
+
+    if (!recordedAudioBlob) {
+      console.warn("No recorded audio available");
+      alert("No recorded audio available. Please record something first.");
+      return;
+    }
+
+    console.log("Playing recorded audio...");
+
+    // Create audio URL
+    const audioURL = URL.createObjectURL(recordedAudioBlob);
+    const audio = new Audio(audioURL);
+
+    // Show loading state
+    bookmarkIcon.style.opacity = "0.5";
+    bookmarkIcon2.style.opacity = "0.5";
+    bookmarkIcon.disabled = true;
+    bookmarkIcon2.disabled = true;
+
+    // Add error handling
+    audio.onerror = (error) => {
+      console.error("Error playing recorded audio:", error);
+      alert("Failed to play recorded audio. Please try recording again.");
+      resetBookmarkButtons();
+      URL.revokeObjectURL(audioURL);
+    };
+
+    // Reset buttons when audio finishes
+    audio.onended = () => {
+      resetBookmarkButtons();
+      URL.revokeObjectURL(audioURL);
+    };
+
+    // Play the audio
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch((error) => {
+        console.error("Audio play error:", error);
+        alert("Failed to play recorded audio. Please try recording again.");
+        resetBookmarkButtons();
+        URL.revokeObjectURL(audioURL);
+      });
+    }
+  } catch (error) {
+    console.error("Error playing recorded audio:", error);
+    alert("Failed to play recorded audio. Please try recording again.");
+    resetBookmarkButtons();
+  }
+}
+
+// Helper function to reset bookmark buttons
+function resetBookmarkButtons() {
+  bookmarkIcon.style.opacity = "1";
+  bookmarkIcon2.style.opacity = "1";
+  bookmarkIcon.disabled = false;
+  bookmarkIcon2.disabled = false;
 }
 
 // Toggle listen buttons state
@@ -969,25 +1098,6 @@ function blobToBase64(blob) {
     reader.onerror = reject;
     reader.readAsDataURL(blob);
   });
-}
-
-// Play the recorded audio
-function playRecordedAudio() {
-  if (!recordedAudioBlob) {
-    alert("No recorded audio available.");
-    return;
-  }
-
-  // Prevent playing recorded audio during recording
-  if (isRecording) {
-    console.log("Cannot play audio while recording");
-    alert("Cannot play audio while recording. Please finish recording first.");
-    return;
-  }
-
-  const audioURL = URL.createObjectURL(recordedAudioBlob);
-  const audio = new Audio(audioURL);
-  audio.play();
 }
 
 // Event listeners
