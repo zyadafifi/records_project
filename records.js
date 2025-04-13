@@ -94,21 +94,40 @@ async function resumeAudioContext() {
   }
 }
 
+// Add dialog functions at the top
+function openDialog() {
+  if (dialogContainer) {
+    dialogContainer.style.display = "block";
+    dialogBackdrop.style.display = "block";
+  }
+}
+
+function closeDialog() {
+  if (dialogContainer) {
+    dialogContainer.style.display = "none";
+    dialogBackdrop.style.display = "none";
+  }
+}
+
 // Recording functions with improved silence detection
 async function startAudioRecording() {
   try {
-    console.log("Starting audio recording...");
+    console.log("Starting new recording...");
 
-    // Reset any existing state
+    // Reset state
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      console.log("Stopping existing recording first");
+      stopRecording();
+    }
+
     audioChunks = [];
     isRecording = false;
     speechDetected = false;
 
-    // Initialize audio context
+    // Initialize audio
     initializeAudioContext();
     await resumeAudioContext();
 
-    // Get microphone access
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -116,309 +135,141 @@ async function startAudioRecording() {
         sampleRate: 48000,
         channelCount: 1,
         autoGainControl: true,
-        latency: 0,
       },
     });
 
-    console.log("Microphone access granted");
+    // Set up MediaRecorder with fixed options
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: "audio/webm;codecs=opus",
+      audioBitsPerSecond: 128000,
+    });
 
-    // Determine the best audio format for the browser and API compatibility
-    let mimeType = "audio/webm;codecs=opus";
-    let audioBitsPerSecond = 128000;
+    // Set up data handling
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+        console.log(`Chunk received: ${event.data.size} bytes`);
 
-    // Check browser compatibility
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      console.warn("WebM with Opus codec not supported, trying alternatives");
-
-      // Try different formats in order of preference
-      const formats = [
-        "audio/webm",
-        "audio/ogg;codecs=opus",
-        "audio/mp4",
-        "audio/wav",
-      ];
-
-      for (const format of formats) {
-        if (MediaRecorder.isTypeSupported(format)) {
-          mimeType = format;
-          console.log(`Using alternative format: ${mimeType}`);
-          break;
+        // Stop recording if we have collected too much data
+        if (audioChunks.length > 15) {
+          // Limit to 15 chunks
+          console.log("Maximum chunks reached, stopping recording");
+          stopRecording();
         }
       }
-
-      // If no supported format found, use default
-      if (
-        mimeType === "audio/webm;codecs=opus" &&
-        !MediaRecorder.isTypeSupported(mimeType)
-      ) {
-        console.warn("No supported audio format found, using default");
-        mimeType = "";
-      }
-    }
-
-    // Create MediaRecorder with the best compatible format
-    const options = {
-      mimeType: mimeType,
-      audioBitsPerSecond: audioBitsPerSecond,
     };
 
-    console.log("Recording with options:", options);
-    mediaRecorder = new MediaRecorder(stream, options);
+    // Handle recording stop
+    mediaRecorder.onstop = async () => {
+      console.log("MediaRecorder stopped event triggered");
 
-    // Set recording state
+      try {
+        const recordedBlob = new Blob(audioChunks, {
+          type: "audio/webm;codecs=opus",
+        });
+        console.log(
+          `Recording complete. Total size: ${recordedBlob.size} bytes`
+        );
+
+        if (recordedBlob.size < 1000) {
+          console.warn("Recording too small, likely no speech");
+          alert("No speech detected. Please try again and speak clearly.");
+          return;
+        }
+
+        // Process the recording
+        const transcription = await transcribeAudioWithGoogle(recordedBlob);
+        if (transcription) {
+          processTranscription(transcription);
+        }
+      } catch (error) {
+        console.error("Error processing recording:", error);
+        alert("Error processing recording. Please try again.");
+      } finally {
+        // Cleanup
+        stream.getTracks().forEach((track) => track.stop());
+        isRecording = false;
+        toggleListenButtons(false);
+        toggleBookmarkButtons(false);
+      }
+    };
+
+    // Start recording
     isRecording = true;
-    speechDetected = false;
+    mediaRecorder.start(1000);
+    console.log("Recording started");
 
     // Update UI
-    toggleListenButtons(true);
-    toggleBookmarkButtons(true);
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
     micButton.style.color = "#ff0000";
     micButton.disabled = true;
     recordingIndicator.style.display = "inline-block";
+    toggleListenButtons(true);
+    toggleBookmarkButtons(true);
 
-    // Start no speech timeout
+    // Set up silence detection timeout
     clearTimeout(noSpeechTimeout);
     noSpeechTimeout = setTimeout(() => {
       if (isRecording && !speechDetected) {
-        console.log("No speech detected - stopping recording");
+        console.log("No speech timeout triggered");
         stopRecording();
       }
     }, NO_SPEECH_TIMEOUT_MS);
-
-    // Setup silence detection
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    const microphone = audioContext.createMediaStreamSource(stream);
-    microphone.connect(analyser);
-    analyser.fftSize = 256;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-
-    function checkSilence() {
-      analyser.getByteFrequencyData(dataArray);
-      let sum = 0;
-      for (let i = 0; i < bufferLength; i++) {
-        sum += dataArray[i];
-      }
-      const average = sum / bufferLength;
-
-      if (average > 20) {
-        // Sound detected
-        speechDetected = true;
-        clearTimeout(silenceTimer);
-        silenceTimer = setTimeout(() => {
-          if (isRecording) {
-            console.log("Silence detected - stopping recording");
-            stopRecording();
-          }
-        }, SILENCE_DETECTION_TIMEOUT);
-      }
-
-      if (isRecording) {
-        requestAnimationFrame(checkSilence);
-      }
-    }
-
-    // Set a flag to prevent duplicate data handling
-    let isProcessingData = false;
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0 && !isProcessingData) {
-        isProcessingData = true;
-        audioChunks.push(event.data);
-        console.log(`Audio chunk received: ${event.data.size} bytes`);
-        isProcessingData = false;
-      }
-    };
-
-    mediaRecorder.onstop = async () => {
-      console.log("MediaRecorder onstop event triggered");
-      try {
-        // Create the audio blob with the correct MIME type
-        recordedAudioBlob = new Blob(audioChunks, {
-          type: mimeType || "audio/webm;codecs=opus",
-        });
-
-        console.log(
-          `Recording stopped. Total size: ${recordedAudioBlob.size} bytes, type: ${recordedAudioBlob.type}`
-        );
-
-        // Check if the audio blob is too small (likely no speech)
-        if (recordedAudioBlob.size < 1000) {
-          console.warn("Audio recording too small, likely no speech detected");
-          alert("No speech detected. Please try again and speak clearly.");
-          updateUIAfterRecording();
-          return;
-        }
-
-        updateUIAfterRecording();
-
-        // Convert the audio to a format compatible with the Speech-to-Text API if needed
-        let audioForTranscription = recordedAudioBlob;
-
-        // If we're not using WebM with Opus codec, we might need to convert
-        if (mimeType !== "audio/webm;codecs=opus" && mimeType !== "") {
-          console.log(
-            "Converting audio to WebM with Opus codec for API compatibility"
-          );
-          try {
-            // Create an audio element to play the recorded audio
-            const audioElement = new Audio();
-            audioElement.src = URL.createObjectURL(recordedAudioBlob);
-
-            // Create a MediaRecorder to capture the audio from the audio element
-            const audioContext = new AudioContext();
-            const source = audioContext.createMediaElementSource(audioElement);
-            const destination = audioContext.createMediaStreamDestination();
-            source.connect(destination);
-
-            // Create a new MediaRecorder with WebM/Opus
-            const converter = new MediaRecorder(destination.stream, {
-              mimeType: "audio/webm;codecs=opus",
-              audioBitsPerSecond: 128000,
-            });
-
-            const convertedChunks = [];
-            converter.ondataavailable = (e) => {
-              if (e.data.size > 0) {
-                convertedChunks.push(e.data);
-              }
-            };
-
-            converter.onstop = () => {
-              audioForTranscription = new Blob(convertedChunks, {
-                type: "audio/webm;codecs=opus",
-              });
-              console.log(
-                `Converted audio size: ${audioForTranscription.size} bytes`
-              );
-
-              // Proceed with transcription
-              transcribeAudio(audioForTranscription);
-            };
-
-            // Start recording and playing
-            converter.start();
-            audioElement.play();
-
-            // Stop after the audio finishes playing
-            audioElement.onended = () => {
-              converter.stop();
-              audioContext.close();
-            };
-
-            return; // Exit early, transcription will be handled in the onstop callback
-          } catch (conversionError) {
-            console.error("Error converting audio format:", conversionError);
-            // Fall back to using the original audio
-            audioForTranscription = recordedAudioBlob;
-          }
-        }
-
-        // If we didn't need conversion or conversion failed, proceed with transcription
-        transcribeAudio(audioForTranscription);
-      } catch (error) {
-        console.error("Error in recording stop handler:", error);
-        alert("Error processing recording. Please try again.");
-      } finally {
-        cleanupRecording(stream);
-      }
-    };
-
-    // Helper function to handle transcription
-    async function transcribeAudio(audioBlob) {
-      try {
-        console.log("Starting transcription process...");
-        const transcription = await transcribeAudioWithGoogle(audioBlob);
-        if (transcription) {
-          console.log("Transcription successful:", transcription);
-          processTranscription(transcription);
-        } else {
-          console.warn("Transcription returned null or empty result");
-        }
-      } catch (error) {
-        console.error("Error during transcription:", error);
-        alert("Failed to transcribe audio. Please try again.");
-      }
-    }
-
-    // Start recording with a larger timeslice to reduce the number of data events
-    mediaRecorder.start(1000); // 1 second timeslice
-    console.log("MediaRecorder started");
-
-    // Start silence detection
-    checkSilence();
   } catch (error) {
-    console.error("Error accessing microphone:", error);
-    alert("Please allow microphone access to use this feature.");
+    console.error("Error starting recording:", error);
+    alert(
+      "Error accessing microphone. Please ensure microphone permissions are granted."
+    );
     handleRecordingError();
   }
 }
 
-// FIX: Update the stopRecording function to ensure proper cleanup
+// Update the stopRecording function
 function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    try {
-      // Set a flag to prevent multiple stop calls
-      if (isRecording) {
-        console.log("Stopping recording...");
-        isRecording = false;
+  console.log("Attempting to stop recording...");
 
-        // Clear any existing timeouts
-        clearTimeout(noSpeechTimeout);
-        clearTimeout(silenceTimer);
-
-        // Stop the MediaRecorder
-        mediaRecorder.stop();
-        console.log("MediaRecorder stopped");
-
-        // Update UI immediately
-        micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-        micButton.style.color = "#fff";
-        micButton.disabled = false;
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-        recordingIndicator.style.display = "none";
-      }
-    } catch (error) {
-      console.error("Error stopping MediaRecorder:", error);
-    }
+  if (!mediaRecorder) {
+    console.warn("No mediaRecorder found");
+    return;
   }
-}
 
-// FIX: Update the cleanupRecording function to ensure proper cleanup
-function cleanupRecording(stream) {
   try {
-    console.log("Cleaning up recording resources...");
+    // Force stop any ongoing recording
+    if (mediaRecorder.state === "recording") {
+      console.log("Stopping active recording");
+      mediaRecorder.stop();
 
-    // Stop all tracks in the MediaStream to release the microphone
-    if (stream) {
-      stream.getTracks().forEach((track) => {
-        track.stop();
-        console.log("MediaStream track stopped");
-      });
+      // Force cleanup
+      if (mediaRecorder.stream) {
+        mediaRecorder.stream.getTracks().forEach((track) => {
+          track.stop();
+          console.log("Stopped media track");
+        });
+      }
     }
 
     // Reset recording state
     isRecording = false;
-    speechDetected = false;
 
-    // Re-enable buttons
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
-
-    // Clear timeouts
+    // Clear all timeouts
     clearTimeout(noSpeechTimeout);
     clearTimeout(silenceTimer);
 
-    console.log("Recording cleanup completed");
+    // Update UI immediately
+    micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+    micButton.style.color = "#fff";
+    micButton.disabled = false;
+    retryButton.style.display = "inline-block";
+    retryButton.disabled = false;
+    recordingIndicator.style.display = "none";
+
+    console.log("Recording stopped successfully");
   } catch (error) {
-    console.error("Error in cleanupRecording:", error);
+    console.error("Error stopping recording:", error);
   }
 }
 
-// FIX: Update the updateUIAfterRecording function to ensure UI is updated properly
+// Update the updateUIAfterRecording function to ensure UI is updated properly
 function updateUIAfterRecording() {
   console.log("Updating UI after recording...");
 
@@ -1275,3 +1126,18 @@ continueButton.addEventListener("click", () => {
   );
   congratulationModal.hide(); // Hide the modal
 });
+
+// Update the handleRecordingError function
+function handleRecordingError() {
+  isRecording = false;
+  toggleListenButtons(false);
+  toggleBookmarkButtons(false);
+  clearTimeout(noSpeechTimeout);
+  clearTimeout(silenceTimer);
+
+  // Update UI
+  micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+  micButton.style.color = "#fff";
+  micButton.disabled = false;
+  recordingIndicator.style.display = "none";
+}
