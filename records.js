@@ -22,11 +22,6 @@ const NO_SPEECH_TIMEOUT_MS = 5000;
 // Google Cloud API Key
 const GOOGLE_CLOUD_API_KEY = "AIzaSyAGEKiq1X3cGWkS-CLS3oepkO6xoK_5j6M";
 
-// Add iOS detection
-const isIOS =
-  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-
 // Check if the API key is valid
 async function checkApiKeyValidity() {
   try {
@@ -79,42 +74,17 @@ let totalSentencesSpoken = 0;
 let totalPronunciationScore = 0;
 let mediaRecorder;
 let audioChunks = [];
-let recordedAudioBlob = null;
+let recordedAudioBlob;
 let isRecording = false;
 let speechDetected = false;
 let audioContext;
 let silenceTimer;
-let lastRecordedAudioURL = null; // Add this to store the last recorded audio URL
 const SILENCE_DETECTION_TIMEOUT = 2000; // 2 seconds of silence to stop recording
 
-// Initialize audio context with iOS compatibility
+// Initialize and resume AudioContext
 function initializeAudioContext() {
-  try {
-    // Use webkit prefix for iOS Safari
-    window.AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!audioContext) {
-      audioContext = new AudioContext();
-      console.log("AudioContext initialized");
-    }
-
-    // iOS requires user interaction to start audio context
-    if (audioContext.state === "suspended" && isIOS) {
-      const resumeAudio = async () => {
-        await audioContext.resume();
-        console.log("AudioContext resumed");
-
-        // Remove the event listeners once audio is running
-        document.removeEventListener("touchstart", resumeAudio);
-        document.removeEventListener("touchend", resumeAudio);
-        document.removeEventListener("click", resumeAudio);
-      };
-
-      document.addEventListener("touchstart", resumeAudio);
-      document.addEventListener("touchend", resumeAudio);
-      document.addEventListener("click", resumeAudio);
-    }
-  } catch (error) {
-    console.error("Error initializing AudioContext:", error);
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
   }
 }
 
@@ -150,87 +120,65 @@ async function startAudioRecording() {
       stopRecording();
     }
 
-    // Initialize audio context first
-    initializeAudioContext();
-    if (audioContext.state === "suspended") {
-      await audioContext.resume();
-    }
-
-    // Request permissions - iOS requires this specific format
-    const stream = await navigator.mediaDevices
-      .getUserMedia({
-        audio: {
-          echoCancellation: { exact: true },
-          noiseSuppression: { exact: true },
-          autoGainControl: { exact: true },
-          sampleRate: 48000,
-          channelCount: 1,
-        },
-      })
-      .catch(async (err) => {
-        console.error("Initial getUserMedia error:", err);
-        // Fallback to basic audio constraints for iOS
-        return await navigator.mediaDevices.getUserMedia({
-          audio: true,
-        });
-      });
-
-    console.log("Microphone access granted");
     audioChunks = [];
+    isRecording = false;
+    speechDetected = false;
 
-    // Determine supported mime type for iOS
-    let mimeType = "audio/webm;codecs=opus";
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      if (MediaRecorder.isTypeSupported("audio/mp4")) {
-        mimeType = "audio/mp4";
-      } else {
-        mimeType = ""; // Let browser choose format
-      }
-    }
+    // Initialize audio
+    initializeAudioContext();
+    await resumeAudioContext();
 
-    // Create MediaRecorder with iOS compatible settings
-    const options = {
-      mimeType: mimeType,
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        sampleRate: 48000,
+        channelCount: 1,
+        autoGainControl: true,
+      },
+    });
+
+    // Set up MediaRecorder with fixed options
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: "audio/webm;codecs=opus",
       audioBitsPerSecond: 128000,
-    };
-
-    console.log("Creating MediaRecorder with options:", options);
-    mediaRecorder = new MediaRecorder(stream, options);
+    });
 
     // Set up data handling
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         audioChunks.push(event.data);
         console.log(`Chunk received: ${event.data.size} bytes`);
+
+        // Stop recording if we have collected too much data
+        if (audioChunks.length > 15) {
+          // Limit to 15 chunks
+          console.log("Maximum chunks reached, stopping recording");
+          stopRecording();
+        }
       }
     };
 
     // Handle recording stop
     mediaRecorder.onstop = async () => {
-      console.log("MediaRecorder stopped");
+      console.log("MediaRecorder stopped event triggered");
+
       try {
-        const blobMimeType = mimeType || "audio/webm;codecs=opus";
-        recordedAudioBlob = new Blob(audioChunks, { type: blobMimeType });
+        const recordedBlob = new Blob(audioChunks, {
+          type: "audio/webm;codecs=opus",
+        });
         console.log(
-          `Recording complete. Size: ${recordedAudioBlob.size} bytes, Type: ${recordedAudioBlob.type}`
+          `Recording complete. Total size: ${recordedBlob.size} bytes`
         );
 
-        if (recordedAudioBlob.size < 1000) {
-          console.warn("Recording too small");
+        if (recordedBlob.size < 1000) {
+          console.warn("Recording too small, likely no speech");
           alert("No speech detected. Please try again and speak clearly.");
           return;
         }
 
-        // Store the audio blob
-        window.recordedAudioBlob = recordedAudioBlob;
-
-        // Update UI
-        updateUIAfterRecording();
-
         // Process the recording
-        const transcription = await transcribeAudioWithGoogle(
-          recordedAudioBlob
-        );
+        const transcription = await transcribeAudioWithGoogle(recordedBlob);
         if (transcription) {
           processTranscription(transcription);
         }
@@ -239,10 +187,10 @@ async function startAudioRecording() {
         alert("Error processing recording. Please try again.");
       } finally {
         // Cleanup
-        stream.getTracks().forEach((track) => {
-          track.stop();
-          console.log("Media track stopped");
-        });
+        stream.getTracks().forEach((track) => track.stop());
+        isRecording = false;
+        toggleListenButtons(false);
+        toggleBookmarkButtons(false);
       }
     };
 
@@ -258,20 +206,20 @@ async function startAudioRecording() {
     recordingIndicator.style.display = "inline-block";
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
+
+    // Set up silence detection timeout
+    clearTimeout(noSpeechTimeout);
+    noSpeechTimeout = setTimeout(() => {
+      if (isRecording && !speechDetected) {
+        console.log("No speech timeout triggered");
+        stopRecording();
+      }
+    }, NO_SPEECH_TIMEOUT_MS);
   } catch (error) {
     console.error("Error starting recording:", error);
-    if (
-      error.name === "NotAllowedError" ||
-      error.name === "PermissionDeniedError"
-    ) {
-      alert(
-        "Microphone access denied. Please grant microphone permissions in your browser settings and try again."
-      );
-    } else {
-      alert(
-        "Error accessing microphone. Please ensure microphone permissions are granted and try again."
-      );
-    }
+    alert(
+      "Error accessing microphone. Please ensure microphone permissions are granted."
+    );
     handleRecordingError();
   }
 }
@@ -743,188 +691,47 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
 // Speak the sentence using Google Cloud Text-to-Speech API
 async function speakSentence() {
+  // Check if currently recording - if so, don't allow listening
+  if (isRecording) {
+    console.log("Cannot listen while recording");
+    alert(
+      "Cannot listen to example while recording. Please finish recording first."
+    );
+    return; // Exit the function without speaking
+  }
+
+  if (lessons.length === 0) return; // Ensure lessons are loaded
+  const currentLesson = lessons[currentLessonIndex];
+  const sentence = currentLesson.sentences[currentSentenceIndex];
+
   try {
-    // Check if currently recording
-    if (isRecording) {
-      console.log("Cannot listen while recording");
-      alert(
-        "Cannot listen to example while recording. Please finish recording first."
-      );
-      return;
-    }
-
-    if (lessons.length === 0) {
-      console.warn("No lessons loaded");
-      return;
-    }
-
-    const currentLesson = lessons[currentLessonIndex];
-    if (
-      !currentLesson ||
-      !currentLesson.sentences ||
-      !currentLesson.sentences[currentSentenceIndex]
-    ) {
-      console.error("Invalid lesson or sentence index");
-      alert("No sentence available to play");
-      return;
-    }
-
-    const sentence = currentLesson.sentences[currentSentenceIndex];
-    console.log("Attempting to speak sentence:", sentence);
-
-    // Show loading state
-    listenButton.disabled = true;
-    listen2Button.disabled = true;
-    listenButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-    listen2Button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
     const response = await fetch(
       `https://texttospeech.googleapis.com/v1/text:synthesize?key=${GOOGLE_CLOUD_API_KEY}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json",
         },
         body: JSON.stringify({
           input: { text: sentence },
-          voice: {
-            languageCode: "en-US",
-            name: "en-US-Wavenet-D",
-            ssmlGender: "NEUTRAL",
-          },
-          audioConfig: {
-            audioEncoding: "MP3",
-            speakingRate: 0.9,
-            pitch: 0,
-            volumeGainDb: 2,
-            effectsProfileId: ["handset-class-device"],
-          },
+          voice: { languageCode: "en-US", name: "en-US-Wavenet-D" },
+          audioConfig: { audioEncoding: "MP3" },
         }),
       }
     );
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Text-to-Speech API error:", response.status, errorData);
-      throw new Error(`API error: ${response.status} ${response.statusText}`);
+      throw new Error(`Text-to-Speech API error: ${response.statusText}`);
     }
 
     const data = await response.json();
-
-    if (!data.audioContent) {
-      throw new Error("No audio content received from API");
-    }
-
-    // Create and play audio
-    const audio = new Audio(`data:audio/mp3;base64,${data.audioContent}`);
-
-    audio.onerror = (error) => {
-      console.error("Audio playback error:", error);
-      alert("Failed to play audio. Please try again.");
-      resetListenButtons();
-    };
-
-    audio.onended = () => {
-      resetListenButtons();
-    };
-
-    await audio.play();
-    console.log("Audio playback started successfully");
+    const audioContent = data.audioContent;
+    const audio = new Audio(`data:audio/mp3;base64,${audioContent}`);
+    audio.play();
   } catch (error) {
-    console.error("Error in speakSentence:", error);
-    alert(
-      "Failed to generate speech. Please check your internet connection and try again."
-    );
-    resetListenButtons();
+    console.error("Error with Text-to-Speech API:", error);
+    alert("Failed to play audio. Please try again.");
   }
-}
-
-// Helper function to reset listen buttons
-function resetListenButtons() {
-  listenButton.disabled = false;
-  listen2Button.disabled = false;
-  listenButton.innerHTML = '<i class="fas fa-volume-up"></i>';
-  listen2Button.innerHTML = '<i class="fas fa-volume-up"></i>';
-}
-
-// Update playRecordedAudio function for iOS compatibility
-function playRecordedAudio() {
-  try {
-    if (isRecording) {
-      alert(
-        "Cannot play audio while recording. Please finish recording first."
-      );
-      return;
-    }
-
-    if (!recordedAudioBlob || recordedAudioBlob.size === 0) {
-      alert("Please record your voice first before playing.");
-      return;
-    }
-
-    // For iOS, we need to handle audio context
-    if (isIOS && audioContext && audioContext.state === "suspended") {
-      audioContext.resume();
-    }
-
-    console.log(
-      `Playing recorded audio: ${recordedAudioBlob.size} bytes, ${recordedAudioBlob.type}`
-    );
-
-    // Cleanup previous audio URL
-    if (lastRecordedAudioURL) {
-      URL.revokeObjectURL(lastRecordedAudioURL);
-    }
-
-    lastRecordedAudioURL = URL.createObjectURL(recordedAudioBlob);
-    const audio = new Audio(lastRecordedAudioURL);
-
-    // Show loading state
-    bookmarkIcon.style.opacity = "0.5";
-    bookmarkIcon2.style.opacity = "0.5";
-    bookmarkIcon.disabled = true;
-    bookmarkIcon2.disabled = true;
-
-    // Add event listeners
-    audio.addEventListener("error", (error) => {
-      console.error("Audio playback error:", error);
-      alert("Failed to play recording. Please try recording again.");
-      resetBookmarkButtons();
-    });
-
-    audio.addEventListener("ended", () => {
-      resetBookmarkButtons();
-    });
-
-    // Play with error handling
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch((error) => {
-        console.error("Audio play error:", error);
-        if (isIOS) {
-          alert(
-            "Playback failed. On iOS, you may need to use the physical volume buttons to unmute audio."
-          );
-        } else {
-          alert("Failed to play recording. Please try recording again.");
-        }
-        resetBookmarkButtons();
-      });
-    }
-  } catch (error) {
-    console.error("Error in playRecordedAudio:", error);
-    alert("Failed to play recording. Please try recording again.");
-    resetBookmarkButtons();
-  }
-}
-
-// Helper function to reset bookmark buttons
-function resetBookmarkButtons() {
-  bookmarkIcon.style.opacity = "1";
-  bookmarkIcon2.style.opacity = "1";
-  bookmarkIcon.disabled = false;
-  bookmarkIcon2.disabled = false;
 }
 
 // Toggle listen buttons state
@@ -1164,6 +971,25 @@ function blobToBase64(blob) {
   });
 }
 
+// Play the recorded audio
+function playRecordedAudio() {
+  if (!recordedAudioBlob) {
+    alert("No recorded audio available.");
+    return;
+  }
+
+  // Prevent playing recorded audio during recording
+  if (isRecording) {
+    console.log("Cannot play audio while recording");
+    alert("Cannot play audio while recording. Please finish recording first.");
+    return;
+  }
+
+  const audioURL = URL.createObjectURL(recordedAudioBlob);
+  const audio = new Audio(audioURL);
+  audio.play();
+}
+
 // Event listeners
 listenButton.addEventListener("click", speakSentence);
 listen2Button.addEventListener("click", speakSentence);
@@ -1315,22 +1141,3 @@ function handleRecordingError() {
   micButton.disabled = false;
   recordingIndicator.style.display = "none";
 }
-
-// Add iOS-specific initialization
-document.addEventListener("DOMContentLoaded", () => {
-  if (isIOS) {
-    // Add instructions for iOS users
-    const iosInstructions = document.createElement("div");
-    iosInstructions.innerHTML = `
-      <div style="background-color: #fff3cd; color: #856404; padding: 10px; margin: 10px; border-radius: 5px; text-align: center;">
-        <p>iOS Users: Please ensure:</p>
-        <ul style="list-style: none; padding: 0;">
-          <li>✓ Microphone permissions are enabled</li>
-          <li>✓ Your device is not muted</li>
-          <li>✓ Volume is turned up</li>
-        </ul>
-      </div>
-    `;
-    document.body.insertBefore(iosInstructions, document.body.firstChild);
-  }
-});
