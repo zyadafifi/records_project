@@ -1,11 +1,4 @@
-/** Device Detection */
-const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-const isIOS =
-  /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-const isAndroid = /Android/i.test(navigator.userAgent);
-
-/** DOM Elements */
+// DOM Elements
 const sentenceElement = document.getElementById("sentence");
 const micButton = document.getElementById("micButton");
 const retryButton = document.getElementById("retryButton");
@@ -22,19 +15,18 @@ const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
-const recordingIndicator = document.getElementById("recordingIndicator");
-
-/** Global variables and constants */
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 5000; // 5 seconds timeout to detect speech
 
 // AssemblyAI API Key
-const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2";
+const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
 
-// Create and initialize dialog backdrop
+// Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
 document.body.appendChild(dialogBackdrop);
+
+// Hide the dialog backdrop initially
 dialogBackdrop.style.display = "none";
 
 // Function to open the dialog
@@ -521,25 +513,7 @@ function toggleBookmarkButtons(disabled) {
 // Start audio recording with error handling
 async function startAudioRecording() {
   try {
-    const constraints = {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    };
-
-    // iOS specific constraints
-    if (isIOS) {
-      constraints.audio.sampleRate = 44100;
-    }
-
-    // Android specific constraints
-    if (isAndroid) {
-      constraints.audio.sampleRate = 48000;
-    }
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
     mediaRecorder = new MediaRecorder(stream);
 
@@ -614,14 +588,8 @@ async function startAudioRecording() {
     document.getElementById("recordingIndicator").style.display =
       "inline-block";
   } catch (error) {
-    console.error("Error starting recording:", error);
-    if (isMobile) {
-      alert(
-        "Please allow microphone access and ensure no other apps are using it."
-      );
-    } else {
-      alert("Error accessing microphone. Please check your settings.");
-    }
+    console.error("Error accessing microphone:", error);
+    alert("Please allow microphone access to use this feature.");
 
     // Ensure recording flag is reset and buttons are re-enabled in case of error
     isRecording = false;
@@ -857,158 +825,3 @@ continueButton.addEventListener("click", () => {
   );
   congratulationModal.hide(); // Hide the modal
 });
-
-/** Mobile-specific initialization */
-function initializeMobileSupport() {
-  if (isMobile) {
-    // Add touch event handlers
-    document.body.addEventListener(
-      "touchstart",
-      () => {
-        // Initialize audio context on first touch
-        initializeAudioContext();
-        resumeAudioContext();
-      },
-      { once: true }
-    );
-
-    // Prevent zoom on double tap
-    document.documentElement.addEventListener(
-      "touchstart",
-      function (event) {
-        if (event.touches.length > 1) {
-          event.preventDefault();
-        }
-      },
-      { passive: false }
-    );
-
-    // Prevent pull to refresh
-    document.body.style.overscrollBehavior = "none";
-  }
-}
-
-/** Enhanced initialization for lessons */
-async function initializeLesson() {
-  try {
-    // Initialize mobile support first
-    initializeMobileSupport();
-
-    const url =
-      "https://raw.githubusercontent.com/zyadafifi/lessons/main/lessons.json";
-    console.log("Fetching lessons...");
-
-    const response = await fetch(url, {
-      headers: {
-        Accept: "application/json",
-        "Cache-Control": "no-cache",
-      },
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch lessons: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    console.log("Lessons data received:", data);
-
-    if (!data || !data.lessons || !Array.isArray(data.lessons)) {
-      throw new Error("Invalid lessons data format");
-    }
-
-    lessons = data.lessons;
-
-    // Get and validate quizId
-    const quizId = getQuizIdFromURL();
-    if (!quizId) {
-      throw new Error("No quizId found in URL");
-    }
-
-    // Find matching lesson
-    currentLessonIndex = lessons.findIndex(
-      (lesson) => lesson.quizId === quizId
-    );
-    if (currentLessonIndex === -1) {
-      throw new Error(`No lesson found for quizId: ${quizId}`);
-    }
-
-    // Update UI with first sentence
-    updateSentence();
-    console.log("Lesson initialized successfully");
-
-    // Mobile-specific UI adjustments
-    if (isMobile) {
-      adjustUIForMobile();
-    }
-  } catch (error) {
-    console.error("Failed to initialize lesson:", error);
-    if (sentenceElement) {
-      sentenceElement.textContent =
-        "Error loading lesson. Please refresh the page.";
-    }
-    // Show user-friendly error on mobile
-    if (isMobile) {
-      alert("Please check your internet connection and refresh the page.");
-    }
-  }
-}
-
-/** Mobile UI Adjustments */
-function adjustUIForMobile() {
-  // Ensure buttons are large enough for touch
-  const buttons = document.querySelectorAll("button, .bookmark-icon");
-  buttons.forEach((button) => {
-    button.style.minHeight = "44px";
-    button.style.minWidth = "44px";
-    button.style.padding = "12px";
-  });
-
-  // Adjust text size for better readability
-  if (sentenceElement) {
-    sentenceElement.style.fontSize = "1.2em";
-    sentenceElement.style.lineHeight = "1.5";
-  }
-
-  // Ensure dialog is properly centered on mobile
-  if (dialogContainer) {
-    dialogContainer.style.maxWidth = "90%";
-    dialogContainer.style.margin = "auto";
-    dialogContainer.style.top = "50%";
-    dialogContainer.style.transform = "translateY(-50%)";
-  }
-}
-
-/** Enhanced audio initialization for mobile */
-async function initializeAudioContext() {
-  try {
-    if (!audioContext) {
-      window.AudioContext = window.AudioContext || window.webkitAudioContext;
-      audioContext = new AudioContext();
-
-      if (isMobile) {
-        // Ensure audio works on mobile
-        await audioContext.resume();
-
-        // Set up audio worklet for better mobile performance
-        if (audioContext.audioWorklet) {
-          try {
-            await audioContext.audioWorklet.addModule("worklet-processor.js");
-          } catch (e) {
-            console.log("Audio worklet not supported or failed to load");
-          }
-        }
-      }
-      console.log("AudioContext initialized successfully");
-    }
-  } catch (error) {
-    console.error("Error initializing AudioContext:", error);
-    if (isMobile) {
-      alert(
-        "Audio initialization failed. Please ensure your device's media permissions are enabled."
-      );
-    }
-  }
-}
-
-// Initialize when DOM is ready
-document.addEventListener("DOMContentLoaded", initializeLesson);
