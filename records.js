@@ -204,10 +204,15 @@ async function startAudioRecording() {
       }
     }
 
+    // FIX: Set a flag to prevent duplicate data handling
+    let isProcessingData = false;
+
     mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
+      if (event.data.size > 0 && !isProcessingData) {
+        isProcessingData = true;
         audioChunks.push(event.data);
         console.log(`Audio chunk received: ${event.data.size} bytes`);
+        isProcessingData = false;
       }
     };
 
@@ -317,8 +322,8 @@ async function startAudioRecording() {
       }
     }
 
-    // Start recording with a smaller timeslice for more frequent data chunks
-    mediaRecorder.start(100);
+    // FIX: Start recording with a larger timeslice to reduce the number of data events
+    mediaRecorder.start(1000); // Changed from 100ms to 1000ms (1 second)
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
     micButton.style.color = "#ff0000";
     micButton.disabled = true;
@@ -333,9 +338,19 @@ async function startAudioRecording() {
   }
 }
 
+// FIX: Update the stopRecording function to ensure proper cleanup
 function stopRecording() {
   if (mediaRecorder && mediaRecorder.state === "recording") {
-    mediaRecorder.stop();
+    try {
+      // Set a flag to prevent multiple stop calls
+      if (isRecording) {
+        isRecording = false;
+        mediaRecorder.stop();
+        console.log("MediaRecorder stopped");
+      }
+    } catch (error) {
+      console.error("Error stopping MediaRecorder:", error);
+    }
   }
 }
 
