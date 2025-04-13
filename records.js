@@ -42,20 +42,45 @@ let audioContext;
 let silenceTimer;
 const SILENCE_DETECTION_TIMEOUT = 2000; // 2 seconds of silence to stop recording
 
+// Add constants for recording limits
+const MAX_CHUNKS = 15; // Maximum number of chunks before auto-stop
+const MAX_RECORDING_TIME = 15000; // Maximum recording time in milliseconds (15 seconds)
+let recordingTimeout;
+
 // Initialize and resume AudioContext
 function initializeAudioContext() {
-  if (!audioContext) {
-    window.AudioContext = window.AudioContext || window.webkitAudioContext;
-    audioContext = new AudioContext();
+  try {
+    if (!audioContext) {
+      window.AudioContext = window.AudioContext || window.webkitAudioContext;
+      audioContext = new AudioContext();
+      console.log("AudioContext initialized successfully");
+    }
 
-    // iOS specific handling
+    // For iOS, we need to handle resuming on user interaction
     if (isIOS && audioContext.state === "suspended") {
       const resumeAudioContext = async () => {
-        await audioContext.resume();
-        document.removeEventListener("touchend", resumeAudioContext);
+        try {
+          await audioContext.resume();
+          console.log("AudioContext resumed successfully");
+          // Remove the event listeners once audio is running
+          ["touchend", "click"].forEach((event) => {
+            document.removeEventListener(event, resumeAudioContext);
+          });
+        } catch (error) {
+          console.error("Error resuming AudioContext:", error);
+        }
       };
-      document.addEventListener("touchend", resumeAudioContext);
+
+      // Add multiple event listeners for better iOS compatibility
+      ["touchend", "click"].forEach((event) => {
+        document.addEventListener(event, resumeAudioContext);
+      });
     }
+
+    return audioContext;
+  } catch (error) {
+    console.error("Error in initializeAudioContext:", error);
+    throw error;
   }
 }
 
@@ -85,6 +110,11 @@ async function startAudioRecording() {
   try {
     console.log("Starting new recording...");
 
+    // Clear any existing timeouts
+    if (recordingTimeout) {
+      clearTimeout(recordingTimeout);
+    }
+
     // Reset state
     if (mediaRecorder && mediaRecorder.state === "recording") {
       console.log("Stopping existing recording first");
@@ -101,90 +131,97 @@ async function startAudioRecording() {
       await audioContext.resume();
     }
 
-    // iOS-compatible constraints
-    const constraints = {
+    const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
       },
-    };
+    });
 
-    // Add sample rate only if not on iOS
-    if (!isIOS) {
-      constraints.audio.sampleRate = 48000;
-      constraints.audio.channelCount = 1;
-    }
-
-    const stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-    // Determine supported mime type
-    let mimeType = "audio/webm;codecs=opus";
-    if (!MediaRecorder.isTypeSupported(mimeType)) {
-      if (MediaRecorder.isTypeSupported("audio/mp4")) {
-        mimeType = "audio/mp4";
-      } else {
-        mimeType = ""; // Let browser choose format
-      }
-    }
-
-    // Create MediaRecorder with supported options
-    const options = {
+    // Set up MediaRecorder with fixed options
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: "audio/webm;codecs=opus",
       audioBitsPerSecond: 128000,
-    };
-    if (mimeType) {
-      options.mimeType = mimeType;
-    }
+    });
 
-    mediaRecorder = new MediaRecorder(stream, options);
-
-    // Rest of your existing mediaRecorder setup...
+    // Set up data handling with chunk limit
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         audioChunks.push(event.data);
-        console.log(`Chunk received: ${event.data.size} bytes`);
+        console.log(
+          `Chunk received: ${event.data.size} bytes, Total chunks: ${audioChunks.length}`
+        );
+
+        // Stop recording if maximum chunks reached
+        if (audioChunks.length >= MAX_CHUNKS) {
+          console.log("Maximum chunks reached, stopping recording");
+          stopRecording();
+        }
       }
     };
 
-    // Update onstop handler
+    // Handle recording stop
     mediaRecorder.onstop = async () => {
-      try {
-        const blobOptions = {
-          type: mimeType || "audio/webm;codecs=opus",
-        };
-        recordedAudioBlob = new Blob(audioChunks, blobOptions);
+      console.log("MediaRecorder stopped");
+      clearTimeout(recordingTimeout);
 
-        if (recordedAudioBlob.size < 1000) {
-          console.warn("Recording too small, likely no speech");
-          alert("No speech detected. Please try again and speak clearly.");
+      try {
+        if (audioChunks.length === 0) {
+          console.warn("No audio data collected");
+          alert("No audio was recorded. Please try again and speak clearly.");
+          handleRecordingError();
           return;
         }
 
-        // Store the audio blob
-        window.recordedAudioBlob = recordedAudioBlob;
+        const recordedBlob = new Blob(audioChunks, {
+          type: "audio/webm;codecs=opus",
+        });
+        console.log(
+          `Recording complete. Total size: ${recordedBlob.size} bytes`
+        );
 
-        // Update UI
+        if (recordedBlob.size < 1000) {
+          console.warn("Recording too small, likely no speech");
+          alert("No speech detected. Please try again and speak clearly.");
+          handleRecordingError();
+          return;
+        }
+
+        // Store the blob and update UI
+        recordedAudioBlob = recordedBlob;
         updateUIAfterRecording();
 
         // Process the recording
-        const transcription = await transcribeAudioWithGoogle(
-          recordedAudioBlob
-        );
+        const transcription = await transcribeAudioWithGoogle(recordedBlob);
         if (transcription) {
           processTranscription(transcription);
         }
       } catch (error) {
         console.error("Error processing recording:", error);
         alert("Error processing recording. Please try again.");
+        handleRecordingError();
       } finally {
+        // Cleanup
         stream.getTracks().forEach((track) => track.stop());
+        isRecording = false;
+        toggleListenButtons(false);
+        toggleBookmarkButtons(false);
       }
     };
 
     // Start recording
     isRecording = true;
-    mediaRecorder.start(1000);
-    console.log("Recording started with mime type:", mimeType);
+    mediaRecorder.start(1000); // Collect data every second
+    console.log("Recording started");
+
+    // Set maximum recording time
+    recordingTimeout = setTimeout(() => {
+      if (isRecording) {
+        console.log("Maximum recording time reached, stopping recording");
+        stopRecording();
+      }
+    }, MAX_RECORDING_TIME);
 
     // Update UI
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
@@ -195,16 +232,10 @@ async function startAudioRecording() {
     toggleBookmarkButtons(true);
   } catch (error) {
     console.error("Error starting recording:", error);
-    if (error.name === "NotAllowedError") {
-      alert(
-        "Microphone access denied. Please grant microphone permissions and try again."
-      );
-    } else {
-      alert(
-        "Error accessing microphone. Please ensure microphone permissions are granted."
-      );
-    }
     handleRecordingError();
+    alert(
+      "Error accessing microphone. Please ensure microphone permissions are granted."
+    );
   }
 }
 
@@ -218,6 +249,11 @@ function stopRecording() {
   }
 
   try {
+    // Clear the recording timeout
+    if (recordingTimeout) {
+      clearTimeout(recordingTimeout);
+    }
+
     // Force stop any ongoing recording
     if (mediaRecorder.state === "recording") {
       console.log("Stopping active recording");
@@ -250,6 +286,7 @@ function stopRecording() {
     console.log("Recording stopped successfully");
   } catch (error) {
     console.error("Error stopping recording:", error);
+    handleRecordingError();
   }
 }
 
@@ -458,29 +495,36 @@ function updateProgressCircle(score) {
 
 // Play sound effects using the Web Audio API
 function playSoundEffect(frequency, duration) {
-  if (!audioContext) {
-    console.error(
-      "AudioContext not initialized. Call initializeAudioContext() first."
+  try {
+    // Initialize if not already done
+    if (!audioContext) {
+      initializeAudioContext();
+    }
+
+    // Check if context is suspended
+    if (audioContext.state === "suspended") {
+      audioContext.resume();
+    }
+
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.frequency.value = frequency;
+    oscillator.type = "sine";
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    oscillator.start();
+    gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(
+      0.001,
+      audioContext.currentTime + duration / 1000
     );
-    return;
+    oscillator.stop(audioContext.currentTime + duration / 1000);
+  } catch (error) {
+    console.error("Error playing sound effect:", error);
   }
-
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
-
-  oscillator.frequency.value = frequency; // Frequency in Hz
-  oscillator.type = "sine"; // Type of waveform
-
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-
-  oscillator.start();
-  gainNode.gain.setValueAtTime(1, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(
-    0.001,
-    audioContext.currentTime + duration / 1000
-  );
-  oscillator.stop(audioContext.currentTime + duration / 1000);
 }
 
 // Calculate pronunciation score and log recognized words to the console
@@ -1127,14 +1171,27 @@ loadLessons();
 
 // Event listeners for buttons
 micButton.addEventListener("click", async () => {
-  // Initialize and resume AudioContext on user gesture
-  initializeAudioContext();
-  await resumeAudioContext();
+  try {
+    // Initialize AudioContext first
+    initializeAudioContext();
 
-  micButton.style.display = "none";
-  retryButton.style.display = "inline-block";
-  retryButton.disabled = false;
-  startAudioRecording();
+    // For iOS, we need to resume on user interaction
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+
+    // Update UI
+    micButton.style.display = "none";
+    retryButton.style.display = "inline-block";
+    retryButton.disabled = false;
+
+    // Start recording
+    await startAudioRecording();
+  } catch (error) {
+    console.error("Error initializing audio:", error);
+    alert("Failed to initialize audio. Please try again.");
+    handleRecordingError();
+  }
 });
 
 retryButton.addEventListener("click", () => {
