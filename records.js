@@ -29,111 +29,10 @@ document.body.appendChild(dialogBackdrop);
 // Hide the dialog backdrop initially
 dialogBackdrop.style.display = "none";
 
-// Add global state tracking to prevent duplication
-let isProcessingTranscription = false;
-let hasDisplayedResult = false;
-
-// Add pulse animation for the next button
-const style = document.createElement("style");
-style.textContent = `
-  @keyframes nextButtonPulse {
-    0% {
-      transform: scale(1);
-      box-shadow: 0 0 0 0 rgba(10, 169, 137, 0.4);
-    }
-    70% {
-      transform: scale(1.05);
-      box-shadow: 0 0 0 10px rgba(10, 169, 137, 0);
-    }
-    100% {
-      transform: scale(1);
-      box-shadow: 0 0 0 0 rgba(10, 169, 137, 0);
-    }
-  }
-`;
-document.head.appendChild(style);
-
-// Function to open the dialog with proper button visibility and sentence display
+// Function to open the dialog
 function openDialog() {
-  if (dialogContainer) {
-    // Clear any processing indicators
-    recognizedTextDiv.innerHTML = recognizedTextDiv.innerHTML.replace(
-      /<i class="fas fa-spinner fa-spin"><\/i> (Processing|Analyzing)\.\.\./,
-      ""
-    );
-
-    // Get the current sentence and display it at the top of the dialog
-    try {
-      const currentLesson = lessons[currentLessonIndex];
-      const currentSentence = currentLesson.sentences[currentSentenceIndex];
-
-      // Create or update the sentence display element in the dialog
-      let sentenceDisplayElement = document.getElementById("reviewSentence");
-      if (!sentenceDisplayElement) {
-        sentenceDisplayElement = document.createElement("div");
-        sentenceDisplayElement.id = "reviewSentence";
-        sentenceDisplayElement.style.fontWeight = "bold";
-        sentenceDisplayElement.style.marginBottom = "15px";
-        sentenceDisplayElement.style.fontSize = "18px";
-        sentenceDisplayElement.style.color = "#0aa989";
-        sentenceDisplayElement.style.padding = "10px";
-        sentenceDisplayElement.style.borderRadius = "5px";
-        sentenceDisplayElement.style.backgroundColor = "#f9f9f9";
-        sentenceDisplayElement.style.border = "1px solid #ddd";
-
-        // Insert at the top of the dialog
-        if (dialogContainer.firstChild) {
-          dialogContainer.insertBefore(
-            sentenceDisplayElement,
-            dialogContainer.firstChild
-          );
-        } else {
-          dialogContainer.appendChild(sentenceDisplayElement);
-        }
-      }
-
-      // Set the current sentence text
-      sentenceDisplayElement.textContent = currentSentence;
-    } catch (error) {
-      console.error("Error displaying sentence in review:", error);
-    }
-
-    // Ensure buttons are visible and properly styled
-    if (nextButton) {
-      nextButton.style.display = "inline-block";
-      nextButton.style.marginTop = "15px";
-      nextButton.style.backgroundColor = "#0aa989";
-      nextButton.style.color = "white";
-      nextButton.style.padding = "8px 15px";
-      nextButton.style.borderRadius = "5px";
-      nextButton.style.border = "none";
-      nextButton.style.cursor = "pointer";
-      nextButton.style.fontWeight = "bold";
-      nextButton.style.animation = "nextButtonPulse 2s infinite";
-    }
-
-    if (retryButton) {
-      retryButton.style.display = "inline-block";
-      retryButton.style.marginRight = "10px";
-      retryButton.disabled = false;
-    }
-
-    // Force display of all elements in the dialog
-    const allDialogElements = dialogContainer.querySelectorAll("*");
-    allDialogElements.forEach((element) => {
-      if (
-        element.style.display === "none" &&
-        element.id !== "recordingIndicator" &&
-        !element.classList.contains("dialog-backdrop")
-      ) {
-        element.style.display = "block";
-      }
-    });
-
-    // Show the dialog
-    dialogContainer.style.display = "block";
-    dialogBackdrop.style.display = "block";
-  }
+  dialogContainer.style.display = "block";
+  dialogBackdrop.style.display = "block";
 }
 
 // Function to close the dialog
@@ -318,26 +217,23 @@ function calculateSimilarity(word1, word2) {
   return similarity;
 }
 
-// Optimized function to update the progress circle for faster response
+// Update the progress circle based on the pronunciation score
 function updateProgressCircle(score) {
-  requestAnimationFrame(() => {
-    const circumference = 251.2; // 2 * π * r (r = 40)
-    const offset = circumference - (circumference * score) / 100;
-    progressCircle.style.strokeDashoffset = offset;
+  const circumference = 251.2; // 2 * π * r (r = 40)
+  const offset = circumference - (circumference * score) / 100;
+  progressCircle.style.strokeDashoffset = offset;
 
-    // Change circle color based on score - immediate response
-    if (score >= 80) {
-      progressCircle.style.stroke = "#0aa989"; // Green for high scores
-      // Use setTimeout with 0 delay to avoid blocking UI thread
-      setTimeout(() => playSoundEffect(800, 200), 0);
-    } else if (score >= 50) {
-      progressCircle.style.stroke = "#ffa500"; // Orange for medium scores
-      setTimeout(() => playSoundEffect(500, 200), 0);
-    } else {
-      progressCircle.style.stroke = "#ff0000"; // Red for low scores
-      setTimeout(() => playSoundEffect(300, 200), 0);
-    }
-  });
+  // Change circle color based on score
+  if (score >= 80) {
+    progressCircle.style.stroke = "#0aa989"; // Green for high scores
+    playSoundEffect(800, 200); // High-pitched beep for success
+  } else if (score >= 50) {
+    progressCircle.style.stroke = "#ffa500"; // Orange for medium scores
+    playSoundEffect(500, 200); // Medium-pitched beep for neutral
+  } else {
+    progressCircle.style.stroke = "#ff0000"; // Red for low scores
+    playSoundEffect(300, 200); // Low-pitched beep for failure
+  }
 }
 
 // Play sound effects using the Web Audio API
@@ -615,17 +511,91 @@ function toggleBookmarkButtons(disabled) {
 }
 
 // Constants for recording
-const RECORDING_DURATION = 3000; // Reduce to 3 seconds from 5 seconds
+const RECORDING_DURATION = 5000; // 5 seconds recording time
 let recordingTimeout;
 
-// Upload audio to AssemblyAI with optimized settings
+// Start audio recording with automatic stop
+async function startAudioRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+
+    // Set recording flag to true and disable listen/bookmark buttons
+    isRecording = true;
+    toggleListenButtons(true);
+    toggleBookmarkButtons(true);
+
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+      micButton.style.backgroundColor = "";
+      micButton.disabled = false;
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      document.getElementById("recordingIndicator").style.display = "none";
+
+      // Set recording flag to false and re-enable listen/bookmark buttons
+      isRecording = false;
+      toggleListenButtons(false);
+      toggleBookmarkButtons(false);
+
+      // Stop all tracks in the MediaStream to release the microphone
+      stream.getTracks().forEach((track) => track.stop());
+
+      // Upload the recorded audio to AssemblyAI for transcription
+      const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+      if (transcription) {
+        const currentLesson = lessons[currentLessonIndex];
+        const pronunciationScore = calculatePronunciationScore(
+          transcription,
+          currentLesson.sentences[currentSentenceIndex]
+        );
+        pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+        updateProgressCircle(pronunciationScore);
+
+        // Update total sentences spoken and overall score
+        totalSentencesSpoken++;
+        totalPronunciationScore += pronunciationScore;
+
+        // Show the dialog container
+        openDialog();
+      }
+    };
+
+    // Start recording
+    mediaRecorder.start();
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#ff0000";
+    micButton.disabled = true;
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
+
+    // Set timeout to automatically stop recording after RECORDING_DURATION
+    recordingTimeout = setTimeout(() => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+      }
+    }, RECORDING_DURATION);
+  } catch (error) {
+    console.error("Error accessing microphone:", error);
+    alert("Please allow microphone access to use this feature.");
+
+    // Ensure recording flag is reset and buttons are re-enabled in case of error
+    isRecording = false;
+    toggleListenButtons(false);
+    toggleBookmarkButtons(false);
+  }
+}
+
+// Upload audio to AssemblyAI and get transcription
 async function uploadAudioToAssemblyAI(audioBlob) {
   try {
-    // Show loading indication (only update the display, don't process again)
-    recognizedTextDiv.innerHTML =
-      '<i class="fas fa-spinner fa-spin"></i> Processing...';
-
-    // Step 1: Upload the audio file to AssemblyAI with optimized settings
+    // Step 1: Upload the audio file to AssemblyAI
     const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
       method: "POST",
       headers: {
@@ -642,7 +612,7 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     const uploadData = await uploadResponse.json();
     const audioUrl = uploadData.upload_url;
 
-    // Step 2: Submit the transcription request with optimized settings for speed
+    // Step 2: Submit the transcription request
     const transcriptionResponse = await fetch(
       "https://api.assemblyai.com/v2/transcript",
       {
@@ -653,13 +623,6 @@ async function uploadAudioToAssemblyAI(audioBlob) {
         },
         body: JSON.stringify({
           audio_url: audioUrl,
-          language_detection: false, // Disable language detection for speed
-          punctuate: false, // Disable punctuation for speed
-          format_text: false, // Disable text formatting for speed
-          disfluencies: false, // Disable disfluency detection
-          language_code: "en", // Set language explicitly for speed
-          speech_threshold: 0.2, // Lower threshold to detect speech faster
-          speed_boost: true, // Enable speed boost for faster processing
         }),
       }
     );
@@ -673,12 +636,9 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     const transcriptionData = await transcriptionResponse.json();
     const transcriptId = transcriptionData.id;
 
-    // Step 3: Optimized polling for faster result retrieval
+    // Step 3: Poll for the transcription result
     let transcriptionResult;
-    let attempts = 0;
-    const MAX_ATTEMPTS = 10;
-    while (attempts < MAX_ATTEMPTS) {
-      attempts++;
+    while (true) {
       const statusResponse = await fetch(
         `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
         {
@@ -702,277 +662,15 @@ async function uploadAudioToAssemblyAI(audioBlob) {
         throw new Error("Transcription failed");
       }
 
-      // Use shorter poll intervals for faster results
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for 1 second before polling again
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    // Simply return the text - don't process it here
     return transcriptionResult;
   } catch (error) {
     console.error("Error in AssemblyAI transcription:", error);
-    // Just return the error, let the caller handle it
-    throw error;
-  }
-}
-
-// Start audio recording with automatic stop and optimization
-async function startAudioRecording() {
-  try {
-    // Reset state for new recording
-    isProcessingTranscription = false;
-    hasDisplayedResult = false;
-
-    // Create a higher quality audio stream for better recognition
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        sampleRate: 48000, // Higher sample rate for better quality
-      },
-    });
-
-    audioChunks = [];
-
-    // Use optimized MediaRecorder settings
-    mediaRecorder = new MediaRecorder(stream, {
-      audioBitsPerSecond: 128000, // Higher bitrate for better quality
-    });
-
-    // Set recording flag to true and disable listen/bookmark buttons
-    isRecording = true;
-    toggleListenButtons(true);
-    toggleBookmarkButtons(true);
-
-    mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
-    };
-
-    // Define a completely new onstop handler to avoid closure issues
-    mediaRecorder.onstop = async () => {
-      console.log("MediaRecorder stopped");
-
-      // Update UI immediately for faster feedback
-      micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-      micButton.style.backgroundColor = "";
-      micButton.disabled = false;
-      retryButton.style.display = "inline-block";
-      retryButton.disabled = false;
-      document.getElementById("recordingIndicator").style.display = "none";
-
-      // Set recording flag to false and re-enable listen/bookmark buttons
-      isRecording = false;
-      toggleListenButtons(false);
-      toggleBookmarkButtons(false);
-
-      // Stop all tracks in the MediaStream to release the microphone
-      stream.getTracks().forEach((track) => track.stop());
-
-      if (hasDisplayedResult) {
-        console.log("Result already displayed, skipping processing");
-        return; // Skip processing if we already displayed a result
-      }
-
-      // Set the global processing flag to prevent duplicate calls
-      isProcessingTranscription = true;
-
-      try {
-        // Create the audio blob for upload
-        recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
-
-        // Show processing indicator
-        recognizedTextDiv.innerHTML =
-          '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
-
-        // Start a timer for fallback display
-        const processingTimeout = setTimeout(() => {
-          // Only proceed if we haven't already shown results
-          if (hasDisplayedResult) return;
-
-          // Mark that we've displayed results
-          hasDisplayedResult = true;
-
-          // Clear processing indicator
-          recognizedTextDiv.innerHTML = "";
-
-          // Get the current sentence
-          const currentLesson = lessons[currentLessonIndex];
-          const expectedSentence =
-            currentLesson.sentences[currentSentenceIndex];
-          const randomScore = Math.floor(Math.random() * 30) + 65;
-
-          // Update UI with fallback score
-          pronunciationScoreDiv.textContent = `${randomScore}%`;
-          updateProgressCircle(randomScore);
-
-          // Display your speech message for consistency
-          recognizedTextDiv.innerHTML = `
-            <div style="margin-bottom: 10px; font-weight: bold;">Your speech:</div>
-            <div style="padding: 8px; background-color: #f0f0f0; border-radius: 5px; font-style: italic; color: #666;">
-              Speech processing timed out. Please try again with clearer speech.
-            </div>
-          `;
-
-          // Ensure the next button is styled consistently
-          if (nextButton) {
-            nextButton.style.display = "inline-block";
-            nextButton.style.marginTop = "15px";
-            nextButton.style.backgroundColor = "#0aa989";
-            nextButton.style.color = "white";
-            nextButton.style.padding = "8px 15px";
-            nextButton.style.borderRadius = "5px";
-            nextButton.style.border = "none";
-            nextButton.style.cursor = "pointer";
-            nextButton.style.fontWeight = "bold";
-            nextButton.style.animation = "pulse 2s infinite";
-          }
-
-          // Update statistics
-          totalSentencesSpoken++;
-          totalPronunciationScore += randomScore;
-
-          // Show results dialog
-          openDialog();
-
-          console.log("Displayed fallback result");
-        }, 2000);
-
-        // Process the actual transcription
-        console.log("Starting transcription process");
-        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
-
-        // Clear the timeout if we got a response in time
-        clearTimeout(processingTimeout);
-
-        // Only process if we haven't already shown results
-        if (!hasDisplayedResult && transcription) {
-          // Mark that we've displayed results
-          hasDisplayedResult = true;
-
-          // Clear processing indicator
-          recognizedTextDiv.innerHTML = "";
-
-          // Calculate the actual score
-          const currentLesson = lessons[currentLessonIndex];
-          const expectedSentence =
-            currentLesson.sentences[currentSentenceIndex];
-          const pronunciationScore = calculatePronunciationScoreOptimized(
-            transcription,
-            expectedSentence
-          );
-
-          // Update UI with actual score
-          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-          updateProgressCircle(pronunciationScore);
-
-          // Show the transcription and original sentence for comparison
-          recognizedTextDiv.innerHTML = `
-            <div style="margin-bottom: 10px; font-weight: bold;">Your speech:</div>
-            <div style="padding: 8px; background-color: #f0f0f0; border-radius: 5px;">${transcription}</div>
-          `;
-
-          // Ensure the next button is clearly visible and styled properly
-          if (nextButton) {
-            nextButton.style.display = "inline-block";
-            nextButton.style.marginTop = "15px";
-            nextButton.style.backgroundColor = "#0aa989";
-            nextButton.style.color = "white";
-            nextButton.style.padding = "8px 15px";
-            nextButton.style.borderRadius = "5px";
-            nextButton.style.border = "none";
-            nextButton.style.cursor = "pointer";
-            nextButton.style.fontWeight = "bold";
-
-            // Add a highlight animation to draw attention
-            nextButton.style.animation = "pulse 2s infinite";
-          }
-
-          // Update statistics
-          totalSentencesSpoken++;
-          totalPronunciationScore += pronunciationScore;
-
-          // Show results dialog
-          openDialog();
-
-          console.log("Displayed actual transcription result");
-        }
-      } catch (error) {
-        console.error("Error processing recording:", error);
-
-        // Only proceed if we haven't already shown results
-        if (hasDisplayedResult) return;
-
-        // Mark that we've displayed results
-        hasDisplayedResult = true;
-
-        // Clear processing indicator
-        recognizedTextDiv.innerHTML = "";
-
-        // Show fallback result
-        const randomScore = Math.floor(Math.random() * 20) + 60;
-        pronunciationScoreDiv.textContent = `${randomScore}%`;
-        updateProgressCircle(randomScore);
-
-        // Display error message in the same format as successful transcription
-        recognizedTextDiv.innerHTML = `
-          <div style="margin-bottom: 10px; font-weight: bold;">Your speech:</div>
-          <div style="padding: 8px; background-color: #f0f0f0; border-radius: 5px; font-style: italic; color: #666;">
-            Unable to process speech. Please try again.
-          </div>
-        `;
-
-        // Ensure the next button is styled consistently
-        if (nextButton) {
-          nextButton.style.display = "inline-block";
-          nextButton.style.marginTop = "15px";
-          nextButton.style.backgroundColor = "#0aa989";
-          nextButton.style.color = "white";
-          nextButton.style.padding = "8px 15px";
-          nextButton.style.borderRadius = "5px";
-          nextButton.style.border = "none";
-          nextButton.style.cursor = "pointer";
-          nextButton.style.fontWeight = "bold";
-          nextButton.style.animation = "pulse 2s infinite";
-        }
-
-        // Update statistics
-        totalSentencesSpoken++;
-        totalPronunciationScore += randomScore;
-
-        // Show results dialog
-        openDialog();
-
-        console.log("Displayed error fallback result");
-      } finally {
-        // Reset the processing flag regardless of outcome
-        isProcessingTranscription = false;
-      }
-    };
-
-    // Start recording with small chunks for faster processing
-    mediaRecorder.start(200);
-
-    // Update UI for recording state
-    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-    micButton.style.color = "#ff0000";
-    micButton.disabled = true;
-    document.getElementById("recordingIndicator").style.display =
-      "inline-block";
-
-    // Set timeout to automatically stop recording after shorter RECORDING_DURATION
-    recordingTimeout = setTimeout(() => {
-      if (mediaRecorder && mediaRecorder.state === "recording") {
-        mediaRecorder.stop();
-      }
-    }, RECORDING_DURATION);
-  } catch (error) {
-    console.error("Error accessing microphone:", error);
-    alert("Please allow microphone access to use this feature.");
-
-    // Ensure recording flag is reset and buttons are re-enabled in case of error
-    isRecording = false;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
+    alert("Failed to transcribe audio. Please try again.");
+    return null;
   }
 }
 
@@ -1067,18 +765,14 @@ micButton.addEventListener("click", async () => {
   startAudioRecording();
 });
 
-// Update the retry button handler to reset state properly
+// Update the retry button handler to clear the timeout
 retryButton.addEventListener("click", () => {
   // Clear any existing recording timeout
   if (recordingTimeout) {
     clearTimeout(recordingTimeout);
   }
 
-  // Reset state tracking
-  isProcessingTranscription = false;
-  hasDisplayedResult = false;
-
-  // Close the dialog to show the sentence again
+  // First close the dialog to show the sentence again
   closeDialog();
 
   // Reset UI without changing the sentence
@@ -1127,36 +821,3 @@ continueButton.addEventListener("click", () => {
   );
   congratulationModal.hide(); // Hide the modal
 });
-
-// Optimized version of pronunciation score calculation for faster processing
-function calculatePronunciationScoreOptimized(transcript, expectedSentence) {
-  // Normalize and split text (optimized for speed)
-  const transcriptWords = normalizeText(transcript)
-    .split(/\s+/)
-    .filter(Boolean);
-  const sentenceWords = normalizeText(expectedSentence)
-    .split(/\s+/)
-    .filter(Boolean);
-
-  // Quick exit for empty inputs
-  if (transcriptWords.length === 0 || sentenceWords.length === 0) {
-    return 50; // Default score for empty input
-  }
-
-  // Basic matching - count exact matches first (very fast)
-  let exactMatches = 0;
-  const transcriptSet = new Set(transcriptWords);
-  const sentenceSet = new Set(sentenceWords);
-
-  for (const word of transcriptSet) {
-    if (sentenceSet.has(word)) {
-      exactMatches++;
-    }
-  }
-
-  // Calculate basic ratio of matched words to expected words
-  let baseScore = (exactMatches / sentenceWords.length) * 100;
-
-  // Optimize display by rounding to nearest 5
-  return Math.round(baseScore / 5) * 5;
-}
