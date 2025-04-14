@@ -68,6 +68,10 @@ let canvasCtx;
 let animationId;
 let waveformCanvas;
 let recordingStartTime;
+let waveformContainer; // Container for canvas and buttons
+let stopRecButton; // Stop button
+let deleteRecButton; // Delete button
+let isRecordingCancelled = false; // Flag for cancellation
 
 // Function to initialize AudioContext
 function initializeAudioContext() {
@@ -95,34 +99,76 @@ function setupWaveformVisualization(stream) {
     console.error("Cannot setup waveform: AudioContext not initialized.");
     return;
   }
-  // Create canvas element if it doesn't exist
-  if (!waveformCanvas) {
+
+  // Create container if it doesn't exist
+  if (!waveformContainer) {
+    waveformContainer = document.createElement("div");
+    waveformContainer.id = "waveformContainer";
+    waveformContainer.style.display = "flex";
+    waveformContainer.style.alignItems = "center";
+    waveformContainer.style.justifyContent = "space-between";
+    waveformContainer.style.width = "100%";
+    waveformContainer.style.marginTop = "10px";
+    waveformContainer.style.padding = "5px";
+    waveformContainer.style.backgroundColor = "#f0f0f0"; // Match canvas background
+    waveformContainer.style.borderRadius = "4px";
+    waveformContainer.style.display = "none"; // Initially hidden
+
+    // --- Create Delete Button ---
+    deleteRecButton = document.createElement("button");
+    deleteRecButton.id = "deleteRecButton";
+    deleteRecButton.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Trash icon
+    deleteRecButton.title = "Cancel Recording";
+    // Basic styling (customize as needed)
+    deleteRecButton.style.background = "none";
+    deleteRecButton.style.border = "none";
+    deleteRecButton.style.color = "#dc3545"; // Red color for delete
+    deleteRecButton.style.fontSize = "1.2em";
+    deleteRecButton.style.cursor = "pointer";
+    deleteRecButton.style.padding = "0 10px";
+    deleteRecButton.onclick = handleDeleteRecording; // Assign click handler
+    waveformContainer.appendChild(deleteRecButton);
+
+    // --- Create Canvas ---
     waveformCanvas = document.createElement("canvas");
     waveformCanvas.id = "waveformCanvas";
-    waveformCanvas.width = 300;
-    waveformCanvas.height = 60;
-    waveformCanvas.style.width = "100%";
-    waveformCanvas.style.height = "60px";
-    waveformCanvas.style.marginTop = "10px";
+    waveformCanvas.width = 200; // Adjust width to make space for buttons
+    waveformCanvas.height = 50; // Adjust height if needed
+    // Remove margin-top as container handles spacing
+    // waveformCanvas.style.marginTop = '10px';
     waveformCanvas.style.borderRadius = "4px";
     waveformCanvas.style.backgroundColor = "#f0f0f0";
-    waveformCanvas.style.display = "none"; // Initially hidden
+    waveformCanvas.style.flexGrow = "1"; // Allow canvas to take available space
+    waveformContainer.appendChild(waveformCanvas);
 
-    // Insert canvas after the recording indicator or another suitable element
+    // --- Create Stop Button ---
+    stopRecButton = document.createElement("button");
+    stopRecButton.id = "stopRecButton";
+    stopRecButton.innerHTML = '<i class="fas fa-stop-circle"></i>'; // Stop icon
+    stopRecButton.title = "Stop Recording";
+    // Basic styling
+    stopRecButton.style.background = "none";
+    stopRecButton.style.border = "none";
+    stopRecButton.style.color = "#007bff"; // Blue color for stop
+    stopRecButton.style.fontSize = "1.2em";
+    stopRecButton.style.cursor = "pointer";
+    stopRecButton.style.padding = "0 10px";
+    stopRecButton.onclick = handleStopRecording; // Assign click handler
+    waveformContainer.appendChild(stopRecButton);
+
+    // Insert container into DOM (adjust placement as needed)
     const micButtonContainer = micButton.parentElement;
-    if (micButtonContainer) {
-      // Insert after the container holding the mic button
+    if (micButtonContainer && micButtonContainer.parentNode) {
       micButtonContainer.parentNode.insertBefore(
-        waveformCanvas,
+        waveformContainer,
         micButtonContainer.nextSibling
       );
-      console.log("Waveform canvas added to DOM.");
+      console.log("Waveform container with buttons added to DOM.");
     } else {
       console.error(
-        "Could not find suitable parent to insert waveform canvas."
+        "Could not find suitable parent to insert waveform container."
       );
-      // Fallback: append to body, might not look ideal
-      document.body.appendChild(waveformCanvas);
+      document.body.appendChild(waveformContainer); // Fallback
     }
   }
 
@@ -131,19 +177,24 @@ function setupWaveformVisualization(stream) {
 
   // Create analyzer
   analyser = audioContext.createAnalyser();
-  analyser.fftSize = 128; // Reduced for performance, suitable for bar visualization
-  analyser.smoothingTimeConstant = 0.8; // Smoother transitions for bars
+  analyser.fftSize = 128;
+  analyser.smoothingTimeConstant = 0.8;
 
   // Connect stream to analyzer
   const source = audioContext.createMediaStreamSource(stream);
   source.connect(analyser);
 
-  // Create data array for analyzer
-  const bufferLength = analyser.frequencyBinCount; // == fftSize / 2
+  // Create data array
+  const bufferLength = analyser.frequencyBinCount;
   dataArray = new Uint8Array(bufferLength);
 
-  // Start drawing
-  waveformCanvas.style.display = "block"; // Make canvas visible
+  // Reset cancellation flag
+  isRecordingCancelled = false;
+
+  // Make container visible and start drawing
+  waveformContainer.style.display = "flex"; // Show container
+  stopRecButton.disabled = false; // Ensure buttons are enabled
+  deleteRecButton.disabled = false;
   drawWhatsAppWaveform();
   console.log("Waveform drawing started.");
 }
@@ -163,7 +214,7 @@ function drawWhatsAppWaveform() {
   canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
 
   // --- Draw Bars ---
-  const barCount = 30; // Number of bars
+  const barCount = 20; // Adjusted for smaller canvas width potentially
   const barWidth = 4; // Width of each bar
   const barSpacing = 2; // Space between bars
   const totalBarAreaWidth = barCount * (barWidth + barSpacing) - barSpacing; // Total width occupied by bars+spaces
@@ -173,27 +224,12 @@ function drawWhatsAppWaveform() {
   canvasCtx.fillStyle = "#0aa989"; // Bar color
 
   for (let i = 0; i < barCount; i++) {
-    // Map the data index logarithmically or linearly to spread across bars
-    // Using linear mapping here for simplicity
     const dataIndex = Math.floor((i * dataArray.length) / barCount);
     const value = dataArray[dataIndex]; // Value from 0 to 255
-
-    // Scale bar height (ensure minimum height for visual presence)
     const barHeight = Math.max(2, (value / 255) * maxBarHeight);
-
-    // Calculate position
     const x = startX + i * (barWidth + barSpacing);
     const y = (waveformCanvas.height - barHeight) / 2; // Center vertically
-
-    // Draw bar with rounded top/bottom (approximated with fillRect + arcs or just rounded rect if supported)
-    // Using fillRect for broader compatibility
     canvasCtx.fillRect(x, y, barWidth, barHeight);
-
-    // Optional: Add rounded caps using arcs (might impact performance slightly)
-    // canvasCtx.beginPath();
-    // canvasCtx.arc(x + barWidth / 2, y, barWidth / 2, Math.PI, 0);
-    // canvasCtx.arc(x + barWidth / 2, y + barHeight, barWidth / 2, 0, Math.PI);
-    // canvasCtx.fill();
   }
 
   // --- Draw Timer ---
@@ -204,10 +240,48 @@ function drawWhatsAppWaveform() {
     const timeText = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 
     canvasCtx.fillStyle = "#333"; // Timer text color
-    canvasCtx.font = "12px Arial";
+    canvasCtx.font = "11px Arial"; // Slightly smaller font
     canvasCtx.textAlign = "right";
-    canvasCtx.fillText(timeText, waveformCanvas.width - 10, 15); // Position top-right
+    canvasCtx.fillText(timeText, waveformCanvas.width - 5, 12); // Adjust position for smaller canvas
   }
+}
+
+// --- Button Click Handlers ---
+
+function handleStopRecording() {
+  console.log("Stop button clicked.");
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    console.log("Calling mediaRecorder.stop() via button.");
+    stopRecButton.disabled = true; // Prevent double clicks
+    deleteRecButton.disabled = true;
+    mediaRecorder.stop();
+  }
+}
+
+function handleDeleteRecording() {
+  console.log("Delete button clicked.");
+  isRecordingCancelled = true; // Set the flag
+
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    console.log("Stopping MediaRecorder immediately for cancellation.");
+    // Stop recorder without triggering normal onstop processing logic
+    mediaRecorder.onstop = null; // Detach the normal handler temporarily
+    mediaRecorder.stop();
+  }
+
+  // Stop visualization and audio stream directly
+  stopWaveformVisualization();
+  if (mediaRecorder && mediaRecorder.stream) {
+    console.log("Stopping media stream tracks for cancellation.");
+    mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+  }
+
+  // Reset the UI immediately
+  console.log("Calling resetUI for cancellation.");
+  resetUI();
+
+  // Optionally provide feedback
+  recognizedTextDiv.textContent = "(Recording cancelled)";
 }
 
 // Function to stop waveform visualization and clean up
@@ -218,19 +292,20 @@ function stopWaveformVisualization() {
     animationId = null;
   }
 
-  // Disconnect the analyser to free up resources
-  // Note: The source node (MediaStreamSource) disconnects automatically when tracks are stopped.
   if (analyser) {
     analyser.disconnect();
     analyser = null;
   }
 
-  // Clear and hide the canvas
+  // Hide the whole container
+  if (waveformContainer) {
+    waveformContainer.style.display = "none";
+  }
+  // Also clear canvas just in case
   if (waveformCanvas && canvasCtx) {
     canvasCtx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
-    waveformCanvas.style.display = "none";
   }
-  dataArray = null; // Release data array reference
+  dataArray = null;
 }
 
 // Function to reset UI without changing the sentence
@@ -249,24 +324,22 @@ function resetUI() {
   updateProgressCircle(0);
   document.getElementById("recordingIndicator").style.display = "none";
 
-  // Stop and hide waveform visualization if it exists
-  if (isRecording) {
-    stopWaveformVisualization();
-  }
-  if (waveformCanvas) {
-    waveformCanvas.style.display = "none";
-  }
+  // Stop and hide waveform visualization
+  stopWaveformVisualization(); // This now hides the container
 
   // Reset recording state and re-enable buttons
   isRecording = false;
-  speechDetected = false; // Reset speech detection flag
+  isRecordingCancelled = false; // Reset cancellation flag here
+  mediaRecorder = null; // Ensure recorder instance is cleared
+  recordingStartTime = null;
+  speechDetected = false;
   toggleListenButtons(false);
   toggleBookmarkButtons(false);
 
-  // Clear the timeout
+  // Clear the timeouts
   clearTimeout(noSpeechTimeout);
-  clearTimeout(recordingTimeout); // Also clear recording timeout
-  console.log("UI Reset.");
+  clearTimeout(recordingTimeout);
+  console.log("UI Reset completed.");
 }
 
 // Update the displayed sentence and reset UI
@@ -700,51 +773,59 @@ async function startAudioRecording() {
     mediaRecorder = new MediaRecorder(stream);
     console.log("MediaRecorder created.");
 
-    // Set recording flag to true and disable listen/bookmark buttons
+    // Set recording flag, start time, toggle buttons
     isRecording = true;
-    recordingStartTime = Date.now(); // Record start time for timer
+    recordingStartTime = Date.now();
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
+    isRecordingCancelled = false; // Ensure flag is reset
 
-    // Setup and start waveform visualization
-    console.log("Setting up waveform visualization...");
+    // Setup and start waveform visualization (this now shows the container)
     setupWaveformVisualization(stream);
 
     mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
+      if (event.data.size > 0 && !isRecordingCancelled) {
+        // Don't collect if cancelled
         audioChunks.push(event.data);
-        // console.log("Audio chunk received, size:", event.data.size);
       }
     };
 
+    // Assign the NORMAL onstop handler HERE
     mediaRecorder.onstop = async () => {
       console.log("mediaRecorder.onstop triggered.");
-      // Stop the waveform first
+
+      // ***** Check Cancellation Flag *****
+      if (isRecordingCancelled) {
+        console.log("onstop: Recording was cancelled, skipping processing.");
+        // UI reset should have already happened in handleDeleteRecording
+        isRecordingCancelled = false; // Reset flag just in case
+        return;
+      }
+
+      // Stop the waveform visual (should be quick)
       stopWaveformVisualization();
 
-      // --- Important: Check if audioChunks has data BEFORE creating Blob ---
+      // --- Normal stop processing ---
       if (audioChunks.length === 0) {
         console.warn(
           "No audio chunks recorded. Recording might have been too short or silent."
         );
-        // Reset UI and provide feedback without attempting transcription
-        resetUI(); // Call resetUI to handle button states etc.
+        resetUI();
         recognizedTextDiv.textContent = "(Recording too short or silent)";
         retryButton.style.display = "inline-block";
         retryButton.disabled = false;
-        // Stop tracks if they haven't been stopped already
         stream.getTracks().forEach((track) => track.stop());
-        return; // Exit onstop handler
+        return;
       }
 
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" }); // Use audio/wav or audio/webm;codecs=opus depending on needs
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
       console.log(
         "Recorded audio blob created, size:",
         recordedAudioBlob?.size
       );
-      audioChunks = []; // Clear chunks after creating blob
+      audioChunks = []; // Clear chunks
 
-      // --- UI Updates after stopping ---
+      // UI Updates after stopping normally
       micButton.innerHTML = '<i class="fas fa-microphone"></i>';
       micButton.style.backgroundColor = "";
       micButton.disabled = false;
@@ -752,31 +833,26 @@ async function startAudioRecording() {
       retryButton.disabled = false;
       document.getElementById("recordingIndicator").style.display = "none";
 
-      // Set recording flag to false AFTER UI updates related to stopping
+      // Set recording flag false AFTER UI updates
       isRecording = false;
-      recordingStartTime = null; // Reset timer start time
+      recordingStartTime = null;
       toggleListenButtons(false);
       toggleBookmarkButtons(false);
-      console.log("UI updated after recording stop.");
+      console.log("UI updated after normal recording stop.");
 
-      // Stop all tracks in the MediaStream to release the microphone
-      console.log("Stopping media stream tracks...");
+      // Stop tracks
+      console.log("Stopping media stream tracks normally...");
       stream.getTracks().forEach((track) => track.stop());
-      console.log("Media stream tracks stopped.");
+      console.log("Media stream tracks stopped normally.");
 
-      // Upload the recorded audio to AssemblyAI for transcription
+      // Upload for transcription
       if (recordedAudioBlob && recordedAudioBlob.size > 100) {
-        // Check if blob has some data
         console.log("Uploading audio for transcription...");
-        // Add loading indicator before transcription
         recognizedTextDiv.innerHTML =
           '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
         pronunciationScoreDiv.textContent = "...";
-
         const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
-
         if (transcription !== null) {
-          // Check transcription wasn't null (error occurred)
           console.log("Transcription received:", transcription);
           const currentLesson = lessons[currentLessonIndex];
           const pronunciationScore = calculatePronunciationScore(
@@ -785,13 +861,9 @@ async function startAudioRecording() {
           );
           pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
           updateProgressCircle(pronunciationScore);
-
-          // Update total sentences spoken and overall score
           totalSentencesSpoken++;
           totalPronunciationScore += pronunciationScore;
           console.log("Score calculated and totals updated.");
-
-          // Show the dialog container
           openDialog();
           console.log("Dialog opened.");
         } else {
@@ -804,9 +876,7 @@ async function startAudioRecording() {
         console.warn(
           "Recorded audio blob is empty or very small, skipping transcription."
         );
-        // Provide feedback to the user that recording was likely too short or silent
         recognizedTextDiv.textContent = "(Recording too short or silent)";
-        // Ensure retry is available even if blob was small
         retryButton.style.display = "inline-block";
         retryButton.disabled = false;
       }
@@ -823,8 +893,7 @@ async function startAudioRecording() {
     };
 
     // Start recording
-    mediaRecorder.start(100); // Trigger ondataavailable roughly every 100ms
-    console.log("MediaRecorder started.");
+    mediaRecorder.start(100);
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
     micButton.style.color = "#ff0000";
     micButton.disabled = true;
