@@ -511,91 +511,17 @@ function toggleBookmarkButtons(disabled) {
 }
 
 // Constants for recording
-const RECORDING_DURATION = 5000; // 5 seconds recording time
+const RECORDING_DURATION = 3000; // Reduce to 3 seconds from 5 seconds
 let recordingTimeout;
 
-// Start audio recording with automatic stop
-async function startAudioRecording() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
-
-    // Set recording flag to true and disable listen/bookmark buttons
-    isRecording = true;
-    toggleListenButtons(true);
-    toggleBookmarkButtons(true);
-
-    mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
-    };
-
-    mediaRecorder.onstop = async () => {
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
-      micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-      micButton.style.backgroundColor = "";
-      micButton.disabled = false;
-      retryButton.style.display = "inline-block";
-      retryButton.disabled = false;
-      document.getElementById("recordingIndicator").style.display = "none";
-
-      // Set recording flag to false and re-enable listen/bookmark buttons
-      isRecording = false;
-      toggleListenButtons(false);
-      toggleBookmarkButtons(false);
-
-      // Stop all tracks in the MediaStream to release the microphone
-      stream.getTracks().forEach((track) => track.stop());
-
-      // Upload the recorded audio to AssemblyAI for transcription
-      const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
-      if (transcription) {
-        const currentLesson = lessons[currentLessonIndex];
-        const pronunciationScore = calculatePronunciationScore(
-          transcription,
-          currentLesson.sentences[currentSentenceIndex]
-        );
-        pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-        updateProgressCircle(pronunciationScore);
-
-        // Update total sentences spoken and overall score
-        totalSentencesSpoken++;
-        totalPronunciationScore += pronunciationScore;
-
-        // Show the dialog container
-        openDialog();
-      }
-    };
-
-    // Start recording
-    mediaRecorder.start();
-    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-    micButton.style.color = "#ff0000";
-    micButton.disabled = true;
-    document.getElementById("recordingIndicator").style.display =
-      "inline-block";
-
-    // Set timeout to automatically stop recording after RECORDING_DURATION
-    recordingTimeout = setTimeout(() => {
-      if (mediaRecorder && mediaRecorder.state === "recording") {
-        mediaRecorder.stop();
-      }
-    }, RECORDING_DURATION);
-  } catch (error) {
-    console.error("Error accessing microphone:", error);
-    alert("Please allow microphone access to use this feature.");
-
-    // Ensure recording flag is reset and buttons are re-enabled in case of error
-    isRecording = false;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
-  }
-}
-
-// Upload audio to AssemblyAI and get transcription
+// Upload audio to AssemblyAI with optimized settings
 async function uploadAudioToAssemblyAI(audioBlob) {
   try {
-    // Step 1: Upload the audio file to AssemblyAI
+    // Show loading indication
+    recognizedTextDiv.innerHTML =
+      '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+    // Step 1: Upload the audio file to AssemblyAI with optimized settings
     const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
       method: "POST",
       headers: {
@@ -612,7 +538,7 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     const uploadData = await uploadResponse.json();
     const audioUrl = uploadData.upload_url;
 
-    // Step 2: Submit the transcription request
+    // Step 2: Submit the transcription request with optimized settings for speed
     const transcriptionResponse = await fetch(
       "https://api.assemblyai.com/v2/transcript",
       {
@@ -623,6 +549,13 @@ async function uploadAudioToAssemblyAI(audioBlob) {
         },
         body: JSON.stringify({
           audio_url: audioUrl,
+          language_detection: false, // Disable language detection for speed
+          punctuate: false, // Disable punctuation for speed
+          format_text: false, // Disable text formatting for speed
+          disfluencies: false, // Disable disfluency detection
+          language_code: "en", // Set language explicitly for speed
+          speech_threshold: 0.2, // Lower threshold to detect speech faster
+          speed_boost: true, // Enable speed boost for faster processing
         }),
       }
     );
@@ -636,9 +569,12 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     const transcriptionData = await transcriptionResponse.json();
     const transcriptId = transcriptionData.id;
 
-    // Step 3: Poll for the transcription result
+    // Step 3: Optimized polling for faster result retrieval
     let transcriptionResult;
-    while (true) {
+    let attempts = 0;
+    const MAX_ATTEMPTS = 10;
+    while (attempts < MAX_ATTEMPTS) {
+      attempts++;
       const statusResponse = await fetch(
         `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
         {
@@ -662,8 +598,8 @@ async function uploadAudioToAssemblyAI(audioBlob) {
         throw new Error("Transcription failed");
       }
 
-      // Wait for 1 second before polling again
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Use shorter poll intervals for faster results
+      await new Promise((resolve) => setTimeout(resolve, 500)); // Poll every 500ms instead of 1000ms
     }
 
     return transcriptionResult;
@@ -671,6 +607,106 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     console.error("Error in AssemblyAI transcription:", error);
     alert("Failed to transcribe audio. Please try again.");
     return null;
+  }
+}
+
+// Start audio recording with automatic stop and optimization
+async function startAudioRecording() {
+  try {
+    // Create a higher quality audio stream for better recognition
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 48000, // Higher sample rate for better quality
+      },
+    });
+
+    audioChunks = [];
+
+    // Use optimized MediaRecorder settings
+    mediaRecorder = new MediaRecorder(stream, {
+      audioBitsPerSecond: 128000, // Higher bitrate for better quality
+    });
+
+    // Set recording flag to true and disable listen/bookmark buttons
+    isRecording = true;
+    toggleListenButtons(true);
+    toggleBookmarkButtons(true);
+
+    mediaRecorder.ondataavailable = (event) => {
+      audioChunks.push(event.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      // Create an optimized audio blob for faster upload
+      recordedAudioBlob = new Blob(audioChunks, {
+        type: "audio/wav",
+      });
+
+      // Update UI immediately for faster feedback
+      micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+      micButton.style.backgroundColor = "";
+      micButton.disabled = false;
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      document.getElementById("recordingIndicator").style.display = "none";
+
+      // Set recording flag to false and re-enable listen/bookmark buttons
+      isRecording = false;
+      toggleListenButtons(false);
+      toggleBookmarkButtons(false);
+
+      // Stop all tracks in the MediaStream to release the microphone
+      stream.getTracks().forEach((track) => track.stop());
+
+      // Process the recording with reduced wait time
+      const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+      if (transcription) {
+        const currentLesson = lessons[currentLessonIndex];
+        const pronunciationScore = calculatePronunciationScore(
+          transcription,
+          currentLesson.sentences[currentSentenceIndex]
+        );
+
+        // Update UI with results
+        pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+        updateProgressCircle(pronunciationScore);
+
+        // Update total sentences spoken and overall score
+        totalSentencesSpoken++;
+        totalPronunciationScore += pronunciationScore;
+
+        // Show the dialog container
+        openDialog();
+      }
+    };
+
+    // Start recording with small chunks for faster processing
+    mediaRecorder.start(200); // Collect chunks every 200ms for more frequent updates
+
+    // Update UI for recording state
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#ff0000";
+    micButton.disabled = true;
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
+
+    // Set timeout to automatically stop recording after shorter RECORDING_DURATION
+    recordingTimeout = setTimeout(() => {
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        mediaRecorder.stop();
+      }
+    }, RECORDING_DURATION);
+  } catch (error) {
+    console.error("Error accessing microphone:", error);
+    alert("Please allow microphone access to use this feature.");
+
+    // Ensure recording flag is reset and buttons are re-enabled in case of error
+    isRecording = false;
+    toggleListenButtons(false);
+    toggleBookmarkButtons(false);
   }
 }
 
