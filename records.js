@@ -548,48 +548,55 @@ async function loadLessons() {
     }
 
     lessons = data.lessons;
-    console.log("Lessons loaded successfully:", lessons);
+    console.log("Lessons loaded successfully. Total lessons:", lessons.length);
 
-    // Get the quizId from the URL
-    const quizId = getQuizIdFromURL();
-    console.log("Attempting to use Quiz ID:", quizId);
+    // --- Linking Logic ---
+    const urlQuizId = getQuizIdFromURL(); // Get ID from iframe URL or current URL
+    console.log(
+      `Attempting to link using URL quizId: '${urlQuizId}' (type: ${typeof urlQuizId})`
+    );
 
-    // Find the lesson with the matching quizId
-    if (quizId) {
-      currentLessonIndex = lessons.findIndex(
-        (lesson) => String(lesson.quizId) === String(quizId) // Ensure type comparison
-      );
-      console.log(
-        `Found lesson index ${currentLessonIndex} for quizId ${quizId}`
-      );
+    currentLessonIndex = -1; // Reset index before searching
+
+    if (urlQuizId !== null && urlQuizId !== undefined && urlQuizId !== "") {
+      // Find the lesson index by matching the quizId from the URL with the quizId in data.json
+      currentLessonIndex = lessons.findIndex((lesson) => {
+        const dataQuizId = String(lesson.quizId); // Ensure data ID is a string
+        const urlIdString = String(urlQuizId); // Ensure URL ID is a string
+        // console.log(`Comparing URL ID '${urlIdString}' with Data ID '${dataQuizId}'`); // Uncomment for detailed comparison logging
+        return dataQuizId === urlIdString;
+      });
+      console.log(`Found lesson index by quizId match: ${currentLessonIndex}`);
     } else {
-      console.log("No quizId found, defaulting to first lesson.");
-      currentLessonIndex = 0; // Default to first lesson if no quizId
+      console.log("No valid quizId found in URL.");
     }
+    // --- End Linking Logic ---
 
+    // Fallback if quizId match failed or no quizId was provided
     if (currentLessonIndex === -1) {
-      console.error("Lesson not found for quizId:", quizId);
-      // Try to find by lessonNumber if quizId is numeric
-      if (quizId && !isNaN(quizId)) {
+      console.warn(
+        `Lesson not found for quizId: '${urlQuizId}'. Checking fallbacks.`
+      );
+
+      // Fallback 1: Try to find by lessonNumber if urlQuizId is numeric
+      if (urlQuizId && !isNaN(urlQuizId)) {
+        const numericQuizId = parseInt(urlQuizId);
         currentLessonIndex = lessons.findIndex(
-          (lesson) => lesson.lessonNumber === parseInt(quizId)
+          (lesson) => lesson.lessonNumber === numericQuizId
         );
         console.log(
-          "Tried to find by lessonNumber, result index:",
-          currentLessonIndex
+          `Fallback: Found lesson index by lessonNumber match: ${currentLessonIndex}`
         );
       }
 
-      // Default to first lesson if still not found
+      // Fallback 2: Default to first lesson if still not found
       if (currentLessonIndex === -1) {
         currentLessonIndex = 0;
-        console.log(
-          "Defaulting to first lesson as quizId/lessonNumber match failed."
-        );
+        console.log("Fallback: Defaulting to first lesson (index 0).");
       }
     }
 
-    // Update the UI with the first sentence
+    // Update the UI with the found/defaulted lesson
     updateSentence();
   } catch (error) {
     console.error("Error loading lessons:", error);
