@@ -16,7 +16,7 @@ const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
-const NO_SPEECH_TIMEOUT_MS = 3000; // 5 seconds timeout to detect speech
+const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
 // AssemblyAI API Key
 const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
@@ -58,8 +58,16 @@ let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
 retryButton.style.display = "none"; // Hide retry button initially
 
-// AudioContext for sound effects
+// AudioContext for sound effects and waveform
 let audioContext;
+
+// Waveform specific variables
+let analyser;
+let dataArray;
+let canvasCtx;
+let animationId;
+let waveformCanvas;
+let recordingStartTime;
 
 // Function to initialize AudioContext
 function initializeAudioContext() {
@@ -72,9 +80,193 @@ function initializeAudioContext() {
 // Function to resume AudioContext
 async function resumeAudioContext() {
   if (audioContext && audioContext.state === "suspended") {
-    await audioContext.resume();
-    console.log("AudioContext resumed.");
+    try {
+      await audioContext.resume();
+      console.log("AudioContext resumed.");
+    } catch (error) {
+      console.error("Failed to resume AudioContext:", error);
+    }
   }
+}
+
+// Function to create and setup waveform visualization
+function setupWaveformVisualization(stream) {
+  if (!audioContext) {
+    console.error("Cannot setup waveform: AudioContext not initialized.");
+    return;
+  }
+  // Create canvas element if it doesn't exist
+  if (!waveformCanvas) {
+    waveformCanvas = document.createElement("canvas");
+    waveformCanvas.id = "waveformCanvas";
+    waveformCanvas.width = 300;
+    waveformCanvas.height = 60;
+    waveformCanvas.style.width = "100%";
+    waveformCanvas.style.height = "60px";
+    waveformCanvas.style.marginTop = "10px";
+    waveformCanvas.style.borderRadius = "4px";
+    waveformCanvas.style.backgroundColor = "#f0f0f0";
+    waveformCanvas.style.display = "none"; // Initially hidden
+
+    // Insert canvas after the recording indicator or another suitable element
+    const micButtonContainer = micButton.parentElement;
+    if (micButtonContainer) {
+      // Insert after the container holding the mic button
+      micButtonContainer.parentNode.insertBefore(
+        waveformCanvas,
+        micButtonContainer.nextSibling
+      );
+      console.log("Waveform canvas added to DOM.");
+    } else {
+      console.error(
+        "Could not find suitable parent to insert waveform canvas."
+      );
+      // Fallback: append to body, might not look ideal
+      document.body.appendChild(waveformCanvas);
+    }
+  }
+
+  // Get canvas context
+  canvasCtx = waveformCanvas.getContext("2d");
+
+  // Create analyzer
+  analyser = audioContext.createAnalyser();
+  analyser.fftSize = 128; // Reduced for performance, suitable for bar visualization
+  analyser.smoothingTimeConstant = 0.8; // Smoother transitions for bars
+
+  // Connect stream to analyzer
+  const source = audioContext.createMediaStreamSource(stream);
+  source.connect(analyser);
+
+  // Create data array for analyzer
+  const bufferLength = analyser.frequencyBinCount; // == fftSize / 2
+  dataArray = new Uint8Array(bufferLength);
+
+  // Start drawing
+  waveformCanvas.style.display = "block"; // Make canvas visible
+  drawWhatsAppWaveform();
+  console.log("Waveform drawing started.");
+}
+
+// Function to draw WhatsApp-style waveform
+function drawWhatsAppWaveform() {
+  if (!isRecording || !analyser || !canvasCtx || !dataArray) return; // Exit if not recording or not setup
+
+  // Schedule next frame
+  animationId = requestAnimationFrame(drawWhatsAppWaveform);
+
+  // Get frequency data from analyzer
+  analyser.getByteFrequencyData(dataArray);
+
+  // Clear canvas
+  canvasCtx.fillStyle = "#f0f0f0"; // Background color
+  canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+
+  // --- Draw Bars ---
+  const barCount = 30; // Number of bars
+  const barWidth = 4; // Width of each bar
+  const barSpacing = 2; // Space between bars
+  const totalBarAreaWidth = barCount * (barWidth + barSpacing) - barSpacing; // Total width occupied by bars+spaces
+  const startX = (waveformCanvas.width - totalBarAreaWidth) / 2; // Center the bars
+  const maxBarHeight = waveformCanvas.height * 0.8; // Max height relative to canvas height
+
+  canvasCtx.fillStyle = "#0aa989"; // Bar color
+
+  for (let i = 0; i < barCount; i++) {
+    // Map the data index logarithmically or linearly to spread across bars
+    // Using linear mapping here for simplicity
+    const dataIndex = Math.floor((i * dataArray.length) / barCount);
+    const value = dataArray[dataIndex]; // Value from 0 to 255
+
+    // Scale bar height (ensure minimum height for visual presence)
+    const barHeight = Math.max(2, (value / 255) * maxBarHeight);
+
+    // Calculate position
+    const x = startX + i * (barWidth + barSpacing);
+    const y = (waveformCanvas.height - barHeight) / 2; // Center vertically
+
+    // Draw bar with rounded top/bottom (approximated with fillRect + arcs or just rounded rect if supported)
+    // Using fillRect for broader compatibility
+    canvasCtx.fillRect(x, y, barWidth, barHeight);
+
+    // Optional: Add rounded caps using arcs (might impact performance slightly)
+    // canvasCtx.beginPath();
+    // canvasCtx.arc(x + barWidth / 2, y, barWidth / 2, Math.PI, 0);
+    // canvasCtx.arc(x + barWidth / 2, y + barHeight, barWidth / 2, 0, Math.PI);
+    // canvasCtx.fill();
+  }
+
+  // --- Draw Timer ---
+  if (recordingStartTime) {
+    const recordingTime = Math.floor((Date.now() - recordingStartTime) / 1000);
+    const minutes = Math.floor(recordingTime / 60);
+    const seconds = recordingTime % 60;
+    const timeText = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+
+    canvasCtx.fillStyle = "#333"; // Timer text color
+    canvasCtx.font = "12px Arial";
+    canvasCtx.textAlign = "right";
+    canvasCtx.fillText(timeText, waveformCanvas.width - 10, 15); // Position top-right
+  }
+}
+
+// Function to stop waveform visualization and clean up
+function stopWaveformVisualization() {
+  console.log("Stopping waveform visualization.");
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+
+  // Disconnect the analyser to free up resources
+  // Note: The source node (MediaStreamSource) disconnects automatically when tracks are stopped.
+  if (analyser) {
+    analyser.disconnect();
+    analyser = null;
+  }
+
+  // Clear and hide the canvas
+  if (waveformCanvas && canvasCtx) {
+    canvasCtx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+    waveformCanvas.style.display = "none";
+  }
+  dataArray = null; // Release data array reference
+}
+
+// Function to reset UI without changing the sentence
+function resetUI() {
+  // Reset UI elements
+  recognizedTextDiv.textContent = "";
+  pronunciationScoreDiv.textContent = "0%";
+  micButton.style.display = "inline-block";
+  micButton.style.color = "#fff";
+  micButton.style.backgroundColor = "";
+  micButton.disabled = false;
+  retryButton.style.display = "none";
+  retryButton.disabled = true;
+  missingWordDiv.textContent = "";
+  closeDialog();
+  updateProgressCircle(0);
+  document.getElementById("recordingIndicator").style.display = "none";
+
+  // Stop and hide waveform visualization if it exists
+  if (isRecording) {
+    stopWaveformVisualization();
+  }
+  if (waveformCanvas) {
+    waveformCanvas.style.display = "none";
+  }
+
+  // Reset recording state and re-enable buttons
+  isRecording = false;
+  speechDetected = false; // Reset speech detection flag
+  toggleListenButtons(false);
+  toggleBookmarkButtons(false);
+
+  // Clear the timeout
+  clearTimeout(noSpeechTimeout);
+  clearTimeout(recordingTimeout); // Also clear recording timeout
+  console.log("UI Reset.");
 }
 
 // Update the displayed sentence and reset UI
@@ -102,32 +294,6 @@ function updateSentence() {
 
   // Enable bookmark buttons in case they were disabled
   toggleBookmarkButtons(false);
-}
-
-// Function to reset UI without changing the sentence
-function resetUI() {
-  // Reset UI elements
-  recognizedTextDiv.textContent = "";
-  pronunciationScoreDiv.textContent = "0%";
-  micButton.style.display = "inline-block";
-  micButton.style.color = "#fff";
-  micButton.style.backgroundColor = "";
-  micButton.disabled = false;
-  retryButton.style.display = "none";
-  retryButton.disabled = true;
-  missingWordDiv.textContent = "";
-  closeDialog();
-  updateProgressCircle(0);
-  document.getElementById("recordingIndicator").style.display = "none";
-
-  // Reset recording state and re-enable buttons
-  isRecording = false;
-  speechDetected = false; // Reset speech detection flag
-  toggleListenButtons(false);
-  toggleBookmarkButtons(false);
-
-  // Clear the timeout
-  clearTimeout(noSpeechTimeout);
 }
 
 // Normalize text (remove punctuation and convert to lowercase)
@@ -516,22 +682,69 @@ let recordingTimeout;
 
 // Start audio recording with automatic stop
 async function startAudioRecording() {
+  console.log("startAudioRecording called");
+  // Ensure AudioContext is ready (important for iOS/Safari)
+  initializeAudioContext();
+  await resumeAudioContext();
+
+  if (!audioContext) {
+    alert("AudioContext could not be initialized. Cannot record.");
+    return;
+  }
+
   try {
+    console.log("Requesting microphone access...");
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log("Microphone access granted.");
     audioChunks = [];
     mediaRecorder = new MediaRecorder(stream);
+    console.log("MediaRecorder created.");
 
     // Set recording flag to true and disable listen/bookmark buttons
     isRecording = true;
+    recordingStartTime = Date.now(); // Record start time for timer
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
 
+    // Setup and start waveform visualization
+    console.log("Setting up waveform visualization...");
+    setupWaveformVisualization(stream);
+
     mediaRecorder.ondataavailable = (event) => {
-      audioChunks.push(event.data);
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+        // console.log("Audio chunk received, size:", event.data.size);
+      }
     };
 
     mediaRecorder.onstop = async () => {
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      console.log("mediaRecorder.onstop triggered.");
+      // Stop the waveform first
+      stopWaveformVisualization();
+
+      // --- Important: Check if audioChunks has data BEFORE creating Blob ---
+      if (audioChunks.length === 0) {
+        console.warn(
+          "No audio chunks recorded. Recording might have been too short or silent."
+        );
+        // Reset UI and provide feedback without attempting transcription
+        resetUI(); // Call resetUI to handle button states etc.
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+        // Stop tracks if they haven't been stopped already
+        stream.getTracks().forEach((track) => track.stop());
+        return; // Exit onstop handler
+      }
+
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" }); // Use audio/wav or audio/webm;codecs=opus depending on needs
+      console.log(
+        "Recorded audio blob created, size:",
+        recordedAudioBlob?.size
+      );
+      audioChunks = []; // Clear chunks after creating blob
+
+      // --- UI Updates after stopping ---
       micButton.innerHTML = '<i class="fas fa-microphone"></i>';
       micButton.style.backgroundColor = "";
       micButton.disabled = false;
@@ -539,56 +752,109 @@ async function startAudioRecording() {
       retryButton.disabled = false;
       document.getElementById("recordingIndicator").style.display = "none";
 
-      // Set recording flag to false and re-enable listen/bookmark buttons
+      // Set recording flag to false AFTER UI updates related to stopping
       isRecording = false;
+      recordingStartTime = null; // Reset timer start time
       toggleListenButtons(false);
       toggleBookmarkButtons(false);
+      console.log("UI updated after recording stop.");
 
       // Stop all tracks in the MediaStream to release the microphone
+      console.log("Stopping media stream tracks...");
       stream.getTracks().forEach((track) => track.stop());
+      console.log("Media stream tracks stopped.");
 
       // Upload the recorded audio to AssemblyAI for transcription
-      const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
-      if (transcription) {
-        const currentLesson = lessons[currentLessonIndex];
-        const pronunciationScore = calculatePronunciationScore(
-          transcription,
-          currentLesson.sentences[currentSentenceIndex]
+      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
+        // Check if blob has some data
+        console.log("Uploading audio for transcription...");
+        // Add loading indicator before transcription
+        recognizedTextDiv.innerHTML =
+          '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
+        pronunciationScoreDiv.textContent = "...";
+
+        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+
+        if (transcription !== null) {
+          // Check transcription wasn't null (error occurred)
+          console.log("Transcription received:", transcription);
+          const currentLesson = lessons[currentLessonIndex];
+          const pronunciationScore = calculatePronunciationScore(
+            transcription,
+            currentLesson.sentences[currentSentenceIndex]
+          );
+          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+          updateProgressCircle(pronunciationScore);
+
+          // Update total sentences spoken and overall score
+          totalSentencesSpoken++;
+          totalPronunciationScore += pronunciationScore;
+          console.log("Score calculated and totals updated.");
+
+          // Show the dialog container
+          openDialog();
+          console.log("Dialog opened.");
+        } else {
+          console.log(
+            "Transcription was null, likely an error during processing."
+          );
+          recognizedTextDiv.textContent = "(Transcription failed)";
+        }
+      } else {
+        console.warn(
+          "Recorded audio blob is empty or very small, skipping transcription."
         );
-        pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-        updateProgressCircle(pronunciationScore);
+        // Provide feedback to the user that recording was likely too short or silent
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        // Ensure retry is available even if blob was small
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+      }
+    };
 
-        // Update total sentences spoken and overall score
-        totalSentencesSpoken++;
-        totalPronunciationScore += pronunciationScore;
-
-        // Show the dialog container
-        openDialog();
+    mediaRecorder.onerror = (event) => {
+      console.error("MediaRecorder error:", event.error);
+      alert(`Recording error: ${event.error.name} - ${event.error.message}`);
+      // Reset UI on error
+      resetUI(); // resetUI already calls stopWaveformVisualization
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop()); // Stop stream on error
       }
     };
 
     // Start recording
-    mediaRecorder.start();
+    mediaRecorder.start(100); // Trigger ondataavailable roughly every 100ms
+    console.log("MediaRecorder started.");
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
     micButton.style.color = "#ff0000";
     micButton.disabled = true;
     document.getElementById("recordingIndicator").style.display =
       "inline-block";
+    console.log("UI updated for recording start.");
 
     // Set timeout to automatically stop recording after RECORDING_DURATION
+    clearTimeout(recordingTimeout); // Clear any previous timeout
     recordingTimeout = setTimeout(() => {
+      console.log("Recording duration timeout reached.");
       if (mediaRecorder && mediaRecorder.state === "recording") {
+        console.log("Stopping recorder due to timeout...");
         mediaRecorder.stop();
       }
     }, RECORDING_DURATION);
+    console.log(`Recording timeout set for ${RECORDING_DURATION}ms`);
   } catch (error) {
-    console.error("Error accessing microphone:", error);
-    alert("Please allow microphone access to use this feature.");
+    console.error("Error in startAudioRecording:", error);
+    alert(
+      `Could not start recording: ${error.message}. Please check microphone permissions.`
+    );
 
     // Ensure recording flag is reset and buttons are re-enabled in case of error
     isRecording = false;
+    recordingStartTime = null;
     toggleListenButtons(false);
     toggleBookmarkButtons(false);
+    // Make sure waveform is stopped and hidden on error
+    stopWaveformVisualization();
   }
 }
 
