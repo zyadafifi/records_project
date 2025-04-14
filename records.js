@@ -410,16 +410,48 @@ bookmarkIcon2.addEventListener("click", playRecordedAudio);
 
 // Update the displayed sentence and reset UI
 function updateSentence() {
-  if (lessons.length === 0) return; // Ensure lessons are loaded
+  if (!sentenceElement) {
+    console.error("Cannot update sentence: sentenceElement not found.");
+    return;
+  }
+  if (
+    lessons.length === 0 ||
+    currentLessonIndex < 0 ||
+    currentLessonIndex >= lessons.length
+  ) {
+    console.error("Cannot update sentence: Invalid lesson data or index.", {
+      length: lessons.length,
+      index: currentLessonIndex,
+    });
+    sentenceElement.textContent = "Error: Could not load sentence data.";
+    sentenceElement.style.color = "red";
+    return;
+  }
+
   const currentLesson = lessons[currentLessonIndex];
 
+  if (
+    !currentLesson ||
+    !Array.isArray(currentLesson.sentences) ||
+    currentSentenceIndex < 0 ||
+    currentSentenceIndex >= currentLesson.sentences.length
+  ) {
+    console.error("Cannot update sentence: Invalid sentence data or index.", {
+      lesson: currentLesson,
+      sentenceIndex: currentSentenceIndex,
+    });
+    sentenceElement.textContent =
+      "Error: Could not load sentence data for this lesson.";
+    sentenceElement.style.color = "red";
+    return;
+  }
+
   // Update the sentence
-  sentenceElement.textContent = currentLesson.sentences[currentSentenceIndex];
-  console.log(
-    "Updated sentence:",
-    currentLesson.sentences[currentSentenceIndex]
-  );
-  console.log("Current lesson:", currentLesson.lessonNumber);
+  const sentenceText = currentLesson.sentences[currentSentenceIndex];
+  sentenceElement.textContent = sentenceText;
+  sentenceElement.style.color = ""; // Reset color if previously set to red
+  console.log("Updated sentence content:", sentenceText);
+  console.log("Current lesson number:", currentLesson.lessonNumber);
 
   // Reset UI
   recognizedTextDiv.textContent = "";
@@ -488,6 +520,13 @@ function getQuizIdFromURL() {
 
 // Load lessons from the JSON file
 async function loadLessons() {
+  if (!sentenceElement) {
+    console.error("Sentence element not found in the DOM!");
+    // Optionally display an error in a different way if sentenceElement is missing
+    alert("Critical error: UI element for sentence is missing.");
+    return;
+  }
+
   try {
     // Use local data.json file
     const response = await fetch("data.json", {
@@ -495,15 +534,17 @@ async function loadLessons() {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch lessons: ${response.statusText}`);
+      throw new Error(
+        `Failed to fetch lessons: ${response.statusText} (Status: ${response.status})`
+      );
     }
 
     const data = await response.json();
     console.log("Fetched data:", data); // Log the fetched data for debugging
 
     // Ensure the data has the expected structure
-    if (!data || !data.lessons) {
-      throw new Error("Invalid JSON structure: 'lessons' array not found");
+    if (!data || !Array.isArray(data.lessons) || data.lessons.length === 0) {
+      throw new Error("Invalid JSON structure or empty lessons array");
     }
 
     lessons = data.lessons;
@@ -511,12 +552,20 @@ async function loadLessons() {
 
     // Get the quizId from the URL
     const quizId = getQuizIdFromURL();
-    console.log("Quiz ID from URL:", quizId);
+    console.log("Attempting to use Quiz ID:", quizId);
 
     // Find the lesson with the matching quizId
-    currentLessonIndex = lessons.findIndex(
-      (lesson) => lesson.quizId === quizId
-    );
+    if (quizId) {
+      currentLessonIndex = lessons.findIndex(
+        (lesson) => String(lesson.quizId) === String(quizId) // Ensure type comparison
+      );
+      console.log(
+        `Found lesson index ${currentLessonIndex} for quizId ${quizId}`
+      );
+    } else {
+      console.log("No quizId found, defaulting to first lesson.");
+      currentLessonIndex = 0; // Default to first lesson if no quizId
+    }
 
     if (currentLessonIndex === -1) {
       console.error("Lesson not found for quizId:", quizId);
@@ -526,7 +575,7 @@ async function loadLessons() {
           (lesson) => lesson.lessonNumber === parseInt(quizId)
         );
         console.log(
-          "Tried to find by lessonNumber, result:",
+          "Tried to find by lessonNumber, result index:",
           currentLessonIndex
         );
       }
@@ -534,33 +583,43 @@ async function loadLessons() {
       // Default to first lesson if still not found
       if (currentLessonIndex === -1) {
         currentLessonIndex = 0;
-        console.log("Defaulting to first lesson");
+        console.log(
+          "Defaulting to first lesson as quizId/lessonNumber match failed."
+        );
       }
     }
 
     // Update the UI with the first sentence
     updateSentence();
-
-    // Make sure the sentence is visible after loading
-    if (sentenceElement) {
-      sentenceElement.style.display = "block";
-      sentenceElement.style.visibility = "visible";
-      sentenceElement.style.opacity = "1";
-      console.log(
-        "Sentence element after loading:",
-        sentenceElement.textContent
-      );
-    }
   } catch (error) {
     console.error("Error loading lessons:", error);
-    // Show error message to user
-    sentenceElement.textContent = "Error loading lessons. Please try again.";
-    sentenceElement.style.display = "block";
+    // Show error message to user directly in the sentence element
+    if (sentenceElement) {
+      sentenceElement.textContent = `Error: ${error.message}. Please check data.json and console.`;
+      sentenceElement.style.display = "block";
+      sentenceElement.style.color = "red"; // Make error visible
+    } else {
+      alert(`Error loading lessons: ${error.message}`);
+    }
   }
 }
 
-// Load lessons when the page loads
-loadLessons();
+// Load lessons when the DOM is ready
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("DOM fully loaded and parsed");
+  if (!sentenceElement) {
+    console.error(
+      "Sentence element (#sentence) not found in the DOM immediately after load!"
+    );
+    // Attempt to find it again just in case
+    const foundElement = document.getElementById("sentence");
+    if (!foundElement) {
+      alert("Error: The sentence display area is missing from the page HTML.");
+      return;
+    }
+  }
+  loadLessons();
+});
 
 // Event listeners for buttons
 micButton.addEventListener("click", async () => {
