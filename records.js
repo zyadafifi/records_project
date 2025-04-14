@@ -511,7 +511,7 @@ function toggleBookmarkButtons(disabled) {
 }
 
 // Constants for recording
-const RECORDING_DURATION = 5000; // 5 seconds recording time
+const RECORDING_DURATION = 3000; // Reduced from 5000 to 3000 milliseconds (3 seconds)
 let recordingTimeout;
 
 // Start audio recording with automatic stop
@@ -595,6 +595,10 @@ async function startAudioRecording() {
 // Upload audio to AssemblyAI and get transcription
 async function uploadAudioToAssemblyAI(audioBlob) {
   try {
+    // Show processing indication
+    recognizedTextDiv.innerHTML =
+      '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
     // Step 1: Upload the audio file to AssemblyAI
     const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
       method: "POST",
@@ -612,7 +616,7 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     const uploadData = await uploadResponse.json();
     const audioUrl = uploadData.upload_url;
 
-    // Step 2: Submit the transcription request
+    // Step 2: Submit the transcription request with optimized settings
     const transcriptionResponse = await fetch(
       "https://api.assemblyai.com/v2/transcript",
       {
@@ -623,6 +627,13 @@ async function uploadAudioToAssemblyAI(audioBlob) {
         },
         body: JSON.stringify({
           audio_url: audioUrl,
+          language_detection: false, // Disable language detection for speed
+          punctuate: false, // Disable punctuation for speed
+          format_text: false, // Disable text formatting for speed
+          disfluencies: false, // Disable disfluency detection
+          language_code: "en", // Set language explicitly for speed
+          speech_threshold: 0.2, // Lower threshold to detect speech faster
+          speed_boost: true, // Enable speed boost for faster processing
         }),
       }
     );
@@ -636,9 +647,12 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     const transcriptionData = await transcriptionResponse.json();
     const transcriptId = transcriptionData.id;
 
-    // Step 3: Poll for the transcription result
+    // Step 3: Poll for the transcription result with shorter intervals
     let transcriptionResult;
-    while (true) {
+    let attempts = 0;
+    const MAX_ATTEMPTS = 20;
+    while (attempts < MAX_ATTEMPTS) {
+      attempts++;
       const statusResponse = await fetch(
         `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
         {
@@ -662,8 +676,8 @@ async function uploadAudioToAssemblyAI(audioBlob) {
         throw new Error("Transcription failed");
       }
 
-      // Wait for 1 second before polling again
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Wait for 500ms before polling again (reduced from 1000ms)
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
     return transcriptionResult;
