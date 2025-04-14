@@ -1,0 +1,114 @@
+{
+  "lessons": [
+    {
+      "lessonNumber": 1,
+      "sentences": [
+        "Welcome to the course!",
+        "Let's get started.",
+        "This is the first lesson.",
+        "We will learn together.",
+        "Practice makes perfect."
+      ],
+      "quizId": "131"
+    },
+    {
+      "lessonNumber": 2,
+      "sentences": [
+        "What is your name?",
+        "How are you?",
+        "I am learning English.",
+        "This is my book.",
+        "I love my cat."
+      ],
+      "quizId": "138"
+    },
+    {
+      "lessonNumber": 3,
+      "sentences": [
+        "Can you help me with this?",
+        "I need to improve my pronunciation.",
+        "Let's practice together.",
+        "What do you do for a living?",
+        "Where are you from?"
+      ],
+      "quizId": "133"
+    },
+    {
+      "lessonNumber": 4,
+      "sentences": [
+        "Grammar is the foundation of language.",
+        "Nouns, verbs, and adjectives are essential.",
+        "Practice makes perfect.",
+        "She is reading a book.",
+        "They are playing football."
+      ],
+      "quizId": "139"
+    },
+    {
+      "lessonNumber": 5,
+      "sentences": [
+        "What are your hobbies?",
+        "I enjoy reading books.",
+        "Do you like playing sports?",
+        "My favorite hobby is painting.",
+        "How do you spend your free time?"
+      ],
+      "quizId": "141"
+    },
+    {
+      "lessonNumber": 6,
+      "sentences": [
+        "How much does this cost?",
+        "I would like to order a coffee.",
+        "Do you have this in a different size?",
+        "The food here is delicious.",
+        "Can I have the bill, please?"
+      ],
+      "quizId": "145"
+    },
+    {
+      "lessonNumber": 7,
+      "sentences": [
+        "Where is the nearest bus stop?",
+        "How do I get to the airport?",
+        "I would like to book a hotel room.",
+        "Is this seat taken?",
+        "What time does the train leave?"
+      ],
+      "quizId": "147"
+    },
+    {
+      "lessonNumber": 8,
+      "sentences": [
+        "I don't feel well.",
+        "You should see a doctor.",
+        "How often do you exercise?",
+        "I have a headache.",
+        "Drink plenty of water."
+      ],
+      "quizId": "149"
+    },
+    {
+      "lessonNumber": 9,
+      "sentences": [
+        "What do you do for work?",
+        "I am a teacher.",
+        "Do you enjoy your job?",
+        "I have a meeting at 10 AM.",
+        "Let's discuss this in the office."
+      ],
+      "quizId": "153"
+    },
+    {
+      "lessonNumber": 10,
+      "sentences": [
+        "What are your plans for the weekend?",
+        "I am going to visit my family.",
+        "Do you want to travel abroad?",
+        "I hope to learn a new language.",
+        "Let's make a plan for next month."
+      ],
+      "quizId": "158"
+    }
+  ]
+}
