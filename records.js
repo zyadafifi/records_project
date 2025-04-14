@@ -408,6 +408,42 @@ listen2Button.addEventListener("click", speakSentence);
 bookmarkIcon.addEventListener("click", playRecordedAudio);
 bookmarkIcon2.addEventListener("click", playRecordedAudio);
 
+// Update the displayed sentence and reset UI
+function updateSentence() {
+  if (lessons.length === 0) return; // Ensure lessons are loaded
+  const currentLesson = lessons[currentLessonIndex];
+
+  // Update the sentence
+  sentenceElement.textContent = currentLesson.sentences[currentSentenceIndex];
+  console.log(
+    "Updated sentence:",
+    currentLesson.sentences[currentSentenceIndex]
+  );
+
+  // Reset UI
+  recognizedTextDiv.textContent = "";
+  pronunciationScoreDiv.textContent = "0%";
+  micButton.style.display = "inline-block";
+  retryButton.style.display = "none";
+  retryButton.disabled = true;
+  missingWordDiv.textContent = "";
+  closeDialog();
+  updateProgressCircle(0);
+  nextButton.style.backgroundColor = "";
+
+  // Enable listen buttons in case they were disabled
+  listenButton.disabled = false;
+  listen2Button.disabled = false;
+
+  // Enable bookmark buttons in case they were disabled
+  toggleBookmarkButtons(false);
+
+  // Make sure the sentence is visible
+  sentenceElement.style.display = "block";
+  sentenceElement.style.visibility = "visible";
+  sentenceElement.style.opacity = "1";
+}
+
 // Load lessons from the JSON file
 async function loadLessons() {
   try {
@@ -443,13 +479,28 @@ async function loadLessons() {
 
     if (currentLessonIndex === -1) {
       console.error("Lesson not found for quizId:", quizId);
-      return;
+      // Default to first lesson if not found
+      currentLessonIndex = 0;
     }
 
     // Update the UI with the first sentence
     updateSentence();
+
+    // Make sure the sentence is visible after loading
+    if (sentenceElement) {
+      sentenceElement.style.display = "block";
+      sentenceElement.style.visibility = "visible";
+      sentenceElement.style.opacity = "1";
+      console.log(
+        "Sentence element after loading:",
+        sentenceElement.textContent
+      );
+    }
   } catch (error) {
     console.error("Error loading lessons:", error);
+    // Show error message to user
+    sentenceElement.textContent = "Error loading lessons. Please try again.";
+    sentenceElement.style.display = "block";
   }
 }
 
