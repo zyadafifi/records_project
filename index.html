@@ -38,13 +38,35 @@
             <p>مرحبا! كيف حالك؟ اضغط على الميكروفون واقرأ الجملة التالية:</p>
           </div>
 
-          <!-- Sentence container with the tip placed directly on its border -->
-          <div class="sentence-container" id="sentence">
-            <!-- Position the "اقرأ هذا" tip on the border -->
-            <div class="sentence-input-container">
-              <div class="tip">اقرأ هذا</div>
+          <!-- Sentence container with clearly visible tip -->
+          <div
+            style="position: relative; margin-top: 20px; margin-bottom: 20px"
+          >
+            <!-- "اقرأ هذا" tip with inline styles to ensure visibility -->
+            <div
+              style="
+                position: absolute;
+                top: -15px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: white;
+                padding: 2px 15px;
+                border-radius: 10px;
+                border: 2px solid #0aa989;
+                font-size: 18px;
+                font-weight: bold;
+                color: #2c3e50;
+                z-index: 10;
+                direction: rtl;
+                text-align: center;
+              "
+            >
+              اقرأ هذا
             </div>
-            <p class="sentence-text">Sentence will appear here</p>
+
+            <div class="sentence-container" id="sentence">
+              <p class="sentence-text">Sentence will appear here</p>
+            </div>
           </div>
 
           <!-- Sentence to Read with Mic Icon -->
