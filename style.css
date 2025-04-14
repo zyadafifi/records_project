@@ -123,17 +123,18 @@ body {
 }
 
 .sentence-container {
+  position: relative;
   padding: 20px;
   background-color: #f9f9f9;
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   width: 285px;
-  margin: 20px auto;
-  border: 2px solid #0aa989; /* Optional border */
+  margin: 30px auto 20px; /* Add more top margin to make room for the tip */
+  border: 2px solid #0aa989;
   transition: transform 0.3s ease;
   text-align: center;
   font-style: initial;
-  font-family: "Poppins", "Cairo", sans-serif; /* Clean and modern font */
+  font-family: "Poppins", "Cairo", sans-serif;
 }
 
 .sentence-text {
@@ -165,7 +166,7 @@ body {
 }
 .tip {
   position: absolute;
-  top: 290px;
+  top: -12px; /* Position it to overlap with the top border */
   left: 50%;
   transform: translateX(-50%);
   background-color: white;
@@ -181,6 +182,7 @@ body {
   font-family: "Tajawal", "Cairo", "Amiri", sans-serif;
   font-weight: bold;
   direction: rtl;
+  z-index: 5; /* Ensure it appears above the sentence container */
 }
 .dialog-btn {
   width: 200px;
@@ -437,8 +439,8 @@ input[type="text"].form-control {
 /* Style for the "اقرأ هذا" sentence - lift it up for Android */
 .sentence-input-container {
   position: relative;
-  margin-top: -10px;
-  margin-bottom: 30px;
+  margin: 0;
+  padding: 0;
 }
 
 /* Mobile-specific adjustments */
