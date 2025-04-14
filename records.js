@@ -63,6 +63,7 @@ let dataArray;
 let canvasCtx;
 let animationId;
 let waveformCanvas;
+let recordingStartTime;
 
 // AudioContext for sound effects
 // let audioContext;
@@ -115,7 +116,8 @@ function setupWaveformVisualization(stream) {
 
   // Create analyzer
   analyser = audioContext.createAnalyser();
-  analyser.fftSize = 256;
+  analyser.fftSize = 128; // Reduced for better performance
+  analyser.smoothingTimeConstant = 0.8; // Smoother transitions
 
   // Connect stream to analyzer
   const source = audioContext.createMediaStreamSource(stream);
@@ -126,505 +128,74 @@ function setupWaveformVisualization(stream) {
   dataArray = new Uint8Array(bufferLength);
 
   // Start drawing
-  drawWaveform();
+  drawWhatsAppWaveform();
 }
 
-// Function to draw waveform
-function drawWaveform() {
+// Function to draw WhatsApp-style waveform
+function drawWhatsAppWaveform() {
   if (!isRecording) return;
 
-  animationId = requestAnimationFrame(drawWaveform);
+  animationId = requestAnimationFrame(drawWhatsAppWaveform);
 
   // Get data from analyzer
-  analyser.getByteTimeDomainData(dataArray);
+  analyser.getByteFrequencyData(dataArray);
 
   // Clear canvas
   canvasCtx.fillStyle = "#f0f0f0";
   canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
 
-  // Draw waveform
-  canvasCtx.lineWidth = 2;
-  canvasCtx.strokeStyle = "#0aa989";
-  canvasCtx.beginPath();
+  // Calculate bar width and spacing
+  const barCount = 30; // Number of bars to display
+  const barWidth = 4;
+  const barSpacing = 2;
+  const totalBarWidth = barCount * (barWidth + barSpacing);
+  const startX = (waveformCanvas.width - totalBarWidth) / 2;
 
-  const sliceWidth = waveformCanvas.width / dataArray.length;
-  let x = 0;
+  // Draw bars
+  for (let i = 0; i < barCount; i++) {
+    // Map the data to a reasonable height range
+    const dataIndex = Math.floor((i * dataArray.length) / barCount);
+    const value = dataArray[dataIndex];
+    const barHeight = Math.max(4, (value / 255) * waveformCanvas.height * 0.8);
 
-  for (let i = 0; i < dataArray.length; i++) {
-    const v = dataArray[i] / 128.0;
-    const y = (v * waveformCanvas.height) / 2;
+    // Calculate position
+    const x = startX + i * (barWidth + barSpacing);
+    const y = (waveformCanvas.height - barHeight) / 2;
 
-    if (i === 0) {
-      canvasCtx.moveTo(x, y);
-    } else {
-      canvasCtx.lineTo(x, y);
-    }
+    // Draw bar with gradient
+    const gradient = canvasCtx.createLinearGradient(0, y, 0, y + barHeight);
+    gradient.addColorStop(0, "#0aa989");
+    gradient.addColorStop(1, "#0aa989");
 
-    x += sliceWidth;
-  }
+    canvasCtx.fillStyle = gradient;
+    canvasCtx.fillRect(x, y, barWidth, barHeight);
 
-  canvasCtx.lineTo(waveformCanvas.width, waveformCanvas.height / 2);
-  canvasCtx.stroke();
-}
-
-// Function to stop waveform visualization
-function stopWaveformVisualization() {
-  if (animationId) {
-    cancelAnimationFrame(animationId);
-    animationId = null;
-  }
-
-  if (analyser) {
-    analyser.disconnect();
-    analyser = null;
-  }
-
-  if (waveformCanvas) {
-    waveformCanvas.style.display = "none";
-  }
-}
-
-// Update the displayed sentence and reset UI
-function updateSentence() {
-  if (lessons.length === 0) return; // Ensure lessons are loaded
-  const currentLesson = lessons[currentLessonIndex];
-
-  // Update the sentence
-  sentenceElement.textContent = currentLesson.sentences[currentSentenceIndex];
-
-  // Reset UI
-  recognizedTextDiv.textContent = "";
-  pronunciationScoreDiv.textContent = "0%";
-  micButton.style.display = "inline-block";
-  retryButton.style.display = "none";
-  retryButton.disabled = true;
-  missingWordDiv.textContent = "";
-  closeDialog();
-  updateProgressCircle(0);
-  nextButton.style.backgroundColor = "";
-
-  // Enable listen buttons in case they were disabled
-  listenButton.disabled = false;
-  listen2Button.disabled = false;
-
-  // Enable bookmark buttons in case they were disabled
-  toggleBookmarkButtons(false);
-}
-
-// Function to reset UI without changing the sentence
-function resetUI() {
-  // Reset UI elements
-  recognizedTextDiv.textContent = "";
-  pronunciationScoreDiv.textContent = "0%";
-  micButton.style.display = "inline-block";
-  micButton.style.color = "#fff";
-  micButton.style.backgroundColor = "";
-  micButton.disabled = false;
-  retryButton.style.display = "none";
-  retryButton.disabled = true;
-  missingWordDiv.textContent = "";
-  closeDialog();
-  updateProgressCircle(0);
-  document.getElementById("recordingIndicator").style.display = "none";
-
-  // Hide waveform canvas
-  if (waveformCanvas) {
-    waveformCanvas.style.display = "none";
-  }
-
-  // Reset recording state and re-enable buttons
-  isRecording = false;
-  speechDetected = false; // Reset speech detection flag
-  toggleListenButtons(false);
-  toggleBookmarkButtons(false);
-
-  // Clear the timeout
-  clearTimeout(noSpeechTimeout);
-}
-
-// Normalize text (remove punctuation and convert to lowercase)
-function normalizeText(text) {
-  return text.toLowerCase().replace(/[^\w\s]/g, "");
-}
-
-// Check if two words are exactly the same
-function isExactMatch(word1, word2) {
-  return word1 === word2;
-}
-
-// Calculate Levenshtein distance between two strings
-function levenshteinDistance(str1, str2) {
-  const m = str1.length;
-  const n = str2.length;
-
-  // Create a matrix of size (m+1) x (n+1)
-  const dp = Array(m + 1)
-    .fill()
-    .map(() => Array(n + 1).fill(0));
-
-  // Fill the first row and column
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-
-  // Fill the rest of the matrix
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (str1[i - 1] === str2[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1];
-      } else {
-        dp[i][j] =
-          1 +
-          Math.min(
-            dp[i - 1][j], // deletion
-            dp[i][j - 1], // insertion
-            dp[i - 1][j - 1] // substitution
-          );
-      }
-    }
-  }
-
-  return dp[m][n];
-}
-
-// Helper function to calculate similarity between two words
-// Returns a value between 0 (no similarity) and 1 (identical)
-function calculateSimilarity(word1, word2) {
-  // Convert to lowercase
-  word1 = word1.toLowerCase();
-  word2 = word2.toLowerCase();
-
-  // If words are identical, return 1
-  if (word1 === word2) return 1;
-
-  // If length difference is too great, they're likely different words
-  const lengthDiff = Math.abs(word1.length - word2.length);
-  if (lengthDiff > Math.min(word1.length, word2.length)) {
-    return 0.1; // Very low similarity for words with vastly different lengths
-  }
-
-  // Calculate Levenshtein distance
-  const distance = levenshteinDistance(word1, word2);
-
-  // Calculate maximum possible distance
-  const maxDistance = Math.max(word1.length, word2.length);
-
-  // Convert distance to similarity score (1 - normalized distance)
-  let similarity = 1 - distance / maxDistance;
-
-  // Apply additional penalties for differences in word length
-  if (lengthDiff > 0) {
-    similarity *= 1 - (lengthDiff / maxDistance) * 0.5;
-  }
-
-  // Penalize short words that differ by even one character more heavily
-  if (Math.min(word1.length, word2.length) <= 3 && distance > 0) {
-    similarity *= 0.7;
-  }
-
-  // If one word starts with the other but is much longer, reduce similarity
-  if ((word1.startsWith(word2) || word2.startsWith(word1)) && lengthDiff > 2) {
-    similarity *= 0.8;
-  }
-
-  return similarity;
-}
-
-// Update the progress circle based on the pronunciation score
-function updateProgressCircle(score) {
-  const circumference = 251.2; // 2 * π * r (r = 40)
-  const offset = circumference - (circumference * score) / 100;
-  progressCircle.style.strokeDashoffset = offset;
-
-  // Change circle color based on score
-  if (score >= 80) {
-    progressCircle.style.stroke = "#0aa989"; // Green for high scores
-    playSoundEffect(800, 200); // High-pitched beep for success
-  } else if (score >= 50) {
-    progressCircle.style.stroke = "#ffa500"; // Orange for medium scores
-    playSoundEffect(500, 200); // Medium-pitched beep for neutral
-  } else {
-    progressCircle.style.stroke = "#ff0000"; // Red for low scores
-    playSoundEffect(300, 200); // Low-pitched beep for failure
-  }
-}
-
-// Play sound effects using the Web Audio API
-function playSoundEffect(frequency, duration) {
-  if (!audioContext) {
-    console.error(
-      "AudioContext not initialized. Call initializeAudioContext() first."
+    // Add rounded corners
+    canvasCtx.fillStyle = "#0aa989";
+    canvasCtx.beginPath();
+    canvasCtx.arc(x + barWidth / 2, y, barWidth / 2, Math.PI, 0, false);
+    canvasCtx.arc(
+      x + barWidth / 2,
+      y + barHeight,
+      barWidth / 2,
+      0,
+      Math.PI,
+      false
     );
-    return;
+    canvasCtx.fill();
   }
 
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
+  // Add recording time indicator
+  const recordingTime = Math.floor((Date.now() - recordingStartTime) / 1000);
+  const minutes = Math.floor(recordingTime / 60);
+  const seconds = recordingTime % 60;
+  const timeText = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 
-  oscillator.frequency.value = frequency; // Frequency in Hz
-  oscillator.type = "sine"; // Type of waveform
-
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-
-  oscillator.start();
-  gainNode.gain.setValueAtTime(1, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(
-    0.001,
-    audioContext.currentTime + duration / 1000
-  );
-  oscillator.stop(audioContext.currentTime + duration / 1000);
+  canvasCtx.fillStyle = "#333";
+  canvasCtx.font = "12px Arial";
+  canvasCtx.textAlign = "right";
+  canvasCtx.fillText(timeText, waveformCanvas.width - 10, 15);
 }
-
-// Calculate pronunciation score and log recognized words to the console
-function calculatePronunciationScore(transcript, expectedSentence) {
-  const transcriptWords = normalizeText(transcript)
-    .split(/\s+/)
-    .filter((word) => word.trim() !== "");
-  const sentenceWords = normalizeText(expectedSentence)
-    .split(/\s+/)
-    .filter((word) => word.trim() !== "");
-
-  let correctWords = 0;
-  let highlightedText = "";
-  let missingWords = [];
-  let incorrectWords = [];
-
-  // Log the recognized words and expected words to the console
-  console.log("Recognized Words:", transcriptWords);
-  console.log("Expected Words:", sentenceWords);
-
-  // Create arrays to track which words have been matched
-  let matchedTranscriptIndices = new Array(transcriptWords.length).fill(false);
-  let matchedSentenceIndices = new Array(sentenceWords.length).fill(false);
-
-  // First pass: find exact matches
-  for (let i = 0; i < sentenceWords.length; i++) {
-    for (let j = 0; j < transcriptWords.length; j++) {
-      if (
-        !matchedTranscriptIndices[j] &&
-        !matchedSentenceIndices[i] &&
-        isExactMatch(transcriptWords[j], sentenceWords[i])
-      ) {
-        matchedTranscriptIndices[j] = true;
-        matchedSentenceIndices[i] = true;
-        correctWords++;
-        break;
-      }
-    }
-  }
-
-  // Second pass: find close matches for unmatched words
-  // Use an array to store all potential matches with similarity scores
-  let potentialMatches = [];
-
-  for (let i = 0; i < sentenceWords.length; i++) {
-    if (matchedSentenceIndices[i]) continue; // Skip already matched words
-
-    for (let j = 0; j < transcriptWords.length; j++) {
-      if (matchedTranscriptIndices[j]) continue; // Skip already matched words
-
-      const similarity = calculateSimilarity(
-        transcriptWords[j],
-        sentenceWords[i]
-      );
-      if (similarity > 0) {
-        potentialMatches.push({
-          sentenceIndex: i,
-          transcriptIndex: j,
-          similarity: similarity,
-        });
-      }
-    }
-  }
-
-  // Sort matches by similarity score (highest first)
-  potentialMatches.sort((a, b) => b.similarity - a.similarity);
-
-  // Apply matches greedily, starting with the highest similarity
-  for (const match of potentialMatches) {
-    if (
-      !matchedSentenceIndices[match.sentenceIndex] &&
-      !matchedTranscriptIndices[match.transcriptIndex]
-    ) {
-      // Apply match only if it exceeds our high similarity threshold
-      if (match.similarity >= 0.85) {
-        matchedSentenceIndices[match.sentenceIndex] = true;
-        matchedTranscriptIndices[match.transcriptIndex] = true;
-
-        // Award partial credit for close matches
-        correctWords += match.similarity;
-      }
-    }
-  }
-
-  // Generate the highlighted text based on the matching results
-  for (let i = 0; i < sentenceWords.length; i++) {
-    const expectedWord = sentenceWords[i];
-
-    if (matchedSentenceIndices[i]) {
-      // Word was matched correctly or closely
-      highlightedText += `<span style="color: green;">${expectedWord}</span> `;
-      console.log(`Correct: "${expectedWord}"`);
-    } else {
-      // Find most similar word that wasn't matched yet
-      let mostSimilarWord = "";
-      let highestSimilarity = 0;
-      let mostSimilarIndex = -1;
-
-      for (let j = 0; j < transcriptWords.length; j++) {
-        if (!matchedTranscriptIndices[j]) {
-          const similarity = calculateSimilarity(
-            transcriptWords[j],
-            expectedWord
-          );
-          if (similarity > highestSimilarity) {
-            highestSimilarity = similarity;
-            mostSimilarWord = transcriptWords[j];
-            mostSimilarIndex = j;
-          }
-        }
-      }
-
-      if (highestSimilarity >= 0.5 && highestSimilarity < 0.85) {
-        // Word was attempted but not close enough
-        highlightedText += `<span style="color: red;">${expectedWord}</span> `;
-        incorrectWords.push({
-          expected: expectedWord,
-          got: mostSimilarWord,
-        });
-        console.log(
-          `Incorrect: Expected "${expectedWord}", got "${mostSimilarWord}" (similarity: ${highestSimilarity.toFixed(
-            2
-          )})`
-        );
-        matchedTranscriptIndices[mostSimilarIndex] = true;
-      } else {
-        // Word was completely missed
-        highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
-        missingWords.push(expectedWord);
-        console.log(`Missing: "${expectedWord}"`);
-      }
-    }
-  }
-
-  // Check for extra words that were spoken but not matched
-  for (let j = 0; j < transcriptWords.length; j++) {
-    if (!matchedTranscriptIndices[j]) {
-      // This is an extra word, check if it's similar to any expected word
-      let mostSimilarWord = "";
-      let highestSimilarity = 0;
-
-      for (let i = 0; i < sentenceWords.length; i++) {
-        const similarity = calculateSimilarity(
-          transcriptWords[j],
-          sentenceWords[i]
-        );
-        if (similarity > highestSimilarity) {
-          highestSimilarity = similarity;
-          mostSimilarWord = sentenceWords[i];
-        }
-      }
-
-      // Very strict threshold for considering a word as "incorrect" vs "extra"
-      if (highestSimilarity >= 0.5) {
-        highlightedText += `<span style="color: red;">[Incorrect: ${transcriptWords[j]}]</span> `;
-        console.log(
-          `Incorrect: "${
-            transcriptWords[j]
-          }" (similar to "${mostSimilarWord}", score: ${highestSimilarity.toFixed(
-            2
-          )})`
-        );
-      } else {
-        highlightedText += `<span style="color: red;">[Extra: ${transcriptWords[j]}]</span> `;
-        console.log(`Extra: "${transcriptWords[j]}"`);
-      }
-    }
-  }
-
-  // Display the result
-  recognizedTextDiv.innerHTML = highlightedText.trim();
-
-  // Show missing words
-  if (missingWords.length > 0) {
-    missingWordDiv.textContent = `Missing: ${missingWords.join(", ")}`;
-  } else {
-    missingWordDiv.textContent = "";
-  }
-
-  // Calculate pronunciation score with fractional correctness
-  const pronunciationScore = (correctWords / sentenceWords.length) * 100;
-
-  // Update the "Continue" button color based on the score
-  if (pronunciationScore < 50) {
-    nextButton.style.backgroundColor = "#ff0000"; // Red for low scores
-  } else {
-    nextButton.style.backgroundColor = "#0aa989"; // Reset to default color
-  }
-
-  return Math.round(pronunciationScore);
-}
-
-// Speak the sentence using the Web Speech API
-function speakSentence() {
-  // Check if currently recording - if so, don't allow listening
-  if (isRecording) {
-    console.log("Cannot listen while recording");
-    alert(
-      "Cannot listen to example while recording. Please finish recording first."
-    );
-    return; // Exit the function without speaking
-  }
-
-  if (lessons.length === 0) return; // Ensure lessons are loaded
-  const currentLesson = lessons[currentLessonIndex];
-  const sentence = currentLesson.sentences[currentSentenceIndex];
-  const utterance = new SpeechSynthesisUtterance(sentence);
-  utterance.lang = "en-US";
-  speechSynthesis.speak(utterance);
-}
-
-// Toggle listen buttons state
-function toggleListenButtons(disabled) {
-  listenButton.disabled = disabled;
-  listen2Button.disabled = disabled;
-
-  // Visual feedback on disabled buttons
-  if (disabled) {
-    listenButton.style.opacity = "0.5";
-    listen2Button.style.opacity = "0.5";
-    listenButton.title = "Cannot listen while recording";
-    listen2Button.title = "Cannot listen while recording";
-  } else {
-    listenButton.style.opacity = "1";
-    listen2Button.style.opacity = "1";
-    listenButton.title = "Listen to example";
-    listen2Button.title = "Listen to example";
-  }
-}
-
-// Toggle bookmark buttons state
-function toggleBookmarkButtons(disabled) {
-  bookmarkIcon.disabled = disabled;
-  bookmarkIcon2.disabled = disabled;
-
-  // Visual feedback on disabled buttons
-  if (disabled) {
-    bookmarkIcon.style.opacity = "0.5";
-    bookmarkIcon2.style.opacity = "0.5";
-    bookmarkIcon.title = "Cannot play audio while recording";
-    bookmarkIcon2.title = "Cannot play audio while recording";
-  } else {
-    bookmarkIcon.style.opacity = "1";
-    bookmarkIcon2.style.opacity = "1";
-    bookmarkIcon.title = "Play recorded audio";
-    bookmarkIcon2.title = "Play recorded audio";
-  }
-}
-
-// Constants for recording
-const RECORDING_DURATION = 3000; // Reduced from 5000 to 3000 milliseconds (3 seconds)
-let recordingTimeout;
 
 // Start audio recording with automatic stop
 async function startAudioRecording() {
@@ -637,6 +208,9 @@ async function startAudioRecording() {
     isRecording = true;
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
+
+    // Record start time for timer
+    recordingStartTime = Date.now();
 
     // Setup waveform visualization
     setupWaveformVisualization(stream);
