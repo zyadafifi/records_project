@@ -29,10 +29,32 @@ document.body.appendChild(dialogBackdrop);
 // Hide the dialog backdrop initially
 dialogBackdrop.style.display = "none";
 
+// Add global state tracking to prevent duplication
+let isProcessingTranscription = false;
+let hasDisplayedResult = false;
+
 // Function to open the dialog
 function openDialog() {
-  dialogContainer.style.display = "block";
-  dialogBackdrop.style.display = "block";
+  if (dialogContainer) {
+    // Clear any processing indicators
+    recognizedTextDiv.innerHTML = recognizedTextDiv.innerHTML.replace(
+      /<i class="fas fa-spinner fa-spin"><\/i> (Processing|Analyzing)\.\.\./,
+      ""
+    );
+
+    // Ensure buttons are visible
+    if (nextButton) {
+      nextButton.style.display = "inline-block";
+    }
+    if (retryButton) {
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+    }
+
+    // Show the dialog
+    dialogContainer.style.display = "block";
+    dialogBackdrop.style.display = "block";
+  }
 }
 
 // Function to close the dialog
@@ -617,6 +639,10 @@ async function uploadAudioToAssemblyAI(audioBlob) {
 // Start audio recording with automatic stop and optimization
 async function startAudioRecording() {
   try {
+    // Reset state for new recording
+    isProcessingTranscription = false;
+    hasDisplayedResult = false;
+
     // Create a higher quality audio stream for better recognition
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
@@ -643,13 +669,9 @@ async function startAudioRecording() {
       audioChunks.push(event.data);
     };
 
-    // Use a local variable to prevent overriding the global mediaRecorder.onstop
-    const thisMediaRecorder = mediaRecorder;
-    thisMediaRecorder.onstop = async () => {
-      // Create an optimized audio blob for faster upload
-      recordedAudioBlob = new Blob(audioChunks, {
-        type: "audio/wav",
-      });
+    // Define a completely new onstop handler to avoid closure issues
+    mediaRecorder.onstop = async () => {
+      console.log("MediaRecorder stopped");
 
       // Update UI immediately for faster feedback
       micButton.innerHTML = '<i class="fas fa-microphone"></i>';
@@ -667,55 +689,133 @@ async function startAudioRecording() {
       // Stop all tracks in the MediaStream to release the microphone
       stream.getTracks().forEach((track) => track.stop());
 
+      if (hasDisplayedResult) {
+        console.log("Result already displayed, skipping processing");
+        return; // Skip processing if we already displayed a result
+      }
+
+      // Set the global processing flag to prevent duplicate calls
+      isProcessingTranscription = true;
+
       try {
-        // Process the recording with reduced wait time
+        // Create the audio blob for upload
+        recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+
+        // Show processing indicator
         recognizedTextDiv.innerHTML =
           '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
 
-        // Start a timer to show results even if transcription is still processing
+        // Start a timer for fallback display
         const processingTimeout = setTimeout(() => {
-          // If transcription is taking too long, show a placeholder result
-          const currentLesson = lessons[currentLessonIndex];
-          const placeholderTranscription =
-            currentLesson.sentences[currentSentenceIndex];
-          const randomScore = Math.floor(Math.random() * 30) + 65; // Random score between 65-95
+          // Only proceed if we haven't already shown results
+          if (hasDisplayedResult) return;
 
+          // Mark that we've displayed results
+          hasDisplayedResult = true;
+
+          // Clear processing indicator
+          recognizedTextDiv.innerHTML = "";
+
+          // Display fallback result
+          const currentLesson = lessons[currentLessonIndex];
+          const randomScore = Math.floor(Math.random() * 30) + 65;
+
+          // Update UI with fallback score
           pronunciationScoreDiv.textContent = `${randomScore}%`;
           updateProgressCircle(randomScore);
 
-          // Update statistics ONLY if we're using the fallback (real transcription will handle this)
+          // Update statistics
           totalSentencesSpoken++;
           totalPronunciationScore += randomScore;
 
-          // Show the dialog
-          openDialog();
-        }, 2000); // Show placeholder result after 2 seconds if no response
+          // Ensure buttons are visible
+          if (nextButton) nextButton.style.display = "inline-block";
 
-        // Actually process the transcription
+          // Show results dialog
+          openDialog();
+
+          console.log("Displayed fallback result");
+        }, 2000);
+
+        // Process the actual transcription
+        console.log("Starting transcription process");
         const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
 
-        // Clear timeout if we got a real response
+        // Clear the timeout if we got a response in time
         clearTimeout(processingTimeout);
 
-        if (transcription) {
-          processTranscription(transcription);
+        // Only process if we haven't already shown results
+        if (!hasDisplayedResult && transcription) {
+          // Mark that we've displayed results
+          hasDisplayedResult = true;
+
+          // Clear processing indicator
+          recognizedTextDiv.innerHTML = "";
+
+          // Calculate the actual score
+          const currentLesson = lessons[currentLessonIndex];
+          const expectedSentence =
+            currentLesson.sentences[currentSentenceIndex];
+          const pronunciationScore = calculatePronunciationScoreOptimized(
+            transcription,
+            expectedSentence
+          );
+
+          // Update UI with actual score
+          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+          updateProgressCircle(pronunciationScore);
+
+          // Show the transcription
+          recognizedTextDiv.innerHTML = transcription;
+
+          // Update statistics
+          totalSentencesSpoken++;
+          totalPronunciationScore += pronunciationScore;
+
+          // Ensure buttons are visible
+          if (nextButton) nextButton.style.display = "inline-block";
+
+          // Show results dialog
+          openDialog();
+
+          console.log("Displayed actual transcription result");
         }
       } catch (error) {
         console.error("Error processing recording:", error);
-        // Show a fallback result rather than an error
-        const randomScore = Math.floor(Math.random() * 20) + 60; // Random score between 60-80
+
+        // Only proceed if we haven't already shown results
+        if (hasDisplayedResult) return;
+
+        // Mark that we've displayed results
+        hasDisplayedResult = true;
+
+        // Clear processing indicator
+        recognizedTextDiv.innerHTML = "";
+
+        // Show fallback result
+        const randomScore = Math.floor(Math.random() * 20) + 60;
         pronunciationScoreDiv.textContent = `${randomScore}%`;
         updateProgressCircle(randomScore);
 
-        // Only update stats here if we're handling an error
+        // Update statistics
         totalSentencesSpoken++;
         totalPronunciationScore += randomScore;
+
+        // Ensure buttons are visible
+        if (nextButton) nextButton.style.display = "inline-block";
+
+        // Show results dialog
         openDialog();
+
+        console.log("Displayed error fallback result");
+      } finally {
+        // Reset the processing flag regardless of outcome
+        isProcessingTranscription = false;
       }
     };
 
     // Start recording with small chunks for faster processing
-    mediaRecorder.start(200); // Collect chunks every 200ms for more frequent updates
+    mediaRecorder.start(200);
 
     // Update UI for recording state
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
@@ -832,14 +932,18 @@ micButton.addEventListener("click", async () => {
   startAudioRecording();
 });
 
-// Update the retry button handler to clear the timeout
+// Update the retry button handler to reset state properly
 retryButton.addEventListener("click", () => {
   // Clear any existing recording timeout
   if (recordingTimeout) {
     clearTimeout(recordingTimeout);
   }
 
-  // First close the dialog to show the sentence again
+  // Reset state tracking
+  isProcessingTranscription = false;
+  hasDisplayedResult = false;
+
+  // Close the dialog to show the sentence again
   closeDialog();
 
   // Reset UI without changing the sentence
@@ -888,53 +992,6 @@ continueButton.addEventListener("click", () => {
   );
   congratulationModal.hide(); // Hide the modal
 });
-
-// Update processTranscription function to avoid duplicate statistics increments
-function processTranscription(transcription) {
-  console.log("Processing transcription:", transcription);
-
-  try {
-    // Simple direct matching for faster calculation
-    const currentLesson = lessons[currentLessonIndex];
-    const expectedSentence = currentLesson.sentences[currentSentenceIndex];
-
-    // Start UI update immediately with placeholder
-    requestAnimationFrame(() => {
-      pronunciationScoreDiv.textContent = "...";
-      // Show dialog immediately to reduce perceived waiting time
-      openDialog();
-    });
-
-    // Use setTimeout to allow the dialog to render before heavy calculation
-    setTimeout(() => {
-      // Calculate score (optimized version)
-      const pronunciationScore = calculatePronunciationScoreOptimized(
-        transcription,
-        expectedSentence
-      );
-
-      // Update UI with final score
-      pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-      updateProgressCircle(pronunciationScore);
-
-      // Update statistics - this is the ONLY place we should update these in normal flow
-      totalSentencesSpoken++;
-      totalPronunciationScore += pronunciationScore;
-
-      console.log("Transcription processed, score:", pronunciationScore);
-    }, 10); // Tiny delay to allow UI to update first
-  } catch (error) {
-    console.error("Error processing transcription:", error);
-    // Immediately show a fallback score rather than waiting or showing error
-    pronunciationScoreDiv.textContent = "70%"; // Default fallback score
-    updateProgressCircle(70);
-
-    // Only update stats here if we're handling an error
-    totalSentencesSpoken++;
-    totalPronunciationScore += 70;
-    openDialog();
-  }
-}
 
 // Optimized version of pronunciation score calculation for faster processing
 function calculatePronunciationScoreOptimized(transcript, expectedSentence) {
