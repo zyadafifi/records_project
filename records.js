@@ -445,6 +445,47 @@ function updateSentence() {
   sentenceElement.style.opacity = "1";
 }
 
+// Get the quiz ID from the URL
+function getQuizIdFromURL() {
+  // Check if we're in an iframe
+  const isInIframe = window.self !== window.top;
+
+  // Get URL parameters
+  let urlParams;
+
+  if (isInIframe) {
+    // If in iframe, try to get parameters from parent URL
+    try {
+      // Try to access parent URL parameters
+      const parentUrl = document.referrer;
+      const parentUrlObj = new URL(parentUrl);
+      urlParams = new URLSearchParams(parentUrlObj.search);
+      console.log("Using parent URL parameters from:", parentUrl);
+    } catch (e) {
+      console.error("Error accessing parent URL:", e);
+      // Fallback to current URL parameters
+      urlParams = new URLSearchParams(window.location.search);
+    }
+  } else {
+    // Not in iframe, use current URL parameters
+    urlParams = new URLSearchParams(window.location.search);
+  }
+
+  const quizId = urlParams.get("quizId");
+  console.log("Quiz ID from URL:", quizId);
+
+  // If no quizId is found, try to extract it from the URL path
+  if (!quizId) {
+    const pathMatch = window.location.pathname.match(/\/(\d+)/);
+    if (pathMatch && pathMatch[1]) {
+      console.log("Extracted quizId from path:", pathMatch[1]);
+      return pathMatch[1];
+    }
+  }
+
+  return quizId;
+}
+
 // Load lessons from the JSON file
 async function loadLessons() {
   try {
@@ -479,8 +520,22 @@ async function loadLessons() {
 
     if (currentLessonIndex === -1) {
       console.error("Lesson not found for quizId:", quizId);
-      // Default to first lesson if not found
-      currentLessonIndex = 0;
+      // Try to find by lessonNumber if quizId is numeric
+      if (quizId && !isNaN(quizId)) {
+        currentLessonIndex = lessons.findIndex(
+          (lesson) => lesson.lessonNumber === parseInt(quizId)
+        );
+        console.log(
+          "Tried to find by lessonNumber, result:",
+          currentLessonIndex
+        );
+      }
+
+      // Default to first lesson if still not found
+      if (currentLessonIndex === -1) {
+        currentLessonIndex = 0;
+        console.log("Defaulting to first lesson");
+      }
     }
 
     // Update the UI with the first sentence
@@ -502,14 +557,6 @@ async function loadLessons() {
     sentenceElement.textContent = "Error loading lessons. Please try again.";
     sentenceElement.style.display = "block";
   }
-}
-
-// Get the quiz ID from the URL
-function getQuizIdFromURL() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const quizId = urlParams.get("quizId");
-  console.log("Quiz ID from URL:", quizId);
-  return quizId;
 }
 
 // Load lessons when the page loads
