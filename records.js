@@ -419,6 +419,7 @@ function updateSentence() {
     "Updated sentence:",
     currentLesson.sentences[currentSentenceIndex]
   );
+  console.log("Current lesson:", currentLesson.lessonNumber);
 
   // Reset UI
   recognizedTextDiv.textContent = "";
@@ -447,9 +448,8 @@ function updateSentence() {
 // Load lessons from the JSON file
 async function loadLessons() {
   try {
-    const url =
-      "https://raw.githubusercontent.com/zyadafifi/lessons/main/lessons.json"; // Replace with your JSON URL
-    const response = await fetch(url, {
+    // Use local data.json file
+    const response = await fetch("data.json", {
       headers: { Accept: "application/json" },
     });
 
@@ -507,7 +507,9 @@ async function loadLessons() {
 // Get the quiz ID from the URL
 function getQuizIdFromURL() {
   const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.get("quizId");
+  const quizId = urlParams.get("quizId");
+  console.log("Quiz ID from URL:", quizId);
+  return quizId;
 }
 
 // Load lessons when the page loads
