@@ -166,23 +166,26 @@ body {
 }
 .tip {
   position: absolute;
-  top: -12px; /* Position it to overlap with the top border */
+  top: -12px;
   left: 50%;
   transform: translateX(-50%);
   background-color: white;
-  padding: 0px 10px;
+  padding: 2px 15px;
   border-radius: 10px;
   border: 1px solid #0aa989;
   font-size: 18px;
   color: #2c3e50;
   white-space: nowrap;
-  height: 23px;
-  width: 150px;
+  height: auto;
+  min-height: 25px;
+  width: auto;
+  min-width: 100px;
+  display: inline-block;
   text-align: center;
   font-family: "Tajawal", "Cairo", "Amiri", sans-serif;
   font-weight: bold;
   direction: rtl;
-  z-index: 5; /* Ensure it appears above the sentence container */
+  z-index: 10;
 }
 .dialog-btn {
   width: 200px;
@@ -450,22 +453,28 @@ input[type="text"].form-control {
     margin-bottom: 40px;
   }
 
-  input[type="text"],
-  input[type="text"].form-control {
-    margin-bottom: 30px; /* More space on mobile */
-    transform: translateY(-15px); /* Lift up on mobile */
+  .tip {
+    top: -15px;
+    font-size: 16px;
+    padding: 3px 10px;
+    border-width: 2px;
+    background-color: white;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
   }
 
   /* Android-specific adjustments */
   @supports (-webkit-appearance: none) and (not (overflow: -webkit-marquee)) and
     (not (-ms-ime-align: auto)) {
-    .sentence-container {
-      margin-top: 50px;
+    .tip {
+      top: -15px;
+      min-height: 28px;
+      line-height: 22px;
     }
+  }
 
-    input[type="text"],
-    input[type="text"].form-control {
-      transform: translateY(-25px); /* Lift up further on Android */
-    }
+  input[type="text"],
+  input[type="text"].form-control {
+    margin-bottom: 30px; /* More space on mobile */
+    transform: translateY(-15px); /* Lift up on mobile */
   }
 }
