@@ -57,16 +57,9 @@ let recordedAudioBlob; // Stores the recorded audio blob
 let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
 retryButton.style.display = "none"; // Hide retry button initially
-let audioContext;
-let analyser;
-let dataArray;
-let canvasCtx;
-let animationId;
-let waveformCanvas;
-let recordingStartTime;
 
 // AudioContext for sound effects
-// let audioContext;
+let audioContext;
 
 // Function to initialize AudioContext
 function initializeAudioContext() {
@@ -84,118 +77,442 @@ async function resumeAudioContext() {
   }
 }
 
-// Function to create and setup waveform visualization
-function setupWaveformVisualization(stream) {
-  // Create canvas element if it doesn't exist
-  if (!waveformCanvas) {
-    waveformCanvas = document.createElement("canvas");
-    waveformCanvas.id = "waveformCanvas";
-    waveformCanvas.width = 300;
-    waveformCanvas.height = 60;
-    waveformCanvas.style.width = "100%";
-    waveformCanvas.style.height = "60px";
-    waveformCanvas.style.marginTop = "10px";
-    waveformCanvas.style.borderRadius = "4px";
-    waveformCanvas.style.backgroundColor = "#f0f0f0";
+// Update the displayed sentence and reset UI
+function updateSentence() {
+  if (lessons.length === 0) return; // Ensure lessons are loaded
+  const currentLesson = lessons[currentLessonIndex];
 
-    // Insert canvas after the recording indicator
-    const recordingIndicator = document.getElementById("recordingIndicator");
-    if (recordingIndicator && recordingIndicator.parentNode) {
-      recordingIndicator.parentNode.insertBefore(
-        waveformCanvas,
-        recordingIndicator.nextSibling
-      );
-    } else {
-      // Fallback if recording indicator not found
-      document.querySelector(".dialog-container").appendChild(waveformCanvas);
+  // Update the sentence
+  sentenceElement.textContent = currentLesson.sentences[currentSentenceIndex];
+
+  // Reset UI
+  recognizedTextDiv.textContent = "";
+  pronunciationScoreDiv.textContent = "0%";
+  micButton.style.display = "inline-block";
+  retryButton.style.display = "none";
+  retryButton.disabled = true;
+  missingWordDiv.textContent = "";
+  closeDialog();
+  updateProgressCircle(0);
+  nextButton.style.backgroundColor = "";
+
+  // Enable listen buttons in case they were disabled
+  listenButton.disabled = false;
+  listen2Button.disabled = false;
+
+  // Enable bookmark buttons in case they were disabled
+  toggleBookmarkButtons(false);
+}
+
+// Function to reset UI without changing the sentence
+function resetUI() {
+  // Reset UI elements
+  recognizedTextDiv.textContent = "";
+  pronunciationScoreDiv.textContent = "0%";
+  micButton.style.display = "inline-block";
+  micButton.style.color = "#fff";
+  micButton.style.backgroundColor = "";
+  micButton.disabled = false;
+  retryButton.style.display = "none";
+  retryButton.disabled = true;
+  missingWordDiv.textContent = "";
+  closeDialog();
+  updateProgressCircle(0);
+  document.getElementById("recordingIndicator").style.display = "none";
+
+  // Reset recording state and re-enable buttons
+  isRecording = false;
+  speechDetected = false; // Reset speech detection flag
+  toggleListenButtons(false);
+  toggleBookmarkButtons(false);
+
+  // Clear the timeout
+  clearTimeout(noSpeechTimeout);
+}
+
+// Normalize text (remove punctuation and convert to lowercase)
+function normalizeText(text) {
+  return text.toLowerCase().replace(/[^\w\s]/g, "");
+}
+
+// Check if two words are exactly the same
+function isExactMatch(word1, word2) {
+  return word1 === word2;
+}
+
+// Calculate Levenshtein distance between two strings
+function levenshteinDistance(str1, str2) {
+  const m = str1.length;
+  const n = str2.length;
+
+  // Create a matrix of size (m+1) x (n+1)
+  const dp = Array(m + 1)
+    .fill()
+    .map(() => Array(n + 1).fill(0));
+
+  // Fill the first row and column
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+  // Fill the rest of the matrix
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1];
+      } else {
+        dp[i][j] =
+          1 +
+          Math.min(
+            dp[i - 1][j], // deletion
+            dp[i][j - 1], // insertion
+            dp[i - 1][j - 1] // substitution
+          );
+      }
     }
   }
 
-  // Get canvas context
-  canvasCtx = waveformCanvas.getContext("2d");
-
-  // Create analyzer
-  analyser = audioContext.createAnalyser();
-  analyser.fftSize = 128; // Reduced for better performance
-  analyser.smoothingTimeConstant = 0.8; // Smoother transitions
-
-  // Connect stream to analyzer
-  const source = audioContext.createMediaStreamSource(stream);
-  source.connect(analyser);
-
-  // Create data array for analyzer
-  const bufferLength = analyser.frequencyBinCount;
-  dataArray = new Uint8Array(bufferLength);
-
-  // Start drawing
-  drawWhatsAppWaveform();
+  return dp[m][n];
 }
 
-// Function to draw WhatsApp-style waveform
-function drawWhatsAppWaveform() {
-  if (!isRecording) return;
+// Helper function to calculate similarity between two words
+// Returns a value between 0 (no similarity) and 1 (identical)
+function calculateSimilarity(word1, word2) {
+  // Convert to lowercase
+  word1 = word1.toLowerCase();
+  word2 = word2.toLowerCase();
 
-  animationId = requestAnimationFrame(drawWhatsAppWaveform);
+  // If words are identical, return 1
+  if (word1 === word2) return 1;
 
-  // Get data from analyzer
-  analyser.getByteFrequencyData(dataArray);
-
-  // Clear canvas
-  canvasCtx.fillStyle = "#f0f0f0";
-  canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
-
-  // Calculate bar width and spacing
-  const barCount = 30; // Number of bars to display
-  const barWidth = 4;
-  const barSpacing = 2;
-  const totalBarWidth = barCount * (barWidth + barSpacing);
-  const startX = (waveformCanvas.width - totalBarWidth) / 2;
-
-  // Draw bars
-  for (let i = 0; i < barCount; i++) {
-    // Map the data to a reasonable height range
-    const dataIndex = Math.floor((i * dataArray.length) / barCount);
-    const value = dataArray[dataIndex];
-    const barHeight = Math.max(4, (value / 255) * waveformCanvas.height * 0.8);
-
-    // Calculate position
-    const x = startX + i * (barWidth + barSpacing);
-    const y = (waveformCanvas.height - barHeight) / 2;
-
-    // Draw bar with gradient
-    const gradient = canvasCtx.createLinearGradient(0, y, 0, y + barHeight);
-    gradient.addColorStop(0, "#0aa989");
-    gradient.addColorStop(1, "#0aa989");
-
-    canvasCtx.fillStyle = gradient;
-    canvasCtx.fillRect(x, y, barWidth, barHeight);
-
-    // Add rounded corners
-    canvasCtx.fillStyle = "#0aa989";
-    canvasCtx.beginPath();
-    canvasCtx.arc(x + barWidth / 2, y, barWidth / 2, Math.PI, 0, false);
-    canvasCtx.arc(
-      x + barWidth / 2,
-      y + barHeight,
-      barWidth / 2,
-      0,
-      Math.PI,
-      false
-    );
-    canvasCtx.fill();
+  // If length difference is too great, they're likely different words
+  const lengthDiff = Math.abs(word1.length - word2.length);
+  if (lengthDiff > Math.min(word1.length, word2.length)) {
+    return 0.1; // Very low similarity for words with vastly different lengths
   }
 
-  // Add recording time indicator
-  const recordingTime = Math.floor((Date.now() - recordingStartTime) / 1000);
-  const minutes = Math.floor(recordingTime / 60);
-  const seconds = recordingTime % 60;
-  const timeText = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+  // Calculate Levenshtein distance
+  const distance = levenshteinDistance(word1, word2);
 
-  canvasCtx.fillStyle = "#333";
-  canvasCtx.font = "12px Arial";
-  canvasCtx.textAlign = "right";
-  canvasCtx.fillText(timeText, waveformCanvas.width - 10, 15);
+  // Calculate maximum possible distance
+  const maxDistance = Math.max(word1.length, word2.length);
+
+  // Convert distance to similarity score (1 - normalized distance)
+  let similarity = 1 - distance / maxDistance;
+
+  // Apply additional penalties for differences in word length
+  if (lengthDiff > 0) {
+    similarity *= 1 - (lengthDiff / maxDistance) * 0.5;
+  }
+
+  // Penalize short words that differ by even one character more heavily
+  if (Math.min(word1.length, word2.length) <= 3 && distance > 0) {
+    similarity *= 0.7;
+  }
+
+  // If one word starts with the other but is much longer, reduce similarity
+  if ((word1.startsWith(word2) || word2.startsWith(word1)) && lengthDiff > 2) {
+    similarity *= 0.8;
+  }
+
+  return similarity;
 }
+
+// Update the progress circle based on the pronunciation score
+function updateProgressCircle(score) {
+  const circumference = 251.2; // 2 * π * r (r = 40)
+  const offset = circumference - (circumference * score) / 100;
+  progressCircle.style.strokeDashoffset = offset;
+
+  // Change circle color based on score
+  if (score >= 80) {
+    progressCircle.style.stroke = "#0aa989"; // Green for high scores
+    playSoundEffect(800, 200); // High-pitched beep for success
+  } else if (score >= 50) {
+    progressCircle.style.stroke = "#ffa500"; // Orange for medium scores
+    playSoundEffect(500, 200); // Medium-pitched beep for neutral
+  } else {
+    progressCircle.style.stroke = "#ff0000"; // Red for low scores
+    playSoundEffect(300, 200); // Low-pitched beep for failure
+  }
+}
+
+// Play sound effects using the Web Audio API
+function playSoundEffect(frequency, duration) {
+  if (!audioContext) {
+    console.error(
+      "AudioContext not initialized. Call initializeAudioContext() first."
+    );
+    return;
+  }
+
+  const oscillator = audioContext.createOscillator();
+  const gainNode = audioContext.createGain();
+
+  oscillator.frequency.value = frequency; // Frequency in Hz
+  oscillator.type = "sine"; // Type of waveform
+
+  oscillator.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  oscillator.start();
+  gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+  gainNode.gain.exponentialRampToValueAtTime(
+    0.001,
+    audioContext.currentTime + duration / 1000
+  );
+  oscillator.stop(audioContext.currentTime + duration / 1000);
+}
+
+// Calculate pronunciation score and log recognized words to the console
+function calculatePronunciationScore(transcript, expectedSentence) {
+  const transcriptWords = normalizeText(transcript)
+    .split(/\s+/)
+    .filter((word) => word.trim() !== "");
+  const sentenceWords = normalizeText(expectedSentence)
+    .split(/\s+/)
+    .filter((word) => word.trim() !== "");
+
+  let correctWords = 0;
+  let highlightedText = "";
+  let missingWords = [];
+  let incorrectWords = [];
+
+  // Log the recognized words and expected words to the console
+  console.log("Recognized Words:", transcriptWords);
+  console.log("Expected Words:", sentenceWords);
+
+  // Create arrays to track which words have been matched
+  let matchedTranscriptIndices = new Array(transcriptWords.length).fill(false);
+  let matchedSentenceIndices = new Array(sentenceWords.length).fill(false);
+
+  // First pass: find exact matches
+  for (let i = 0; i < sentenceWords.length; i++) {
+    for (let j = 0; j < transcriptWords.length; j++) {
+      if (
+        !matchedTranscriptIndices[j] &&
+        !matchedSentenceIndices[i] &&
+        isExactMatch(transcriptWords[j], sentenceWords[i])
+      ) {
+        matchedTranscriptIndices[j] = true;
+        matchedSentenceIndices[i] = true;
+        correctWords++;
+        break;
+      }
+    }
+  }
+
+  // Second pass: find close matches for unmatched words
+  // Use an array to store all potential matches with similarity scores
+  let potentialMatches = [];
+
+  for (let i = 0; i < sentenceWords.length; i++) {
+    if (matchedSentenceIndices[i]) continue; // Skip already matched words
+
+    for (let j = 0; j < transcriptWords.length; j++) {
+      if (matchedTranscriptIndices[j]) continue; // Skip already matched words
+
+      const similarity = calculateSimilarity(
+        transcriptWords[j],
+        sentenceWords[i]
+      );
+      if (similarity > 0) {
+        potentialMatches.push({
+          sentenceIndex: i,
+          transcriptIndex: j,
+          similarity: similarity,
+        });
+      }
+    }
+  }
+
+  // Sort matches by similarity score (highest first)
+  potentialMatches.sort((a, b) => b.similarity - a.similarity);
+
+  // Apply matches greedily, starting with the highest similarity
+  for (const match of potentialMatches) {
+    if (
+      !matchedSentenceIndices[match.sentenceIndex] &&
+      !matchedTranscriptIndices[match.transcriptIndex]
+    ) {
+      // Apply match only if it exceeds our high similarity threshold
+      if (match.similarity >= 0.85) {
+        matchedSentenceIndices[match.sentenceIndex] = true;
+        matchedTranscriptIndices[match.transcriptIndex] = true;
+
+        // Award partial credit for close matches
+        correctWords += match.similarity;
+      }
+    }
+  }
+
+  // Generate the highlighted text based on the matching results
+  for (let i = 0; i < sentenceWords.length; i++) {
+    const expectedWord = sentenceWords[i];
+
+    if (matchedSentenceIndices[i]) {
+      // Word was matched correctly or closely
+      highlightedText += `<span style="color: green;">${expectedWord}</span> `;
+      console.log(`Correct: "${expectedWord}"`);
+    } else {
+      // Find most similar word that wasn't matched yet
+      let mostSimilarWord = "";
+      let highestSimilarity = 0;
+      let mostSimilarIndex = -1;
+
+      for (let j = 0; j < transcriptWords.length; j++) {
+        if (!matchedTranscriptIndices[j]) {
+          const similarity = calculateSimilarity(
+            transcriptWords[j],
+            expectedWord
+          );
+          if (similarity > highestSimilarity) {
+            highestSimilarity = similarity;
+            mostSimilarWord = transcriptWords[j];
+            mostSimilarIndex = j;
+          }
+        }
+      }
+
+      if (highestSimilarity >= 0.5 && highestSimilarity < 0.85) {
+        // Word was attempted but not close enough
+        highlightedText += `<span style="color: red;">${expectedWord}</span> `;
+        incorrectWords.push({
+          expected: expectedWord,
+          got: mostSimilarWord,
+        });
+        console.log(
+          `Incorrect: Expected "${expectedWord}", got "${mostSimilarWord}" (similarity: ${highestSimilarity.toFixed(
+            2
+          )})`
+        );
+        matchedTranscriptIndices[mostSimilarIndex] = true;
+      } else {
+        // Word was completely missed
+        highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
+        missingWords.push(expectedWord);
+        console.log(`Missing: "${expectedWord}"`);
+      }
+    }
+  }
+
+  // Check for extra words that were spoken but not matched
+  for (let j = 0; j < transcriptWords.length; j++) {
+    if (!matchedTranscriptIndices[j]) {
+      // This is an extra word, check if it's similar to any expected word
+      let mostSimilarWord = "";
+      let highestSimilarity = 0;
+
+      for (let i = 0; i < sentenceWords.length; i++) {
+        const similarity = calculateSimilarity(
+          transcriptWords[j],
+          sentenceWords[i]
+        );
+        if (similarity > highestSimilarity) {
+          highestSimilarity = similarity;
+          mostSimilarWord = sentenceWords[i];
+        }
+      }
+
+      // Very strict threshold for considering a word as "incorrect" vs "extra"
+      if (highestSimilarity >= 0.5) {
+        highlightedText += `<span style="color: red;">[Incorrect: ${transcriptWords[j]}]</span> `;
+        console.log(
+          `Incorrect: "${
+            transcriptWords[j]
+          }" (similar to "${mostSimilarWord}", score: ${highestSimilarity.toFixed(
+            2
+          )})`
+        );
+      } else {
+        highlightedText += `<span style="color: red;">[Extra: ${transcriptWords[j]}]</span> `;
+        console.log(`Extra: "${transcriptWords[j]}"`);
+      }
+    }
+  }
+
+  // Display the result
+  recognizedTextDiv.innerHTML = highlightedText.trim();
+
+  // Show missing words
+  if (missingWords.length > 0) {
+    missingWordDiv.textContent = `Missing: ${missingWords.join(", ")}`;
+  } else {
+    missingWordDiv.textContent = "";
+  }
+
+  // Calculate pronunciation score with fractional correctness
+  const pronunciationScore = (correctWords / sentenceWords.length) * 100;
+
+  // Update the "Continue" button color based on the score
+  if (pronunciationScore < 50) {
+    nextButton.style.backgroundColor = "#ff0000"; // Red for low scores
+  } else {
+    nextButton.style.backgroundColor = "#0aa989"; // Reset to default color
+  }
+
+  return Math.round(pronunciationScore);
+}
+
+// Speak the sentence using the Web Speech API
+function speakSentence() {
+  // Check if currently recording - if so, don't allow listening
+  if (isRecording) {
+    console.log("Cannot listen while recording");
+    alert(
+      "Cannot listen to example while recording. Please finish recording first."
+    );
+    return; // Exit the function without speaking
+  }
+
+  if (lessons.length === 0) return; // Ensure lessons are loaded
+  const currentLesson = lessons[currentLessonIndex];
+  const sentence = currentLesson.sentences[currentSentenceIndex];
+  const utterance = new SpeechSynthesisUtterance(sentence);
+  utterance.lang = "en-US";
+  speechSynthesis.speak(utterance);
+}
+
+// Toggle listen buttons state
+function toggleListenButtons(disabled) {
+  listenButton.disabled = disabled;
+  listen2Button.disabled = disabled;
+
+  // Visual feedback on disabled buttons
+  if (disabled) {
+    listenButton.style.opacity = "0.5";
+    listen2Button.style.opacity = "0.5";
+    listenButton.title = "Cannot listen while recording";
+    listen2Button.title = "Cannot listen while recording";
+  } else {
+    listenButton.style.opacity = "1";
+    listen2Button.style.opacity = "1";
+    listenButton.title = "Listen to example";
+    listen2Button.title = "Listen to example";
+  }
+}
+
+// Toggle bookmark buttons state
+function toggleBookmarkButtons(disabled) {
+  bookmarkIcon.disabled = disabled;
+  bookmarkIcon2.disabled = disabled;
+
+  // Visual feedback on disabled buttons
+  if (disabled) {
+    bookmarkIcon.style.opacity = "0.5";
+    bookmarkIcon2.style.opacity = "0.5";
+    bookmarkIcon.title = "Cannot play audio while recording";
+    bookmarkIcon2.title = "Cannot play audio while recording";
+  } else {
+    bookmarkIcon.style.opacity = "1";
+    bookmarkIcon2.style.opacity = "1";
+    bookmarkIcon.title = "Play recorded audio";
+    bookmarkIcon2.title = "Play recorded audio";
+  }
+}
+
+// Constants for recording
+const RECORDING_DURATION = 5000; // 5 seconds recording time
+let recordingTimeout;
 
 // Start audio recording with automatic stop
 async function startAudioRecording() {
@@ -209,15 +526,6 @@ async function startAudioRecording() {
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
 
-    // Record start time for timer
-    recordingStartTime = Date.now();
-
-    // Setup waveform visualization
-    setupWaveformVisualization(stream);
-    if (waveformCanvas) {
-      waveformCanvas.style.display = "block";
-    }
-
     mediaRecorder.ondataavailable = (event) => {
       audioChunks.push(event.data);
     };
@@ -230,9 +538,6 @@ async function startAudioRecording() {
       retryButton.style.display = "inline-block";
       retryButton.disabled = false;
       document.getElementById("recordingIndicator").style.display = "none";
-
-      // Stop waveform visualization
-      stopWaveformVisualization();
 
       // Set recording flag to false and re-enable listen/bookmark buttons
       isRecording = false;
@@ -290,10 +595,6 @@ async function startAudioRecording() {
 // Upload audio to AssemblyAI and get transcription
 async function uploadAudioToAssemblyAI(audioBlob) {
   try {
-    // Show processing indication
-    recognizedTextDiv.innerHTML =
-      '<i class="fas fa-spinner fa-spin"></i> Processing...';
-
     // Step 1: Upload the audio file to AssemblyAI
     const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
       method: "POST",
@@ -311,7 +612,7 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     const uploadData = await uploadResponse.json();
     const audioUrl = uploadData.upload_url;
 
-    // Step 2: Submit the transcription request with optimized settings
+    // Step 2: Submit the transcription request
     const transcriptionResponse = await fetch(
       "https://api.assemblyai.com/v2/transcript",
       {
@@ -322,13 +623,6 @@ async function uploadAudioToAssemblyAI(audioBlob) {
         },
         body: JSON.stringify({
           audio_url: audioUrl,
-          language_detection: false, // Disable language detection for speed
-          punctuate: false, // Disable punctuation for speed
-          format_text: false, // Disable text formatting for speed
-          disfluencies: false, // Disable disfluency detection
-          language_code: "en", // Set language explicitly for speed
-          speech_threshold: 0.2, // Lower threshold to detect speech faster
-          speed_boost: true, // Enable speed boost for faster processing
         }),
       }
     );
@@ -342,12 +636,9 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     const transcriptionData = await transcriptionResponse.json();
     const transcriptId = transcriptionData.id;
 
-    // Step 3: Poll for the transcription result with shorter intervals
+    // Step 3: Poll for the transcription result
     let transcriptionResult;
-    let attempts = 0;
-    const MAX_ATTEMPTS = 20;
-    while (attempts < MAX_ATTEMPTS) {
-      attempts++;
+    while (true) {
       const statusResponse = await fetch(
         `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
         {
@@ -371,8 +662,8 @@ async function uploadAudioToAssemblyAI(audioBlob) {
         throw new Error("Transcription failed");
       }
 
-      // Wait for 500ms before polling again (reduced from 1000ms)
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Wait for 1 second before polling again
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     return transcriptionResult;
@@ -408,225 +699,59 @@ listen2Button.addEventListener("click", speakSentence);
 bookmarkIcon.addEventListener("click", playRecordedAudio);
 bookmarkIcon2.addEventListener("click", playRecordedAudio);
 
-// Update the displayed sentence and reset UI
-function updateSentence() {
-  if (!sentenceElement) {
-    console.error("Cannot update sentence: sentenceElement not found.");
-    return;
-  }
-  if (
-    lessons.length === 0 ||
-    currentLessonIndex < 0 ||
-    currentLessonIndex >= lessons.length
-  ) {
-    console.error("Cannot update sentence: Invalid lesson data or index.", {
-      length: lessons.length,
-      index: currentLessonIndex,
-    });
-    sentenceElement.textContent = "Error: Could not load sentence data.";
-    sentenceElement.style.color = "red";
-    return;
-  }
-
-  const currentLesson = lessons[currentLessonIndex];
-
-  if (
-    !currentLesson ||
-    !Array.isArray(currentLesson.sentences) ||
-    currentSentenceIndex < 0 ||
-    currentSentenceIndex >= currentLesson.sentences.length
-  ) {
-    console.error("Cannot update sentence: Invalid sentence data or index.", {
-      lesson: currentLesson,
-      sentenceIndex: currentSentenceIndex,
-    });
-    sentenceElement.textContent =
-      "Error: Could not load sentence data for this lesson.";
-    sentenceElement.style.color = "red";
-    return;
-  }
-
-  // Update the sentence
-  const sentenceText = currentLesson.sentences[currentSentenceIndex];
-  sentenceElement.textContent = sentenceText;
-  sentenceElement.style.color = ""; // Reset color if previously set to red
-  console.log("Updated sentence content:", sentenceText);
-  console.log("Current lesson number:", currentLesson.lessonNumber);
-
-  // Reset UI
-  recognizedTextDiv.textContent = "";
-  pronunciationScoreDiv.textContent = "0%";
-  micButton.style.display = "inline-block";
-  retryButton.style.display = "none";
-  retryButton.disabled = true;
-  missingWordDiv.textContent = "";
-  closeDialog();
-  updateProgressCircle(0);
-  nextButton.style.backgroundColor = "";
-
-  // Enable listen buttons in case they were disabled
-  listenButton.disabled = false;
-  listen2Button.disabled = false;
-
-  // Enable bookmark buttons in case they were disabled
-  toggleBookmarkButtons(false);
-
-  // Make sure the sentence is visible
-  sentenceElement.style.display = "block";
-  sentenceElement.style.visibility = "visible";
-  sentenceElement.style.opacity = "1";
-}
-
-// Get the quiz ID from the URL
-function getQuizIdFromURL() {
-  // Check if we're in an iframe
-  const isInIframe = window.self !== window.top;
-
-  // Get URL parameters
-  let urlParams;
-
-  if (isInIframe) {
-    // If in iframe, try to get parameters from parent URL
-    try {
-      // Try to access parent URL parameters
-      const parentUrl = document.referrer;
-      const parentUrlObj = new URL(parentUrl);
-      urlParams = new URLSearchParams(parentUrlObj.search);
-      console.log("Using parent URL parameters from:", parentUrl);
-    } catch (e) {
-      console.error("Error accessing parent URL:", e);
-      // Fallback to current URL parameters
-      urlParams = new URLSearchParams(window.location.search);
-    }
-  } else {
-    // Not in iframe, use current URL parameters
-    urlParams = new URLSearchParams(window.location.search);
-  }
-
-  const quizId = urlParams.get("quizId");
-  console.log("Quiz ID from URL:", quizId);
-
-  // If no quizId is found, try to extract it from the URL path
-  if (!quizId) {
-    const pathMatch = window.location.pathname.match(/\/(\d+)/);
-    if (pathMatch && pathMatch[1]) {
-      console.log("Extracted quizId from path:", pathMatch[1]);
-      return pathMatch[1];
-    }
-  }
-
-  return quizId;
-}
-
 // Load lessons from the JSON file
 async function loadLessons() {
-  if (!sentenceElement) {
-    console.error("Sentence element not found in the DOM!");
-    // Optionally display an error in a different way if sentenceElement is missing
-    alert("Critical error: UI element for sentence is missing.");
-    return;
-  }
-
   try {
-    // Use local data.json file
-    const response = await fetch("data.json", {
+    const url =
+      "https://raw.githubusercontent.com/zyadafifi/lessons/main/lessons.json"; // Replace with your JSON URL
+    const response = await fetch(url, {
       headers: { Accept: "application/json" },
     });
 
     if (!response.ok) {
-      throw new Error(
-        `Failed to fetch lessons: ${response.statusText} (Status: ${response.status})`
-      );
+      throw new Error(`Failed to fetch lessons: ${response.statusText}`);
     }
 
     const data = await response.json();
     console.log("Fetched data:", data); // Log the fetched data for debugging
 
     // Ensure the data has the expected structure
-    if (!data || !Array.isArray(data.lessons) || data.lessons.length === 0) {
-      throw new Error("Invalid JSON structure or empty lessons array");
+    if (!data || !data.lessons) {
+      throw new Error("Invalid JSON structure: 'lessons' array not found");
     }
 
     lessons = data.lessons;
-    console.log("Lessons loaded successfully. Total lessons:", lessons.length);
+    console.log("Lessons loaded successfully:", lessons);
 
-    // --- Linking Logic ---
-    const urlQuizId = getQuizIdFromURL(); // Get ID from iframe URL or current URL
-    console.log(
-      `Attempting to link using URL quizId: '${urlQuizId}' (type: ${typeof urlQuizId})`
+    // Get the quizId from the URL
+    const quizId = getQuizIdFromURL();
+    console.log("Quiz ID from URL:", quizId);
+
+    // Find the lesson with the matching quizId
+    currentLessonIndex = lessons.findIndex(
+      (lesson) => lesson.quizId === quizId
     );
 
-    currentLessonIndex = -1; // Reset index before searching
-
-    if (urlQuizId !== null && urlQuizId !== undefined && urlQuizId !== "") {
-      // Find the lesson index by matching the quizId from the URL with the quizId in data.json
-      currentLessonIndex = lessons.findIndex((lesson) => {
-        const dataQuizId = String(lesson.quizId); // Ensure data ID is a string
-        const urlIdString = String(urlQuizId); // Ensure URL ID is a string
-        // console.log(`Comparing URL ID '${urlIdString}' with Data ID '${dataQuizId}'`); // Uncomment for detailed comparison logging
-        return dataQuizId === urlIdString;
-      });
-      console.log(`Found lesson index by quizId match: ${currentLessonIndex}`);
-    } else {
-      console.log("No valid quizId found in URL.");
-    }
-    // --- End Linking Logic ---
-
-    // Fallback if quizId match failed or no quizId was provided
     if (currentLessonIndex === -1) {
-      console.warn(
-        `Lesson not found for quizId: '${urlQuizId}'. Checking fallbacks.`
-      );
-
-      // Fallback 1: Try to find by lessonNumber if urlQuizId is numeric
-      if (urlQuizId && !isNaN(urlQuizId)) {
-        const numericQuizId = parseInt(urlQuizId);
-        currentLessonIndex = lessons.findIndex(
-          (lesson) => lesson.lessonNumber === numericQuizId
-        );
-        console.log(
-          `Fallback: Found lesson index by lessonNumber match: ${currentLessonIndex}`
-        );
-      }
-
-      // Fallback 2: Default to first lesson if still not found
-      if (currentLessonIndex === -1) {
-        currentLessonIndex = 0;
-        console.log("Fallback: Defaulting to first lesson (index 0).");
-      }
+      console.error("Lesson not found for quizId:", quizId);
+      return;
     }
 
-    // Update the UI with the found/defaulted lesson
+    // Update the UI with the first sentence
     updateSentence();
   } catch (error) {
     console.error("Error loading lessons:", error);
-    // Show error message to user directly in the sentence element
-    if (sentenceElement) {
-      sentenceElement.textContent = `Error: ${error.message}. Please check data.json and console.`;
-      sentenceElement.style.display = "block";
-      sentenceElement.style.color = "red"; // Make error visible
-    } else {
-      alert(`Error loading lessons: ${error.message}`);
-    }
   }
 }
 
-// Load lessons when the DOM is ready
-document.addEventListener("DOMContentLoaded", () => {
-  console.log("DOM fully loaded and parsed");
-  if (!sentenceElement) {
-    console.error(
-      "Sentence element (#sentence) not found in the DOM immediately after load!"
-    );
-    // Attempt to find it again just in case
-    const foundElement = document.getElementById("sentence");
-    if (!foundElement) {
-      alert("Error: The sentence display area is missing from the page HTML.");
-      return;
-    }
-  }
-  loadLessons();
-});
+// Get the quiz ID from the URL
+function getQuizIdFromURL() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get("quizId");
+}
+
+// Load lessons when the page loads
+loadLessons();
 
 // Event listeners for buttons
 micButton.addEventListener("click", async () => {
