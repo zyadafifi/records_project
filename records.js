@@ -520,7 +520,7 @@ let recordingTimeout;
 // Upload audio to AssemblyAI with optimized settings
 async function uploadAudioToAssemblyAI(audioBlob) {
   try {
-    // Show loading indication
+    // Show loading indication (only update the display, don't process again)
     recognizedTextDiv.innerHTML =
       '<i class="fas fa-spinner fa-spin"></i> Processing...';
 
@@ -602,14 +602,15 @@ async function uploadAudioToAssemblyAI(audioBlob) {
       }
 
       // Use shorter poll intervals for faster results
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Poll every 500ms instead of 1000ms
+      await new Promise((resolve) => setTimeout(resolve, 500));
     }
 
+    // Simply return the text - don't process it here
     return transcriptionResult;
   } catch (error) {
     console.error("Error in AssemblyAI transcription:", error);
-    alert("Failed to transcribe audio. Please try again.");
-    return null;
+    // Just return the error, let the caller handle it
+    throw error;
   }
 }
 
@@ -642,7 +643,9 @@ async function startAudioRecording() {
       audioChunks.push(event.data);
     };
 
-    mediaRecorder.onstop = async () => {
+    // Use a local variable to prevent overriding the global mediaRecorder.onstop
+    const thisMediaRecorder = mediaRecorder;
+    thisMediaRecorder.onstop = async () => {
       // Create an optimized audio blob for faster upload
       recordedAudioBlob = new Blob(audioChunks, {
         type: "audio/wav",
@@ -680,7 +683,7 @@ async function startAudioRecording() {
           pronunciationScoreDiv.textContent = `${randomScore}%`;
           updateProgressCircle(randomScore);
 
-          // Update statistics
+          // Update statistics ONLY if we're using the fallback (real transcription will handle this)
           totalSentencesSpoken++;
           totalPronunciationScore += randomScore;
 
@@ -703,6 +706,10 @@ async function startAudioRecording() {
         const randomScore = Math.floor(Math.random() * 20) + 60; // Random score between 60-80
         pronunciationScoreDiv.textContent = `${randomScore}%`;
         updateProgressCircle(randomScore);
+
+        // Only update stats here if we're handling an error
+        totalSentencesSpoken++;
+        totalPronunciationScore += randomScore;
         openDialog();
       }
     };
@@ -882,7 +889,7 @@ continueButton.addEventListener("click", () => {
   congratulationModal.hide(); // Hide the modal
 });
 
-// Update processTranscription function for faster response
+// Update processTranscription function to avoid duplicate statistics increments
 function processTranscription(transcription) {
   console.log("Processing transcription:", transcription);
 
@@ -910,7 +917,7 @@ function processTranscription(transcription) {
       pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
       updateProgressCircle(pronunciationScore);
 
-      // Update statistics
+      // Update statistics - this is the ONLY place we should update these in normal flow
       totalSentencesSpoken++;
       totalPronunciationScore += pronunciationScore;
 
@@ -921,6 +928,10 @@ function processTranscription(transcription) {
     // Immediately show a fallback score rather than waiting or showing error
     pronunciationScoreDiv.textContent = "70%"; // Default fallback score
     updateProgressCircle(70);
+
+    // Only update stats here if we're handling an error
+    totalSentencesSpoken++;
+    totalPronunciationScore += 70;
     openDialog();
   }
 }
