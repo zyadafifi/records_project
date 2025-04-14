@@ -33,7 +33,27 @@ dialogBackdrop.style.display = "none";
 let isProcessingTranscription = false;
 let hasDisplayedResult = false;
 
-// Function to open the dialog
+// Add pulse animation for the next button
+const style = document.createElement("style");
+style.textContent = `
+  @keyframes nextButtonPulse {
+    0% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(10, 169, 137, 0.4);
+    }
+    70% {
+      transform: scale(1.05);
+      box-shadow: 0 0 0 10px rgba(10, 169, 137, 0);
+    }
+    100% {
+      transform: scale(1);
+      box-shadow: 0 0 0 0 rgba(10, 169, 137, 0);
+    }
+  }
+`;
+document.head.appendChild(style);
+
+// Function to open the dialog with proper button visibility and sentence display
 function openDialog() {
   if (dialogContainer) {
     // Clear any processing indicators
@@ -42,14 +62,73 @@ function openDialog() {
       ""
     );
 
-    // Ensure buttons are visible
+    // Get the current sentence and display it at the top of the dialog
+    try {
+      const currentLesson = lessons[currentLessonIndex];
+      const currentSentence = currentLesson.sentences[currentSentenceIndex];
+
+      // Create or update the sentence display element in the dialog
+      let sentenceDisplayElement = document.getElementById("reviewSentence");
+      if (!sentenceDisplayElement) {
+        sentenceDisplayElement = document.createElement("div");
+        sentenceDisplayElement.id = "reviewSentence";
+        sentenceDisplayElement.style.fontWeight = "bold";
+        sentenceDisplayElement.style.marginBottom = "15px";
+        sentenceDisplayElement.style.fontSize = "18px";
+        sentenceDisplayElement.style.color = "#0aa989";
+        sentenceDisplayElement.style.padding = "10px";
+        sentenceDisplayElement.style.borderRadius = "5px";
+        sentenceDisplayElement.style.backgroundColor = "#f9f9f9";
+        sentenceDisplayElement.style.border = "1px solid #ddd";
+
+        // Insert at the top of the dialog
+        if (dialogContainer.firstChild) {
+          dialogContainer.insertBefore(
+            sentenceDisplayElement,
+            dialogContainer.firstChild
+          );
+        } else {
+          dialogContainer.appendChild(sentenceDisplayElement);
+        }
+      }
+
+      // Set the current sentence text
+      sentenceDisplayElement.textContent = currentSentence;
+    } catch (error) {
+      console.error("Error displaying sentence in review:", error);
+    }
+
+    // Ensure buttons are visible and properly styled
     if (nextButton) {
       nextButton.style.display = "inline-block";
+      nextButton.style.marginTop = "15px";
+      nextButton.style.backgroundColor = "#0aa989";
+      nextButton.style.color = "white";
+      nextButton.style.padding = "8px 15px";
+      nextButton.style.borderRadius = "5px";
+      nextButton.style.border = "none";
+      nextButton.style.cursor = "pointer";
+      nextButton.style.fontWeight = "bold";
+      nextButton.style.animation = "nextButtonPulse 2s infinite";
     }
+
     if (retryButton) {
       retryButton.style.display = "inline-block";
+      retryButton.style.marginRight = "10px";
       retryButton.disabled = false;
     }
+
+    // Force display of all elements in the dialog
+    const allDialogElements = dialogContainer.querySelectorAll("*");
+    allDialogElements.forEach((element) => {
+      if (
+        element.style.display === "none" &&
+        element.id !== "recordingIndicator" &&
+        !element.classList.contains("dialog-backdrop")
+      ) {
+        element.style.display = "block";
+      }
+    });
 
     // Show the dialog
     dialogContainer.style.display = "block";
@@ -716,20 +795,41 @@ async function startAudioRecording() {
           // Clear processing indicator
           recognizedTextDiv.innerHTML = "";
 
-          // Display fallback result
+          // Get the current sentence
           const currentLesson = lessons[currentLessonIndex];
+          const expectedSentence =
+            currentLesson.sentences[currentSentenceIndex];
           const randomScore = Math.floor(Math.random() * 30) + 65;
 
           // Update UI with fallback score
           pronunciationScoreDiv.textContent = `${randomScore}%`;
           updateProgressCircle(randomScore);
 
+          // Display your speech message for consistency
+          recognizedTextDiv.innerHTML = `
+            <div style="margin-bottom: 10px; font-weight: bold;">Your speech:</div>
+            <div style="padding: 8px; background-color: #f0f0f0; border-radius: 5px; font-style: italic; color: #666;">
+              Speech processing timed out. Please try again with clearer speech.
+            </div>
+          `;
+
+          // Ensure the next button is styled consistently
+          if (nextButton) {
+            nextButton.style.display = "inline-block";
+            nextButton.style.marginTop = "15px";
+            nextButton.style.backgroundColor = "#0aa989";
+            nextButton.style.color = "white";
+            nextButton.style.padding = "8px 15px";
+            nextButton.style.borderRadius = "5px";
+            nextButton.style.border = "none";
+            nextButton.style.cursor = "pointer";
+            nextButton.style.fontWeight = "bold";
+            nextButton.style.animation = "pulse 2s infinite";
+          }
+
           // Update statistics
           totalSentencesSpoken++;
           totalPronunciationScore += randomScore;
-
-          // Ensure buttons are visible
-          if (nextButton) nextButton.style.display = "inline-block";
 
           // Show results dialog
           openDialog();
@@ -765,15 +865,31 @@ async function startAudioRecording() {
           pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
           updateProgressCircle(pronunciationScore);
 
-          // Show the transcription
-          recognizedTextDiv.innerHTML = transcription;
+          // Show the transcription and original sentence for comparison
+          recognizedTextDiv.innerHTML = `
+            <div style="margin-bottom: 10px; font-weight: bold;">Your speech:</div>
+            <div style="padding: 8px; background-color: #f0f0f0; border-radius: 5px;">${transcription}</div>
+          `;
+
+          // Ensure the next button is clearly visible and styled properly
+          if (nextButton) {
+            nextButton.style.display = "inline-block";
+            nextButton.style.marginTop = "15px";
+            nextButton.style.backgroundColor = "#0aa989";
+            nextButton.style.color = "white";
+            nextButton.style.padding = "8px 15px";
+            nextButton.style.borderRadius = "5px";
+            nextButton.style.border = "none";
+            nextButton.style.cursor = "pointer";
+            nextButton.style.fontWeight = "bold";
+
+            // Add a highlight animation to draw attention
+            nextButton.style.animation = "pulse 2s infinite";
+          }
 
           // Update statistics
           totalSentencesSpoken++;
           totalPronunciationScore += pronunciationScore;
-
-          // Ensure buttons are visible
-          if (nextButton) nextButton.style.display = "inline-block";
 
           // Show results dialog
           openDialog();
@@ -797,12 +913,31 @@ async function startAudioRecording() {
         pronunciationScoreDiv.textContent = `${randomScore}%`;
         updateProgressCircle(randomScore);
 
+        // Display error message in the same format as successful transcription
+        recognizedTextDiv.innerHTML = `
+          <div style="margin-bottom: 10px; font-weight: bold;">Your speech:</div>
+          <div style="padding: 8px; background-color: #f0f0f0; border-radius: 5px; font-style: italic; color: #666;">
+            Unable to process speech. Please try again.
+          </div>
+        `;
+
+        // Ensure the next button is styled consistently
+        if (nextButton) {
+          nextButton.style.display = "inline-block";
+          nextButton.style.marginTop = "15px";
+          nextButton.style.backgroundColor = "#0aa989";
+          nextButton.style.color = "white";
+          nextButton.style.padding = "8px 15px";
+          nextButton.style.borderRadius = "5px";
+          nextButton.style.border = "none";
+          nextButton.style.cursor = "pointer";
+          nextButton.style.fontWeight = "bold";
+          nextButton.style.animation = "pulse 2s infinite";
+        }
+
         // Update statistics
         totalSentencesSpoken++;
         totalPronunciationScore += randomScore;
-
-        // Ensure buttons are visible
-        if (nextButton) nextButton.style.display = "inline-block";
 
         // Show results dialog
         openDialog();
