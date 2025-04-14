@@ -57,9 +57,15 @@ let recordedAudioBlob; // Stores the recorded audio blob
 let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
 retryButton.style.display = "none"; // Hide retry button initially
+let audioContext;
+let analyser;
+let dataArray;
+let canvasCtx;
+let animationId;
+let waveformCanvas;
 
 // AudioContext for sound effects
-let audioContext;
+// let audioContext;
 
 // Function to initialize AudioContext
 function initializeAudioContext() {
@@ -74,6 +80,107 @@ async function resumeAudioContext() {
   if (audioContext && audioContext.state === "suspended") {
     await audioContext.resume();
     console.log("AudioContext resumed.");
+  }
+}
+
+// Function to create and setup waveform visualization
+function setupWaveformVisualization(stream) {
+  // Create canvas element if it doesn't exist
+  if (!waveformCanvas) {
+    waveformCanvas = document.createElement("canvas");
+    waveformCanvas.id = "waveformCanvas";
+    waveformCanvas.width = 300;
+    waveformCanvas.height = 60;
+    waveformCanvas.style.width = "100%";
+    waveformCanvas.style.height = "60px";
+    waveformCanvas.style.marginTop = "10px";
+    waveformCanvas.style.borderRadius = "4px";
+    waveformCanvas.style.backgroundColor = "#f0f0f0";
+
+    // Insert canvas after the recording indicator
+    const recordingIndicator = document.getElementById("recordingIndicator");
+    if (recordingIndicator && recordingIndicator.parentNode) {
+      recordingIndicator.parentNode.insertBefore(
+        waveformCanvas,
+        recordingIndicator.nextSibling
+      );
+    } else {
+      // Fallback if recording indicator not found
+      document.querySelector(".dialog-container").appendChild(waveformCanvas);
+    }
+  }
+
+  // Get canvas context
+  canvasCtx = waveformCanvas.getContext("2d");
+
+  // Create analyzer
+  analyser = audioContext.createAnalyser();
+  analyser.fftSize = 256;
+
+  // Connect stream to analyzer
+  const source = audioContext.createMediaStreamSource(stream);
+  source.connect(analyser);
+
+  // Create data array for analyzer
+  const bufferLength = analyser.frequencyBinCount;
+  dataArray = new Uint8Array(bufferLength);
+
+  // Start drawing
+  drawWaveform();
+}
+
+// Function to draw waveform
+function drawWaveform() {
+  if (!isRecording) return;
+
+  animationId = requestAnimationFrame(drawWaveform);
+
+  // Get data from analyzer
+  analyser.getByteTimeDomainData(dataArray);
+
+  // Clear canvas
+  canvasCtx.fillStyle = "#f0f0f0";
+  canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+
+  // Draw waveform
+  canvasCtx.lineWidth = 2;
+  canvasCtx.strokeStyle = "#0aa989";
+  canvasCtx.beginPath();
+
+  const sliceWidth = waveformCanvas.width / dataArray.length;
+  let x = 0;
+
+  for (let i = 0; i < dataArray.length; i++) {
+    const v = dataArray[i] / 128.0;
+    const y = (v * waveformCanvas.height) / 2;
+
+    if (i === 0) {
+      canvasCtx.moveTo(x, y);
+    } else {
+      canvasCtx.lineTo(x, y);
+    }
+
+    x += sliceWidth;
+  }
+
+  canvasCtx.lineTo(waveformCanvas.width, waveformCanvas.height / 2);
+  canvasCtx.stroke();
+}
+
+// Function to stop waveform visualization
+function stopWaveformVisualization() {
+  if (animationId) {
+    cancelAnimationFrame(animationId);
+    animationId = null;
+  }
+
+  if (analyser) {
+    analyser.disconnect();
+    analyser = null;
+  }
+
+  if (waveformCanvas) {
+    waveformCanvas.style.display = "none";
   }
 }
 
@@ -119,6 +226,11 @@ function resetUI() {
   closeDialog();
   updateProgressCircle(0);
   document.getElementById("recordingIndicator").style.display = "none";
+
+  // Hide waveform canvas
+  if (waveformCanvas) {
+    waveformCanvas.style.display = "none";
+  }
 
   // Reset recording state and re-enable buttons
   isRecording = false;
@@ -526,6 +638,12 @@ async function startAudioRecording() {
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
 
+    // Setup waveform visualization
+    setupWaveformVisualization(stream);
+    if (waveformCanvas) {
+      waveformCanvas.style.display = "block";
+    }
+
     mediaRecorder.ondataavailable = (event) => {
       audioChunks.push(event.data);
     };
@@ -538,6 +656,9 @@ async function startAudioRecording() {
       retryButton.style.display = "inline-block";
       retryButton.disabled = false;
       document.getElementById("recordingIndicator").style.display = "none";
+
+      // Stop waveform visualization
+      stopWaveformVisualization();
 
       // Set recording flag to false and re-enable listen/bookmark buttons
       isRecording = false;
