@@ -420,3 +420,50 @@ body {
     opacity: 1;
   }
 }
+
+/* Adjust the input field for Arabic text to prevent overlap on Android */
+input[type="text"],
+input[type="text"].form-control {
+  margin-bottom: 20px;
+  padding: 10px;
+  font-family: "Tajawal", sans-serif;
+  font-size: 16px;
+  text-align: right;
+  direction: rtl;
+  position: relative;
+  z-index: 10;
+}
+
+/* Style for the "اقرأ هذا" sentence - lift it up for Android */
+.sentence-input-container {
+  position: relative;
+  margin-top: -10px;
+  margin-bottom: 30px;
+}
+
+/* Mobile-specific adjustments */
+@media screen and (max-width: 768px) {
+  .sentence-container {
+    margin-top: 40px;
+    margin-bottom: 40px;
+  }
+
+  input[type="text"],
+  input[type="text"].form-control {
+    margin-bottom: 30px; /* More space on mobile */
+    transform: translateY(-15px); /* Lift up on mobile */
+  }
+
+  /* Android-specific adjustments */
+  @supports (-webkit-appearance: none) and (not (overflow: -webkit-marquee)) and
+    (not (-ms-ime-align: auto)) {
+    .sentence-container {
+      margin-top: 50px;
+    }
+
+    input[type="text"],
+    input[type="text"].form-control {
+      transform: translateY(-25px); /* Lift up further on Android */
+    }
+  }
+}
