@@ -169,29 +169,6 @@ function setupWaveformVisualization(stream) {
     stopRecButton.onclick = handleStopRecording; // Assign click handler
     waveformContainer.appendChild(stopRecButton);
 
-    // --- Create Bookmark Icon ---
-    bookmarkIcon = document.createElement("i");
-    bookmarkIcon.classList.add("fas", "fa-headphones"); // Changed from fa-bookmark to fa-headphones
-    bookmarkIcon.title = "Play Recorded Audio";
-    bookmarkIcon.style.cursor = "pointer";
-    bookmarkIcon.style.fontSize = "1.2em";
-    bookmarkIcon.style.color = "#007bff"; // Blue color for audio playback
-    bookmarkIcon.style.marginLeft = "10px";
-    bookmarkIcon.onclick = playRecordedAudio; // Assign click handler
-    waveformContainer.appendChild(bookmarkIcon);
-
-    // --- Create Second Bookmark Icon (for mobile) ---
-    bookmarkIcon2 = document.createElement("i");
-    bookmarkIcon2.id = "bookmark-icon2";
-    bookmarkIcon2.classList.add("fas", "fa-headphones"); // Changed from fa-bookmark to fa-headphones
-    bookmarkIcon2.title = "Play Recorded Audio";
-    bookmarkIcon2.style.cursor = "pointer";
-    bookmarkIcon2.style.fontSize = "1.2em";
-    bookmarkIcon2.style.color = "#007bff"; // Blue color for audio playback
-    bookmarkIcon2.style.marginLeft = "10px";
-    bookmarkIcon2.onclick = playRecordedAudio; // Assign click handler
-    waveformContainer.appendChild(bookmarkIcon2);
-
     // Insert container into DOM (adjust placement as needed)
     const micButtonContainer = micButton.parentElement;
     if (micButtonContainer && micButtonContainer.parentNode) {
