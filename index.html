@@ -37,10 +37,37 @@
           <div dir="rtl" class="arabic-text mb-1">
             <p>مرحبا! كيف حالك؟ اضغط على الميكروفون واقرأ الجملة التالية:</p>
           </div>
-          <div class="tip">اقرأ هذا</div>
 
-          <div class="sentence-container" id="sentence">
-            <p class="sentence-text">Sentence will appear here</p>
+          <!-- Sentence container with clearly visible tip -->
+          <div
+            style="position: relative; margin-top: 20px; margin-bottom: 20px"
+          >
+            <!-- "اقرأ هذا" tip with inline styles to ensure visibility -->
+            <div
+              class="tip"
+              style="
+                position: absolute;
+                top: -15px;
+                left: 50%;
+                transform: translateX(-50%);
+                background-color: white;
+                padding: 2px 15px;
+                border-radius: 10px;
+                border: 2px solid #0aa989;
+                font-size: 18px;
+                font-weight: bold;
+                color: #2c3e50;
+                z-index: 10;
+                direction: rtl;
+                text-align: center;
+              "
+            >
+              اقرأ هذا
+            </div>
+
+            <div class="sentence-container" id="sentence">
+              <p class="sentence-text">Sentence will appear here</p>
+            </div>
           </div>
 
           <!-- Sentence to Read with Mic Icon -->
