@@ -150,15 +150,15 @@ function setupWaveformVisualization(stream) {
     stopRecButton.style.background = "#0aa989"; // WhatsApp green
     stopRecButton.style.border = "none";
     stopRecButton.style.color = "#fff"; // White icon
-    stopRecButton.style.fontSize = "1.2em";
+    stopRecButton.style.fontSize = "1em"; // Smaller font size
     stopRecButton.style.cursor = "pointer";
-    stopRecButton.style.padding = "8px 12px";
+    stopRecButton.style.padding = "6px 10px"; // Smaller padding
     stopRecButton.style.borderRadius = "50%"; // Circular button
     stopRecButton.style.display = "flex";
     stopRecButton.style.alignItems = "center";
     stopRecButton.style.justifyContent = "center";
-    stopRecButton.style.width = "35px";
-    stopRecButton.style.height = "35px";
+    stopRecButton.style.width = "28px"; // Smaller width
+    stopRecButton.style.height = "28px"; // Smaller height
     stopRecButton.style.transition = "background-color 0.2s";
     stopRecButton.onmouseover = () => {
       stopRecButton.style.backgroundColor = "#0c8f72"; // Darker shade on hover
