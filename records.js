@@ -144,15 +144,28 @@ function setupWaveformVisualization(stream) {
     // --- Create Stop Button ---
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
-    stopRecButton.innerHTML = '<i class="fas fa-stop-circle"></i>'; // Stop icon
-    stopRecButton.title = "Stop Recording";
-    // Basic styling
-    stopRecButton.style.background = "none";
+    stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>'; // Send icon
+    stopRecButton.title = "Send Recording";
+    // WhatsApp-style send button styling
+    stopRecButton.style.background = "#0aa989"; // WhatsApp green
     stopRecButton.style.border = "none";
-    stopRecButton.style.color = "#007bff"; // Blue color for stop
+    stopRecButton.style.color = "#fff"; // White icon
     stopRecButton.style.fontSize = "1.2em";
     stopRecButton.style.cursor = "pointer";
-    stopRecButton.style.padding = "0 10px";
+    stopRecButton.style.padding = "8px 12px";
+    stopRecButton.style.borderRadius = "50%"; // Circular button
+    stopRecButton.style.display = "flex";
+    stopRecButton.style.alignItems = "center";
+    stopRecButton.style.justifyContent = "center";
+    stopRecButton.style.width = "35px";
+    stopRecButton.style.height = "35px";
+    stopRecButton.style.transition = "background-color 0.2s";
+    stopRecButton.onmouseover = () => {
+      stopRecButton.style.backgroundColor = "#0c8f72"; // Darker shade on hover
+    };
+    stopRecButton.onmouseout = () => {
+      stopRecButton.style.backgroundColor = "#0aa989"; // Original color
+    };
     stopRecButton.onclick = handleStopRecording; // Assign click handler
     waveformContainer.appendChild(stopRecButton);
 
