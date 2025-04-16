@@ -106,7 +106,7 @@
           class="dialog-container"
           style="
             position: relative;
-            border: 2px solid #0aa989;
+            border: 2px solid var(--primary-color);
             border-radius: 10px;
             padding: 20px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -172,7 +172,7 @@
                   cx="50"
                   cy="50"
                   r="40"
-                  stroke="#0aa989"
+                  stroke="var(--primary-color)"
                   stroke-width="10"
                   fill="none"
                   stroke-dasharray="251.2"
@@ -233,11 +233,7 @@
                 >
                   <i class="fas fa-redo"></i> Retry
                 </a>
-                <a
-                  href="#"
-                  class="btn text-white dialog-btn"
-                  style="background-color: #0aa989"
-                  id="nextButton"
+                <a href="#" class="btn text-white dialog-btn" id="nextButton"
                   >Continue</a
                 >
               </div>
@@ -313,7 +309,6 @@
             <button
               type="button"
               class="btn btn-primary continue-to-next-lesson"
-              style="background-color: #0aa989; border: none"
             >
               Close
             </button>
