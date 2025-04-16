@@ -15,9 +15,6 @@ const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
-const playButton2 = bookmarkIcon2
-  ? bookmarkIcon2.closest(".icon-wrapper")
-  : null;
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
@@ -34,20 +31,14 @@ dialogBackdrop.style.display = "none";
 
 // Function to open the dialog
 function openDialog() {
-  if (loadingSpinner) loadingSpinner.style.display = "none"; // Ensure spinner is hidden when dialog opens
-  dialogBackdrop.style.display = "block";
   dialogContainer.style.display = "block";
-  dialogContainer.classList.add("active"); // Add active class for potential styling
-  console.log("Dialog opened.");
+  dialogBackdrop.style.display = "block";
 }
 
 // Function to close the dialog
 function closeDialog() {
-  if (loadingSpinner) loadingSpinner.style.display = "none"; // Ensure spinner is hidden when dialog closes
-  dialogBackdrop.style.display = "none";
   dialogContainer.style.display = "none";
-  dialogContainer.classList.remove("active"); // Remove active class
-  console.log("Dialog closed.");
+  dialogBackdrop.style.display = "none";
 }
 
 // Event listeners for closing the dialog
@@ -81,7 +72,6 @@ let waveformContainer; // Container for canvas and buttons
 let stopRecButton; // Stop button
 let deleteRecButton; // Delete button
 let isRecordingCancelled = false; // Flag for cancellation
-let loadingSpinner = document.getElementById("loadingSpinner"); // Added spinner element
 
 // Function to initialize AudioContext
 function initializeAudioContext() {
@@ -815,87 +805,93 @@ async function startAudioRecording() {
 
     // Assign the NORMAL onstop handler HERE
     mediaRecorder.onstop = async () => {
-      console.log("MediaRecorder stopped.");
-      const elapsedTime = Date.now() - recordingStartTime;
+      console.log("mediaRecorder.onstop triggered.");
 
-      // Hide recording UI elements
+      // ***** Check Cancellation Flag *****
+      if (isRecordingCancelled) {
+        console.log("onstop: Recording was cancelled, skipping processing.");
+        // UI reset should have already happened in handleDeleteRecording
+        isRecordingCancelled = false; // Reset flag just in case
+        return;
+      }
+
+      // Stop the waveform visual (should be quick)
       stopWaveformVisualization();
 
-      // Check if recording was cancelled
-      if (isRecordingCancelled) {
-        console.log("Recording was cancelled. Skipping processing.");
-        resetUI(); // Reset UI fully on cancellation
-        return;
-      }
-
-      // Show loading spinner immediately
-      if (loadingSpinner) {
-        loadingSpinner.style.display = "block";
-        dialogContainer.style.opacity = "0.7"; // Optional: Dim background
-        dialogContainer.style.pointerEvents = "none"; // Prevent interactions
-      }
-
+      // --- Normal stop processing ---
       if (audioChunks.length === 0) {
-        console.log("No audio data recorded.");
-        if (loadingSpinner) loadingSpinner.style.display = "none"; // Hide spinner
-        alert("No audio was recorded. Please try again.");
-        resetUI(); // Reset UI fully
+        console.warn(
+          "No audio chunks recorded. Recording might have been too short or silent."
+        );
+        resetUI();
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+        stream.getTracks().forEach((track) => track.stop());
         return;
       }
 
-      // Create audio blob
-      const audioBlob = new Blob(audioChunks, {
-        type: "audio/webm;codecs=opus",
-      });
-      audioChunks = []; // Clear chunks after creating blob
-      console.log("Audio Blob created, size:", audioBlob.size);
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      console.log(
+        "Recorded audio blob created, size:",
+        recordedAudioBlob?.size
+      );
+      audioChunks = []; // Clear chunks
 
-      // Validate blob size
-      if (audioBlob.size < 1000) {
-        // Adjusted threshold
-        console.log("Recorded audio size too small, likely silence or error.");
-        if (loadingSpinner) loadingSpinner.style.display = "none"; // Hide spinner
-        alert(
-          "No speech detected or recording too short. Please try again and speak clearly."
-        );
-        resetUI(); // Reset UI fully
-        return;
-      }
+      // UI Updates after stopping normally
+      micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+      micButton.style.backgroundColor = "";
+      micButton.disabled = false;
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      document.getElementById("recordingIndicator").style.display = "none";
 
-      // Create a URL for the recorded audio for playback
-      if (lastRecordedAudioURL) {
-        URL.revokeObjectURL(lastRecordedAudioURL);
-      }
-      lastRecordedAudioURL = URL.createObjectURL(audioBlob);
-      console.log("Audio URL created:", lastRecordedAudioURL);
+      // Set recording flag false AFTER UI updates
+      isRecording = false;
+      recordingStartTime = null;
+      toggleListenButtons(false);
+      toggleBookmarkButtons(false);
+      console.log("UI updated after normal recording stop.");
 
-      try {
-        // Get transcription and analysis
-        console.log("Starting transcription and analysis...");
-        const { transcription, pronunciationScore, missingWords } =
-          await transcribeAndAnalyze(audioBlob);
-        console.log("Transcription and analysis complete.");
+      // Stop tracks
+      console.log("Stopping media stream tracks normally...");
+      stream.getTracks().forEach((track) => track.stop());
+      console.log("Media stream tracks stopped normally.");
 
-        // Update UI with results
-        updatePronunciationResults(
-          transcription,
-          pronunciationScore,
-          missingWords
-        );
-
-        // Show dialog with results
-        openDialog();
-      } catch (error) {
-        console.error("Error during transcription/analysis:", error);
-        alert("Failed to process audio. Please try again.");
-        resetUI(); // Reset UI fully on error
-      } finally {
-        // Hide loading spinner regardless of success or failure
-        if (loadingSpinner) {
-          loadingSpinner.style.display = "none";
-          dialogContainer.style.opacity = "1"; // Restore background
-          dialogContainer.style.pointerEvents = "auto"; // Re-enable interactions
+      // Upload for transcription
+      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
+        console.log("Uploading audio for transcription...");
+        recognizedTextDiv.innerHTML =
+          '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
+        pronunciationScoreDiv.textContent = "...";
+        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+        if (transcription !== null) {
+          console.log("Transcription received:", transcription);
+          const currentLesson = lessons[currentLessonIndex];
+          const pronunciationScore = calculatePronunciationScore(
+            transcription,
+            currentLesson.sentences[currentSentenceIndex]
+          );
+          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+          updateProgressCircle(pronunciationScore);
+          totalSentencesSpoken++;
+          totalPronunciationScore += pronunciationScore;
+          console.log("Score calculated and totals updated.");
+          openDialog();
+          console.log("Dialog opened.");
+        } else {
+          console.log(
+            "Transcription was null, likely an error during processing."
+          );
+          recognizedTextDiv.textContent = "(Transcription failed)";
         }
+      } else {
+        console.warn(
+          "Recorded audio blob is empty or very small, skipping transcription."
+        );
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
       }
     };
 
@@ -1028,9 +1024,10 @@ async function uploadAudioToAssemblyAI(audioBlob) {
 
 // Play the recorded audio
 function playRecordedAudio() {
-  console.log("playRecordedAudio function called."); // Log function entry
-  console.log("Current recording state (isRecording):", isRecording);
-  console.log("Last recorded audio URL:", lastRecordedAudioURL);
+  if (!recordedAudioBlob) {
+    alert("No recorded audio available.");
+    return;
+  }
 
   // Prevent playing recorded audio during recording
   if (isRecording) {
@@ -1039,58 +1036,16 @@ function playRecordedAudio() {
     return;
   }
 
-  if (!lastRecordedAudioURL) {
-    alert("No recorded audio available to play.");
-    console.log("No recorded audio URL found.");
-    return;
-  }
-
-  try {
-    console.log("Attempting to play audio from URL:", lastRecordedAudioURL);
-    const audio = new Audio(lastRecordedAudioURL);
-
-    audio.onerror = (e) => {
-      console.error("Audio playback error:", e);
-      alert(
-        `Failed to play recorded audio. Error: ${e.message || "Unknown error"}`
-      );
-      // Clean up URL object if playback fails
-      URL.revokeObjectURL(lastRecordedAudioURL);
-      lastRecordedAudioURL = null; // Reset URL as it might be invalid
-    };
-
-    audio.oncanplaythrough = () => {
-      console.log("Audio ready for playback.");
-      audio.play();
-    };
-
-    audio.onended = () => {
-      console.log("Recorded audio playback finished.");
-      // Note: We don't revoke the URL here, allowing multiple plays unless a new recording is made.
-    };
-
-    // Preload audio metadata to catch potential errors early
-    audio.load();
-  } catch (error) {
-    console.error("Error creating or playing audio element:", error);
-    alert("An unexpected error occurred while trying to play the audio.");
-  }
+  const audioURL = URL.createObjectURL(recordedAudioBlob);
+  const audio = new Audio(audioURL);
+  audio.play();
 }
 
 // Event listeners
 listenButton.addEventListener("click", speakSentence);
 listen2Button.addEventListener("click", speakSentence);
-// bookmarkIcon.addEventListener("click", playRecordedAudio); // Assume first icon doesn't play audio
-
-// Attach listener to the BUTTON containing the second icon
-if (playButton2) {
-  playButton2.addEventListener("click", playRecordedAudio);
-  console.log("Event listener attached to parent button of #bookmark-icon2.");
-} else {
-  console.error(
-    "Could not find parent button (.icon-wrapper) for #bookmark-icon2 to attach listener."
-  );
-}
+bookmarkIcon.addEventListener("click", playRecordedAudio);
+bookmarkIcon2.addEventListener("click", playRecordedAudio);
 
 // Load lessons from the JSON file
 async function loadLessons() {
@@ -1214,35 +1169,3 @@ continueButton.addEventListener("click", () => {
   );
   congratulationModal.hide(); // Hide the modal
 });
-
-async function transcribeAndAnalyze(audioBlob) {
-  // Clear previous results and show spinner (redundant if shown in onstop, but safe)
-  recognizedTextDiv.textContent = "";
-  pronunciationScoreDiv.textContent = "0%";
-  missingWordDiv.textContent = "";
-  updateProgressCircle(0);
-  if (loadingSpinner) {
-    loadingSpinner.style.display = "block";
-    dialogContainer.style.opacity = "0.7";
-    dialogContainer.style.pointerEvents = "none";
-  }
-
-  try {
-    const transcription = await transcribeAudioWithGoogle(audioBlob);
-    const { pronunciationScore, missingWords } = compareSentences(
-      sentenceElement.textContent,
-      transcription
-    );
-    return { transcription, pronunciationScore, missingWords };
-  } catch (error) {
-    console.error("Error in transcribeAndAnalyze:", error);
-    throw error; // Re-throw the error to be caught in onstop
-  } finally {
-    // Hide spinner (redundant if hidden in onstop, but safe)
-    if (loadingSpinner) {
-      loadingSpinner.style.display = "none";
-      dialogContainer.style.opacity = "1";
-      dialogContainer.style.pointerEvents = "auto";
-    }
-  }
-}
