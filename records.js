@@ -34,12 +34,37 @@ function openDialog() {
   dialogContainer.style.display = "block";
   dialogBackdrop.style.display = "block";
   console.log("Dialog opened.");
+
+  // --- Attach listener to dialog button HERE ---
+  const dialogButton = document.querySelector("#dialog-play-button");
+  if (dialogButton) {
+    // Remove potential existing listener first
+    dialogButton.removeEventListener("click", playRecordedAudio);
+    // Add the listener
+    dialogButton.addEventListener("click", playRecordedAudio);
+    console.log(
+      "Playback listener attached to #dialog-play-button inside openDialog."
+    );
+  } else {
+    console.error(
+      "Could not find #dialog-play-button when trying to attach listener in openDialog."
+    );
+  }
+  // --------------------------------------------
 }
 
 // Function to close the dialog
 function closeDialog() {
-  dialogContainer.style.display = "none";
-  dialogBackdrop.style.display = "none";
+  // Check if dialog is actually open before resetting UI to prevent loops
+  if (dialogContainer.style.display !== "none") {
+    console.log("closeDialog called. Dialog is closing.");
+    dialogContainer.style.display = "none";
+    dialogBackdrop.style.display = "none";
+    // Reset the main UI when dialog is closed - This will show the mic button again
+    resetUI();
+  } else {
+    // console.log("closeDialog called, but dialog was already closed.");
+  }
 }
 
 // Event listeners for closing the dialog
@@ -324,19 +349,20 @@ function stopWaveformVisualization() {
 
 // Function to reset UI without changing the sentence
 function resetUI() {
+  console.log("resetUI called. Restoring initial UI state."); // Add log
   // Reset UI elements
   recognizedTextDiv.textContent = "";
   pronunciationScoreDiv.textContent = "0%";
-  micButton.style.display = "flex";
-  micLoadingSpinner.style.display = "none";
-  micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-  micButton.style.backgroundColor = "";
-  micButton.style.color = "#fff";
+  micButton.style.display = "flex"; // ENSURE Mic button is VISIBLE
+  micLoadingSpinner.style.display = "none"; // ENSURE Spinner is HIDDEN
+  micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>'; // Reset icon
+  micButton.style.backgroundColor = ""; // Reset background
+  micButton.style.color = "#fff"; // Reset color if needed
   micButton.disabled = false;
   retryButton.style.display = "none";
   retryButton.disabled = true;
   missingWordDiv.textContent = "";
-  closeDialog();
+  closeDialog(); // Call closeDialog carefully - avoid infinite loop if closeDialog calls resetUI
   updateProgressCircle(0);
   document.getElementById("recordingIndicator").style.display = "none";
 
@@ -828,8 +854,8 @@ async function startAudioRecording() {
       // ***** Check Cancellation Flag *****
       if (isRecordingCancelled) {
         console.log("onstop: Recording was cancelled, skipping processing.");
-        isRecordingCancelled = false; // Reset flag just in case
-        // Don't reset UI here, handleDeleteRecording should have done it
+        isRecordingCancelled = false;
+        // UI should have been reset by handleDeleteRecording
         return;
       }
 
@@ -838,16 +864,14 @@ async function startAudioRecording() {
 
       // --- Show Loading Spinner, Hide Mic Button ---
       micButton.style.display = "none";
-      micLoadingSpinner.style.display = "flex"; // Use flex as button uses it
+      micLoadingSpinner.style.display = "flex";
       console.log("Showing mic loading spinner, hiding mic button.");
       // -------------------------------------------
 
       // --- Normal stop processing ---
       if (audioChunks.length === 0) {
-        console.warn(
-          "No audio chunks recorded. Recording might have been too short or silent."
-        );
-        resetUI(); // Ensure UI resets if no chunks
+        console.warn("No audio chunks recorded.");
+        resetUI(); // Reset UI (will hide spinner, show mic)
         return;
       }
 
@@ -857,30 +881,17 @@ async function startAudioRecording() {
         "Recorded audio blob created, size:",
         recordedAudioBlob?.size,
         "inferred type:",
-        recordedAudioBlob?.type // Log inferred type
+        recordedAudioBlob?.type
       );
       audioChunks = []; // Clear chunks
 
-      // UI Updates after stopping normally (Mic button handled above/below)
-      retryButton.style.display = "inline-block"; // Show retry immediately?
-      retryButton.disabled = false;
-      document.getElementById("recordingIndicator").style.display = "none";
-
-      // Set recording flag false AFTER UI updates
-      isRecording = false;
-      recordingStartTime = null;
-      toggleListenButtons(false);
-      toggleBookmarkButtons(false);
-      console.log(
-        "UI updated after normal recording stop (excluding mic button)."
-      );
-
-      // Stop tracks
-      console.log("Stopping media stream tracks normally...");
+      // Stop tracks early if possible
       if (mediaRecorder && mediaRecorder.stream) {
         mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+        console.log("Media stream tracks stopped in onstop.");
+      } else {
+        console.log("No active stream/tracks to stop in onstop.");
       }
-      console.log("Media stream tracks stopped normally.");
 
       // --- Upload for transcription ---
       let processingError = false;
@@ -918,20 +929,14 @@ async function startAudioRecording() {
             openDialog(); // Dialog opens on success
             console.log("Dialog opened.");
           } else {
-            console.log(
-              "Transcription was null, likely an error during processing."
-            );
-            recognizedTextDiv.textContent = "(Transcription failed)";
+            console.log("Transcription was null, resetting UI.");
             processingError = true;
-            resetUI(); // Reset UI on transcription failure
+            resetUI(); // Reset UI on transcription failure (will hide spinner, show mic)
           }
         } else {
-          console.warn(
-            "Recorded audio blob is empty or very small, skipping transcription."
-          );
-          recognizedTextDiv.textContent = "(Recording too short or silent)";
+          console.warn("Recorded audio blob empty/small, resetting UI.");
           processingError = true;
-          resetUI(); // Reset UI if blob is invalid
+          resetUI(); // Reset UI if blob is invalid (will hide spinner, show mic)
         }
       } catch (error) {
         console.error(
@@ -940,14 +945,25 @@ async function startAudioRecording() {
         );
         alert("Failed to process audio. Please try again.");
         processingError = true;
-        resetUI(); // Reset UI on general processing error
+        resetUI(); // Reset UI on general processing error (will hide spinner, show mic)
       } finally {
         // --- Hide Loading Spinner ---
-        console.log("Hiding mic loading spinner.");
+        // This runs AFTER successful dialog open OR after resetUI was called on error
+        console.log("Hiding mic loading spinner (in finally block).");
         micLoadingSpinner.style.display = "none";
-        // Mic button visibility is handled by resetUI or remains hidden if dialog opens
+        // Mic button visibility is handled by resetUI or remains hidden until dialog is closed.
         // --------------------------
       }
+
+      // UI Updates needed AFTER processing attempt (success or fail)
+      isRecording = false;
+      recordingStartTime = null;
+      toggleListenButtons(false);
+      toggleBookmarkButtons(false);
+      document.getElementById("recordingIndicator").style.display = "none";
+      retryButton.style.display = "inline-block"; // Show retry only after processing attempt
+      retryButton.disabled = false;
+      console.log("Common UI updates completed after processing attempt.");
     };
 
     mediaRecorder.onerror = (event) => {
@@ -1201,15 +1217,17 @@ async function loadLessons() {
       );
     }
 
-    // --- RESTORED Listener attachment for dialog button ---
-    const secondBookmarkButton = document.querySelector("#dialog-play-button");
-    if (secondBookmarkButton) {
-      secondBookmarkButton.removeEventListener("click", playRecordedAudio);
-      secondBookmarkButton.addEventListener("click", playRecordedAudio);
-      console.log("Event listener attached to button #dialog-play-button.");
-    } else {
-      console.error("Could not find button with ID #dialog-play-button.");
-    }
+    // --- REMOVED Listener attachment for dialog button from here ---
+    // const secondBookmarkButton = document.querySelector("#dialog-play-button");
+    // if (secondBookmarkButton) {
+    //   secondBookmarkButton.removeEventListener("click", playRecordedAudio);
+    //   secondBookmarkButton.addEventListener("click", playRecordedAudio);
+    //   console.log(
+    //     "Event listener attached to button #dialog-play-button."
+    //   );
+    // } else {
+    //   console.error("Could not find button with ID #dialog-play-button.");
+    // }
     // ---------------------------------------------------------
   } catch (error) {
     console.error("Error loading lessons:", error);
