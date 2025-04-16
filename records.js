@@ -14,6 +14,7 @@ const sentencesSpokenDiv = document.getElementById("sentencesSpoken");
 const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
+const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
@@ -744,32 +745,32 @@ function toggleListenButtons(disabled) {
 
 // Toggle bookmark buttons state
 function toggleBookmarkButtons(disabled) {
-  // Select ALL icons meant for playback using the new class
-  const playbackIcons = document.querySelectorAll(".play-recorded-audio-icon");
+  // Reverted to using specific icon variables
+  const firstButton = bookmarkIcon
+    ? bookmarkIcon.closest(".icon-wrapper")
+    : null;
+  const secondButton = bookmarkIcon2
+    ? bookmarkIcon2.closest(".icon-wrapper")
+    : null;
 
-  playbackIcons.forEach((icon) => {
-    // Still need to disable the button, not just the icon for interaction
-    const button = icon.closest(".icon-wrapper");
-    if (button) {
-      button.disabled = disabled;
-    }
+  if (firstButton) {
+    firstButton.disabled = disabled;
+  }
+  if (bookmarkIcon) {
+    bookmarkIcon.style.opacity = disabled ? "0.5" : "1";
+    bookmarkIcon.title = disabled
+      ? "Cannot play audio while recording"
+      : "Play recorded audio"; // Assuming first icon also plays
+  }
 
-    // Visual feedback on disabled icons
-    icon.style.opacity = disabled ? "0.5" : "1";
-    icon.title = disabled
+  if (secondButton) {
+    secondButton.disabled = disabled;
+  }
+  if (bookmarkIcon2) {
+    bookmarkIcon2.style.opacity = disabled ? "0.5" : "1";
+    bookmarkIcon2.title = disabled
       ? "Cannot play audio while recording"
       : "Play recorded audio";
-  });
-
-  // Handle the first bookmark icon separately if needed
-  if (bookmarkIcon) {
-    const firstButton = bookmarkIcon.closest(".icon-wrapper");
-    if (firstButton) {
-      firstButton.disabled = disabled; // Ensure first button is also disabled/enabled if applicable
-    }
-    bookmarkIcon.style.opacity = disabled ? "0.5" : "1";
-    // Adjust title logic if the first icon has different behavior
-    // bookmarkIcon.title = disabled ? "Cannot play..." : "Play recorded audio";
   }
 }
 
@@ -1155,55 +1156,45 @@ async function loadLessons() {
     listenButton.addEventListener("click", speakSentence);
     listen2Button.addEventListener("click", speakSentence);
 
-    // Find ALL playback icons using the class
-    const playbackIcons = document.querySelectorAll(
-      ".play-recorded-audio-icon"
-    );
-    console.log(`Found ${playbackIcons.length} playback icons.`);
-
-    playbackIcons.forEach((icon, index) => {
-      const button = icon.closest(".icon-wrapper");
-      if (button) {
-        // Remove potential old listener before adding new one (safety)
-        button.removeEventListener("click", playRecordedAudio);
-        // Add listener
-        button.addEventListener("click", playRecordedAudio);
-        console.log(
-          `Event listener attached to parent button of playback icon ${
-            index + 1
-          }.`
-        );
-      } else {
-        console.error(
-          `Could not find parent button for playback icon ${index + 1}.`
-        );
-      }
-    });
-
-    // --- REMOVE listener attachment based on specific ID ---
-    // const secondBookmarkButton = bookmarkIcon2
-    //   ? bookmarkIcon2.closest(".icon-wrapper")
-    //   : null;
-    // if (secondBookmarkButton) {
-    //   secondBookmarkButton.addEventListener("click", playRecordedAudio);
-    //   console.log(
-    //     "Event listener attached to parent button of #bookmark-icon2."
-    //   );
-    // } else {
-    //   console.error("Could not find parent button for #bookmark-icon2.");
-    // }
-
-    // Handle the first bookmark icon listener separately IF it should also play audio
+    // --- Reverted Listener Attachment Logic ---
+    // Find the parent buttons for the specific icons
     const firstBookmarkButton = bookmarkIcon
       ? bookmarkIcon.closest(".icon-wrapper")
       : null;
-    if (
-      firstBookmarkButton &&
-      !firstBookmarkButton.classList.contains("play-recorded-audio-icon")
-    ) {
-      // Decide if the first icon should also play audio
-      // firstBookmarkButton.addEventListener("click", playRecordedAudio);
-      // console.log("Listener attached to first bookmark icon's button.");
+    const secondBookmarkButton = bookmarkIcon2 // Use the ID selector variable
+      ? bookmarkIcon2.closest(".icon-wrapper")
+      : null;
+
+    // Attach listener to the FIRST icon's button (if it exists)
+    if (firstBookmarkButton) {
+      // Remove potential old listener (safety)
+      firstBookmarkButton.removeEventListener("click", playRecordedAudio);
+      firstBookmarkButton.addEventListener("click", playRecordedAudio);
+      console.log(
+        "Event listener attached to parent button of the first bookmark icon."
+      );
+    } else {
+      console.error(
+        "Could not find parent button for the first bookmark icon."
+      );
+    }
+
+    // Attach listener to the SECOND icon's button (if it exists)
+    if (secondBookmarkButton) {
+      // Remove potential old listener (safety)
+      secondBookmarkButton.removeEventListener("click", playRecordedAudio);
+      secondBookmarkButton.addEventListener("click", () => {
+        // Keep arrow function w/ log
+        console.log(
+          "--- Click listener on DIALOG button (ID: bookmark-icon2) fired! ---"
+        );
+        playRecordedAudio();
+      });
+      console.log(
+        "Event listener attached to parent button of #bookmark-icon2."
+      );
+    } else {
+      console.error("Could not find parent button for #bookmark-icon2.");
     }
     // ---------------------------------------------------------
   } catch (error) {
