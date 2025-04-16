@@ -883,6 +883,16 @@ async function startAudioRecording() {
           totalSentencesSpoken++;
           totalPronunciationScore += pronunciationScore;
           console.log("Score calculated and totals updated.");
+
+          // --- Verification Log before opening dialog ---
+          console.log(
+            "[Before Dialog] Is recordedAudioBlob valid?",
+            !!recordedAudioBlob,
+            "Size:",
+            recordedAudioBlob?.size
+          );
+          // ---------------------------------------------
+
           openDialog();
           console.log("Dialog opened.");
         } else {
