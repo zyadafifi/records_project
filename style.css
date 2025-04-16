@@ -2,6 +2,8 @@ body {
   align-items: center;
   right: 0;
   left: 0;
+  font-family: "Poppins", sans-serif; /* Default font */
+  background-color: #f4f7f6; /* Light background for body */
 } /* Centering the card */
 .card-container {
   min-height: 100vh;
@@ -11,7 +13,7 @@ body {
   width: 100%;
 }
 .arabic-text {
-  font-family: "Tajawal", sans-serif;
+  font-family: "Tajawal", sans-serif; /* Explicitly use Tajawal */
   font-size: 20px;
   font-weight: 700;
   text-align: right;
@@ -134,12 +136,12 @@ body {
   transition: transform 0.3s ease;
   text-align: center;
   font-style: initial;
-  font-family: "Poppins", "Cairo", sans-serif;
 }
 
 .sentence-text {
+  font-family: "Poppins", sans-serif; /* Ensure Poppins for English sentence */
   font-size: 22px;
-  font-weight: bold; /* Emphasize the text */
+  font-weight: bold; /* Corresponds to 700 weight */
   color: #333;
   text-align: center;
   line-height: 1.6;
@@ -149,9 +151,9 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Soft shadow for focus */
 }
 .sentence-text-2 {
-  font-family: "Tajawal", sans-serif;
+  font-family: "Tajawal", sans-serif; /* Use Tajawal for the dialog text */
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 600; /* Use 600 weight for Poppins if needed, 700 for Tajawal if desired */
   color: #333;
   text-align: center;
   line-height: 1.6;
@@ -182,8 +184,8 @@ body {
   min-width: 100px;
   display: inline-block;
   text-align: center;
-  font-family: "Tajawal", "Cairo", "Amiri", sans-serif;
-  font-weight: bold;
+  font-family: "Tajawal", sans-serif; /* Standardize to Tajawal */
+  font-weight: bold; /* Corresponds to 700 weight */
   direction: rtl;
   z-index: 10;
 }
@@ -431,7 +433,7 @@ input[type="text"],
 input[type="text"].form-control {
   margin-bottom: 20px;
   padding: 10px;
-  font-family: "Tajawal", sans-serif;
+  font-family: "Tajawal", sans-serif; /* Use Tajawal for input if it contains Arabic */
   font-size: 16px;
   text-align: right;
   direction: rtl;
