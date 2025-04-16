@@ -1,7 +1,6 @@
 // DOM Elements
 const sentenceElement = document.getElementById("sentence");
 const micButton = document.getElementById("micButton");
-const micLoadingSpinner = document.getElementById("micLoadingSpinner");
 const retryButton = document.getElementById("retryButton");
 const nextButton = document.getElementById("nextButton");
 const recognizedTextDiv = document.getElementById("recognizedText");
@@ -15,6 +14,7 @@ const sentencesSpokenDiv = document.getElementById("sentencesSpoken");
 const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
+const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
@@ -33,34 +33,12 @@ dialogBackdrop.style.display = "none";
 function openDialog() {
   dialogContainer.style.display = "block";
   dialogBackdrop.style.display = "block";
-  console.log("Dialog opened.");
-
-  // --- Attach listener to dialog button HERE ---
-  const dialogButton = document.querySelector("#dialog-play-button");
-  if (dialogButton) {
-    // Remove potential existing listener first
-    dialogButton.removeEventListener("click", playRecordedAudio);
-    // Add the listener
-    dialogButton.addEventListener("click", playRecordedAudio);
-    console.log(
-      "Playback listener attached to #dialog-play-button inside openDialog."
-    );
-  } else {
-    console.error(
-      "Could not find #dialog-play-button when trying to attach listener in openDialog."
-    );
-  }
-  // --------------------------------------------
 }
 
 // Function to close the dialog
 function closeDialog() {
-  if (dialogContainer.style.display !== "none") {
-    console.log("[closeDialog] Closing dialog and resetting UI.");
-    dialogContainer.style.display = "none";
-    dialogBackdrop.style.display = "none";
-    resetUI(); // Resets UI, making micButton visible, spinner hidden
-  }
+  dialogContainer.style.display = "none";
+  dialogBackdrop.style.display = "none";
 }
 
 // Event listeners for closing the dialog
@@ -166,28 +144,15 @@ function setupWaveformVisualization(stream) {
     // --- Create Stop Button ---
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
-    stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>'; // Send icon
-    stopRecButton.title = "Send Recording";
-    // WhatsApp-style send button styling
-    stopRecButton.style.background = "#457a76"; // Primary color
+    stopRecButton.innerHTML = '<i class="fas fa-stop-circle"></i>'; // Stop icon
+    stopRecButton.title = "Stop Recording";
+    // Basic styling
+    stopRecButton.style.background = "none";
     stopRecButton.style.border = "none";
-    stopRecButton.style.color = "#fff"; // White icon
-    stopRecButton.style.fontSize = "1em"; // Smaller font size
+    stopRecButton.style.color = "#007bff"; // Blue color for stop
+    stopRecButton.style.fontSize = "1.2em";
     stopRecButton.style.cursor = "pointer";
-    stopRecButton.style.padding = "6px 10px"; // Smaller padding
-    stopRecButton.style.borderRadius = "50%"; // Circular button
-    stopRecButton.style.display = "flex";
-    stopRecButton.style.alignItems = "center";
-    stopRecButton.style.justifyContent = "center";
-    stopRecButton.style.width = "28px"; // Smaller width
-    stopRecButton.style.height = "28px"; // Smaller height
-    stopRecButton.style.transition = "background-color 0.2s";
-    stopRecButton.onmouseover = () => {
-      stopRecButton.style.backgroundColor = "#316762"; // Darker logo shade for hover
-    };
-    stopRecButton.onmouseout = () => {
-      stopRecButton.style.backgroundColor = "#457a76"; // Primary color
-    };
+    stopRecButton.style.padding = "0 10px";
     stopRecButton.onclick = handleStopRecording; // Assign click handler
     waveformContainer.appendChild(stopRecButton);
 
@@ -345,10 +310,11 @@ function stopWaveformVisualization() {
 
 // Function to reset UI without changing the sentence
 function resetUI() {
-  console.log("[resetUI] Resetting: Showing Mic, Hiding Spinner.");
-  micButton.style.display = "flex"; // Show Mic button
-  micLoadingSpinner.style.display = "none"; // Hide Spinner
-  micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+  // Reset UI elements
+  recognizedTextDiv.textContent = "";
+  pronunciationScoreDiv.textContent = "0%";
+  micButton.style.display = "inline-block";
+  micButton.style.color = "#fff";
   micButton.style.backgroundColor = "";
   micButton.disabled = false;
   retryButton.style.display = "none";
@@ -373,7 +339,7 @@ function resetUI() {
   // Clear the timeouts
   clearTimeout(noSpeechTimeout);
   clearTimeout(recordingTimeout);
-  console.log("[resetUI] UI Reset complete.");
+  console.log("UI Reset completed.");
 }
 
 // Update the displayed sentence and reset UI
@@ -498,13 +464,13 @@ function updateProgressCircle(score) {
 
   // Change circle color based on score
   if (score >= 80) {
-    progressCircle.style.stroke = "#457a76"; // Primary color
+    progressCircle.style.stroke = "#0aa989"; // Green for high scores
     playSoundEffect(800, 200); // High-pitched beep for success
   } else if (score >= 50) {
-    progressCircle.style.stroke = "#f0ad4e"; // Muted orange/yellow for medium scores
+    progressCircle.style.stroke = "#ffa500"; // Orange for medium scores
     playSoundEffect(500, 200); // Medium-pitched beep for neutral
   } else {
-    progressCircle.style.stroke = "#dc3545"; // Softer red for low scores
+    progressCircle.style.stroke = "#ff0000"; // Red for low scores
     playSoundEffect(300, 200); // Low-pitched beep for failure
   }
 }
@@ -718,9 +684,9 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
   // Update the "Continue" button color based on the score
   if (pronunciationScore < 50) {
-    nextButton.style.backgroundColor = "#dc3545"; // Softer red for low scores
+    nextButton.style.backgroundColor = "#ff0000"; // Red for low scores
   } else {
-    nextButton.style.backgroundColor = "#457a76"; // Primary color
+    nextButton.style.backgroundColor = "#0aa989"; // Reset to default color
   }
 
   return Math.round(pronunciationScore);
@@ -766,35 +732,20 @@ function toggleListenButtons(disabled) {
 
 // Toggle bookmark buttons state
 function toggleBookmarkButtons(disabled) {
-  // Find buttons by relevant selectors/structure
-  const firstButton = bookmarkIcon
-    ? bookmarkIcon.closest(".icon-wrapper")
-    : null;
-  const secondButton = document.querySelector("#dialog-play-button"); // Select dialog button by ID
-  const secondIcon = secondButton
-    ? secondButton.querySelector(".bookmark-icon")
-    : null; // Find icon inside dialog button
+  bookmarkIcon.disabled = disabled;
+  bookmarkIcon2.disabled = disabled;
 
-  // Disable/Enable first button and icon
-  if (firstButton) {
-    firstButton.disabled = disabled;
-  }
-  if (bookmarkIcon) {
-    bookmarkIcon.style.opacity = disabled ? "0.5" : "1";
-    bookmarkIcon.title = disabled
-      ? "Cannot play audio while recording"
-      : "Play recorded audio"; // Assuming first icon also plays
-  }
-
-  // Disable/Enable second (dialog) button and icon
-  if (secondButton) {
-    secondButton.disabled = disabled;
-  }
-  if (secondIcon) {
-    secondIcon.style.opacity = disabled ? "0.5" : "1";
-    secondIcon.title = disabled
-      ? "Cannot play audio while recording"
-      : "Play recorded audio";
+  // Visual feedback on disabled buttons
+  if (disabled) {
+    bookmarkIcon.style.opacity = "0.5";
+    bookmarkIcon2.style.opacity = "0.5";
+    bookmarkIcon.title = "Cannot play audio while recording";
+    bookmarkIcon2.title = "Cannot play audio while recording";
+  } else {
+    bookmarkIcon.style.opacity = "1";
+    bookmarkIcon2.style.opacity = "1";
+    bookmarkIcon.title = "Play recorded audio";
+    bookmarkIcon2.title = "Play recorded audio";
   }
 }
 
@@ -827,21 +778,10 @@ async function startAudioRecording() {
     recordingStartTime = Date.now();
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
-    isRecordingCancelled = false;
+    isRecordingCancelled = false; // Ensure flag is reset
 
-    // --- Recording Start UI ---
-    console.log(
-      "[startAudioRecording] Setting recording UI: Mic visible (stop icon), Spinner hidden."
-    );
-    micButton.style.display = "flex"; // Keep mic visible
-    micLoadingSpinner.style.display = "none"; // Keep spinner hidden
-    micButton.innerHTML = '<i class="fas fa-stop mic-icon"></i>';
-    micButton.style.backgroundColor = "#dc3545";
-    micButton.disabled = true;
-    document.getElementById("recordingIndicator").style.display =
-      "inline-block";
+    // Setup and start waveform visualization (this now shows the container)
     setupWaveformVisualization(stream);
-    // --------------------------
 
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0 && !isRecordingCancelled) {
@@ -850,82 +790,116 @@ async function startAudioRecording() {
       }
     };
 
+    // Assign the NORMAL onstop handler HERE
     mediaRecorder.onstop = async () => {
-      console.log("[onstop] Recording stopped.");
+      console.log("mediaRecorder.onstop triggered.");
 
+      // ***** Check Cancellation Flag *****
+      if (isRecordingCancelled) {
+        console.log("onstop: Recording was cancelled, skipping processing.");
+        // UI reset should have already happened in handleDeleteRecording
+        isRecordingCancelled = false; // Reset flag just in case
+        return;
+      }
+
+      // Stop the waveform visual (should be quick)
       stopWaveformVisualization();
 
-      if (isRecordingCancelled) {
-        // ... (cancellation logic, should call resetUI) ...
-        return;
-      }
-
-      // --- Show Spinner, Hide Mic Button DURING PROCESSING ---
-      console.log("[onstop] Hiding Mic, Showing Spinner for processing.");
-      micButton.style.display = "none";
-      micLoadingSpinner.style.display = "flex";
-      // ----------------------------------------------------
-
+      // --- Normal stop processing ---
       if (audioChunks.length === 0) {
-        console.warn("[onstop] No audio chunks, resetting UI.");
+        console.warn(
+          "No audio chunks recorded. Recording might have been too short or silent."
+        );
         resetUI();
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+        stream.getTracks().forEach((track) => track.stop());
         return;
       }
 
-      // ... (Blob creation, stop tracks) ...
-      recordedAudioBlob = new Blob(audioChunks);
-      // ... (rest of blob handling) ...
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      console.log(
+        "Recorded audio blob created, size:",
+        recordedAudioBlob?.size
+      );
+      audioChunks = []; // Clear chunks
 
-      // --- Upload for transcription ---
-      let processingError = false;
-      try {
-        if (recordedAudioBlob && recordedAudioBlob.size > 100) {
-          // ... (transcription logic) ...
-          if (transcription !== null) {
-            // ... (update score UI) ...
-            console.log("[onstop] Processing SUCCESS, opening dialog.");
-            openDialog();
-          } else {
-            // Transcription Error
-            console.log("[onstop] Transcription FAILED, resetting UI.");
-            processingError = true;
-            resetUI();
-          }
+      // UI Updates after stopping normally
+      micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+      micButton.style.backgroundColor = "";
+      micButton.disabled = false;
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      document.getElementById("recordingIndicator").style.display = "none";
+
+      // Set recording flag false AFTER UI updates
+      isRecording = false;
+      recordingStartTime = null;
+      toggleListenButtons(false);
+      toggleBookmarkButtons(false);
+      console.log("UI updated after normal recording stop.");
+
+      // Stop tracks
+      console.log("Stopping media stream tracks normally...");
+      stream.getTracks().forEach((track) => track.stop());
+      console.log("Media stream tracks stopped normally.");
+
+      // Upload for transcription
+      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
+        console.log("Uploading audio for transcription...");
+        recognizedTextDiv.innerHTML =
+          '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
+        pronunciationScoreDiv.textContent = "...";
+        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+        if (transcription !== null) {
+          console.log("Transcription received:", transcription);
+          const currentLesson = lessons[currentLessonIndex];
+          const pronunciationScore = calculatePronunciationScore(
+            transcription,
+            currentLesson.sentences[currentSentenceIndex]
+          );
+          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+          updateProgressCircle(pronunciationScore);
+          totalSentencesSpoken++;
+          totalPronunciationScore += pronunciationScore;
+          console.log("Score calculated and totals updated.");
+          openDialog();
+          console.log("Dialog opened.");
         } else {
-          // Blob Error
-          console.warn("[onstop] Blob invalid, resetting UI.");
-          processingError = true;
-          resetUI();
+          console.log(
+            "Transcription was null, likely an error during processing."
+          );
+          recognizedTextDiv.textContent = "(Transcription failed)";
         }
-      } catch (error) {
-        // General Error
-        console.error("[onstop] Processing CATCH block error:", error);
-        alert("Failed to process audio. Please try again.");
-        processingError = true;
-        resetUI();
-      } finally {
-        // --- Hide Spinner AFTER Processing ---
-        console.log("[onstop] FINALLY block: Hiding Spinner.");
-        micLoadingSpinner.style.display = "none";
-        // Mic button visibility depends on whether dialog opened or resetUI was called.
-        // ------------------------------------
+      } else {
+        console.warn(
+          "Recorded audio blob is empty or very small, skipping transcription."
+        );
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
       }
-
-      // ... (Common UI updates AFTER processing attempt) ...
     };
 
     mediaRecorder.onerror = (event) => {
       console.error("MediaRecorder error:", event.error);
       alert(`Recording error: ${event.error.name} - ${event.error.message}`);
-      resetUI(); // Ensure reset on recorder error
+      // Reset UI on error
+      resetUI(); // resetUI already calls stopWaveformVisualization
       if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+        stream.getTracks().forEach((track) => track.stop()); // Stop stream on error
       }
     };
 
     // Start recording
     mediaRecorder.start(100);
-    console.log("Recording started.");
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#ff0000";
+    micButton.disabled = true;
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
+    console.log("UI updated for recording start.");
 
     // Set timeout to automatically stop recording after RECORDING_DURATION
     clearTimeout(recordingTimeout); // Clear any previous timeout
@@ -942,7 +916,14 @@ async function startAudioRecording() {
     alert(
       `Could not start recording: ${error.message}. Please check microphone permissions.`
     );
-    resetUI(); // Ensure reset on start error
+
+    // Ensure recording flag is reset and buttons are re-enabled in case of error
+    isRecording = false;
+    recordingStartTime = null;
+    toggleListenButtons(false);
+    toggleBookmarkButtons(false);
+    // Make sure waveform is stopped and hidden on error
+    stopWaveformVisualization();
   }
 }
 
@@ -1030,26 +1011,10 @@ async function uploadAudioToAssemblyAI(audioBlob) {
 
 // Play the recorded audio
 function playRecordedAudio() {
-  console.log("playRecordedAudio function called.");
-  console.log("Current recording state (isRecording):", isRecording);
-  console.log("Is recordedAudioBlob available?", !!recordedAudioBlob);
-
   if (!recordedAudioBlob) {
-    alert("No recorded audio available to play.");
-    console.log("No recordedAudioBlob found.");
+    alert("No recorded audio available.");
     return;
   }
-
-  // Explicit size check before attempting playback
-  if (recordedAudioBlob.size <= 100) {
-    // Use a small threshold
-    alert("Recorded audio is empty or too short to play.");
-    console.log("recordedAudioBlob size is too small:", recordedAudioBlob.size);
-    return;
-  }
-
-  console.log("Recorded Blob size:", recordedAudioBlob.size);
-  console.log("Recorded Blob type:", recordedAudioBlob.type);
 
   // Prevent playing recorded audio during recording
   if (isRecording) {
@@ -1058,36 +1023,16 @@ function playRecordedAudio() {
     return;
   }
 
-  try {
-    const audioURL = URL.createObjectURL(recordedAudioBlob);
-    console.log("Attempting to play audio from Blob URL:", audioURL);
-    const audio = new Audio(audioURL);
-
-    audio.onerror = (e) => {
-      console.error("Audio playback error:", e);
-      alert(
-        `Failed to play recorded audio. Error: ${e.message || "Unknown error"}`
-      );
-      URL.revokeObjectURL(audioURL);
-    };
-
-    audio.oncanplaythrough = () => {
-      console.log("Audio ready for playback.");
-      audio.play();
-    };
-
-    audio.onended = () => {
-      console.log("Recorded audio playback finished.");
-      URL.revokeObjectURL(audioURL);
-      console.log("Blob URL revoked:", audioURL);
-    };
-
-    audio.load();
-  } catch (error) {
-    console.error("Error creating or playing audio element:", error);
-    alert("An unexpected error occurred while trying to play the audio.");
-  }
+  const audioURL = URL.createObjectURL(recordedAudioBlob);
+  const audio = new Audio(audioURL);
+  audio.play();
 }
+
+// Event listeners
+listenButton.addEventListener("click", speakSentence);
+listen2Button.addEventListener("click", speakSentence);
+bookmarkIcon.addEventListener("click", playRecordedAudio);
+bookmarkIcon2.addEventListener("click", playRecordedAudio);
 
 // Load lessons from the JSON file
 async function loadLessons() {
@@ -1129,28 +1074,6 @@ async function loadLessons() {
 
     // Update the UI with the first sentence
     updateSentence();
-
-    // --- Attach Event Listeners AFTER initial UI update ---
-    listenButton.addEventListener("click", speakSentence);
-    listen2Button.addEventListener("click", speakSentence);
-
-    // Find the first button
-    const firstBookmarkButton = bookmarkIcon
-      ? bookmarkIcon.closest(".icon-wrapper")
-      : null;
-
-    // Attach listener to the FIRST icon's button (if it exists)
-    if (firstBookmarkButton) {
-      firstBookmarkButton.removeEventListener("click", playRecordedAudio);
-      firstBookmarkButton.addEventListener("click", playRecordedAudio);
-      console.log(
-        "Event listener attached to parent button of the first bookmark icon."
-      );
-    } else {
-      console.error(
-        "Could not find parent button for the first bookmark icon."
-      );
-    }
   } catch (error) {
     console.error("Error loading lessons:", error);
   }
@@ -1167,18 +1090,13 @@ loadLessons();
 
 // Event listeners for buttons
 micButton.addEventListener("click", async () => {
-  // Check if already recording to prevent multiple starts
-  if (isRecording) {
-    console.log(
-      "Recording already in progress. Stop button should be handled by waveform."
-    );
-    // Or maybe call handleStopRecording() if the button acts as toggle?
-    // handleStopRecording();
-    return;
-  }
-
+  // Initialize and resume AudioContext on user gesture
   initializeAudioContext();
   await resumeAudioContext();
+
+  micButton.style.display = "none";
+  retryButton.style.display = "inline-block";
+  retryButton.disabled = false;
   startAudioRecording();
 });
 
