@@ -14,7 +14,7 @@ const sentencesSpokenDiv = document.getElementById("sentencesSpoken");
 const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
-const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
+const dialogPlayButton = document.querySelector("#dialog-play-button");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
@@ -745,14 +745,16 @@ function toggleListenButtons(disabled) {
 
 // Toggle bookmark buttons state
 function toggleBookmarkButtons(disabled) {
-  // Reverted to using specific icon variables
+  // Find buttons by relevant selectors/structure
   const firstButton = bookmarkIcon
     ? bookmarkIcon.closest(".icon-wrapper")
     : null;
-  const secondButton = bookmarkIcon2
-    ? bookmarkIcon2.closest(".icon-wrapper")
-    : null;
+  const secondButton = document.querySelector("#dialog-play-button"); // Select dialog button by ID
+  const secondIcon = secondButton
+    ? secondButton.querySelector(".bookmark-icon")
+    : null; // Find icon inside dialog button
 
+  // Disable/Enable first button and icon
   if (firstButton) {
     firstButton.disabled = disabled;
   }
@@ -763,12 +765,13 @@ function toggleBookmarkButtons(disabled) {
       : "Play recorded audio"; // Assuming first icon also plays
   }
 
+  // Disable/Enable second (dialog) button and icon
   if (secondButton) {
     secondButton.disabled = disabled;
   }
-  if (bookmarkIcon2) {
-    bookmarkIcon2.style.opacity = disabled ? "0.5" : "1";
-    bookmarkIcon2.title = disabled
+  if (secondIcon) {
+    secondIcon.style.opacity = disabled ? "0.5" : "1";
+    secondIcon.title = disabled
       ? "Cannot play audio while recording"
       : "Play recorded audio";
   }
@@ -1156,18 +1159,13 @@ async function loadLessons() {
     listenButton.addEventListener("click", speakSentence);
     listen2Button.addEventListener("click", speakSentence);
 
-    // --- Reverted Listener Attachment Logic ---
-    // Find the parent buttons for the specific icons
+    // Find the first button
     const firstBookmarkButton = bookmarkIcon
       ? bookmarkIcon.closest(".icon-wrapper")
-      : null;
-    const secondBookmarkButton = bookmarkIcon2
-      ? bookmarkIcon2.closest(".icon-wrapper")
       : null;
 
     // Attach listener to the FIRST icon's button (if it exists)
     if (firstBookmarkButton) {
-      // Remove potential old listener (safety)
       firstBookmarkButton.removeEventListener("click", playRecordedAudio);
       firstBookmarkButton.addEventListener("click", playRecordedAudio);
       console.log(
@@ -1179,26 +1177,16 @@ async function loadLessons() {
       );
     }
 
+    // Find the second button using its NEW ID
+    const secondBookmarkButton = document.querySelector("#dialog-play-button");
+
     // Attach listener to the SECOND icon's button (if it exists)
-    if (bookmarkIcon2) {
-      const secondBookmarkButton = bookmarkIcon2.closest(".icon-wrapper");
-      if (secondBookmarkButton) {
-        // Remove potential old listener (safety)
-        secondBookmarkButton.removeEventListener("click", playRecordedAudio);
-        // Directly attach the function
-        secondBookmarkButton.addEventListener("click", playRecordedAudio);
-        console.log(
-          "Event listener attached to parent button of #bookmark-icon2."
-        );
-      } else {
-        console.error(
-          "Could not find parent button (.icon-wrapper) for #bookmark-icon2."
-        );
-      }
+    if (secondBookmarkButton) {
+      secondBookmarkButton.removeEventListener("click", playRecordedAudio);
+      secondBookmarkButton.addEventListener("click", playRecordedAudio);
+      console.log("Event listener attached to button #dialog-play-button.");
     } else {
-      console.error(
-        "Could not find the element with ID #bookmark-icon2 itself."
-      );
+      console.error("Could not find button with ID #dialog-play-button.");
     }
     // ---------------------------------------------------------
   } catch (error) {
