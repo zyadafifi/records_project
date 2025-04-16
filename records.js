@@ -14,7 +14,7 @@ const sentencesSpokenDiv = document.getElementById("sentencesSpoken");
 const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
-const bookmarkIcon2 = document.querySelector(".bookmark-icon2");
+const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
@@ -54,6 +54,7 @@ let totalPronunciationScore = 0; // Tracks total pronunciation score
 let mediaRecorder;
 let audioChunks = [];
 let recordedAudioBlob; // Stores the recorded audio blob
+let lastRecordedAudioURL = null; // ADDED: To store the URL for playback
 let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
 retryButton.style.display = "none"; // Hide retry button initially
@@ -838,9 +839,26 @@ async function startAudioRecording() {
         "Recorded audio blob created, size:",
         recordedAudioBlob?.size,
         "inferred type:",
-        recordedAudioBlob?.type
+        recordedAudioBlob?.type // Log inferred type
       );
       audioChunks = []; // Clear chunks
+
+      // --- Create and Store URL for playback ---
+      if (lastRecordedAudioURL) {
+        console.log("Revoking previous audio URL:", lastRecordedAudioURL);
+        URL.revokeObjectURL(lastRecordedAudioURL);
+      }
+      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
+        lastRecordedAudioURL = URL.createObjectURL(recordedAudioBlob);
+        console.log(
+          "Created new audio URL for playback:",
+          lastRecordedAudioURL
+        );
+      } else {
+        lastRecordedAudioURL = null; // Ensure it's null if blob is invalid
+        console.log("Blob invalid, not creating playback URL.");
+      }
+      // ----------------------------------------
 
       // UI Updates after stopping normally
       micButton.innerHTML = '<i class="fas fa-microphone"></i>';
@@ -889,7 +907,9 @@ async function startAudioRecording() {
             "[Before Dialog] Is recordedAudioBlob valid?",
             !!recordedAudioBlob,
             "Size:",
-            recordedAudioBlob?.size
+            recordedAudioBlob?.size,
+            "URL:",
+            lastRecordedAudioURL
           );
           // ---------------------------------------------
 
@@ -1042,19 +1062,18 @@ async function uploadAudioToAssemblyAI(audioBlob) {
 function playRecordedAudio() {
   console.log("playRecordedAudio function called.");
   console.log("Current recording state (isRecording):", isRecording);
-  // Check the blob directly now
-  console.log("Is recordedAudioBlob available?", !!recordedAudioBlob);
-  if (recordedAudioBlob) {
-    console.log("Blob size:", recordedAudioBlob.size);
-    console.log("Blob type:", recordedAudioBlob.type);
-  }
+  // Check the URL now, not the blob directly for playback
+  console.log("Is lastRecordedAudioURL available?", !!lastRecordedAudioURL);
+  console.log("URL value:", lastRecordedAudioURL);
 
-  if (!recordedAudioBlob || recordedAudioBlob.size <= 100) {
-    // Check blob exists and has minimum size
-    alert("No recorded audio available to play or audio is too short.");
-    console.log("No valid recordedAudioBlob found.");
+  if (!lastRecordedAudioURL) {
+    // Check the URL
+    alert("No recorded audio available to play.");
+    console.log("No lastRecordedAudioURL found.");
     return;
   }
+
+  // No need for size check here as URL creation already checked it
 
   // Prevent playing recorded audio during recording
   if (isRecording) {
@@ -1063,23 +1082,21 @@ function playRecordedAudio() {
     return;
   }
 
-  let audioURL = null; // Declare URL variable locally
   try {
-    // Create a NEW URL from the blob for this playback attempt
-    audioURL = URL.createObjectURL(recordedAudioBlob);
-    console.log("Created temporary Blob URL for playback:", audioURL);
-
-    const audio = new Audio(audioURL);
+    // Use the stored URL directly
+    console.log(
+      "Attempting to play audio from stored URL:",
+      lastRecordedAudioURL
+    );
+    const audio = new Audio(lastRecordedAudioURL);
 
     audio.onerror = (e) => {
       console.error("Audio playback error:", e);
       alert(
         `Failed to play recorded audio. Error: ${e.message || "Unknown error"}`
       );
-      if (audioURL) {
-        console.log("Revoking URL due to error:", audioURL);
-        URL.revokeObjectURL(audioURL); // Revoke on error
-      }
+      // Don't revoke here on error, maybe user wants to try again?
+      // Consider if URL should be nullified: lastRecordedAudioURL = null;
     };
 
     audio.oncanplaythrough = () => {
@@ -1089,20 +1106,13 @@ function playRecordedAudio() {
 
     audio.onended = () => {
       console.log("Recorded audio playback finished.");
-      if (audioURL) {
-        console.log("Revoking URL after playback ended:", audioURL);
-        URL.revokeObjectURL(audioURL); // Revoke on successful end
-      }
+      // We don't revoke here anymore to allow multiple plays
     };
 
     audio.load();
   } catch (error) {
     console.error("Error creating or playing audio element:", error);
     alert("An unexpected error occurred while trying to play the audio.");
-    if (audioURL) {
-      console.log("Revoking URL due to catch block error:", audioURL);
-      URL.revokeObjectURL(audioURL); // Also revoke if catch block is entered
-    }
   }
 }
 
@@ -1173,16 +1183,12 @@ async function loadLessons() {
 
     // Attach listener to the SECOND icon's button (if it exists)
     if (secondBookmarkButton) {
-      secondBookmarkButton.addEventListener("click", () => {
-        // Kept arrow function from previous step
-        console.log("--- Click listener on DIALOG button fired! ---");
-        playRecordedAudio();
-      });
+      secondBookmarkButton.addEventListener("click", playRecordedAudio);
       console.log(
-        "Event listener attached to parent button of .bookmark-icon2."
+        "Event listener attached to parent button of #bookmark-icon2."
       );
     } else {
-      console.error("Could not find parent button for .bookmark-icon2.");
+      console.error("Could not find parent button for #bookmark-icon2.");
     }
     // ---------------------------------------------------------
   } catch (error) {
