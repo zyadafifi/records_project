@@ -1024,8 +1024,17 @@ async function uploadAudioToAssemblyAI(audioBlob) {
 
 // Play the recorded audio
 function playRecordedAudio() {
+  console.log("playRecordedAudio function called."); // Log function entry
+  console.log("Current recording state (isRecording):", isRecording);
+  console.log("Is recordedAudioBlob available?", !!recordedAudioBlob);
+  if (recordedAudioBlob) {
+    console.log("Recorded Blob size:", recordedAudioBlob.size);
+    console.log("Recorded Blob type:", recordedAudioBlob.type);
+  }
+
   if (!recordedAudioBlob) {
-    alert("No recorded audio available.");
+    alert("No recorded audio available to play.");
+    console.log("No recordedAudioBlob found.");
     return;
   }
 
@@ -1036,16 +1045,69 @@ function playRecordedAudio() {
     return;
   }
 
-  const audioURL = URL.createObjectURL(recordedAudioBlob);
-  const audio = new Audio(audioURL);
-  audio.play();
+  try {
+    const audioURL = URL.createObjectURL(recordedAudioBlob);
+    console.log("Attempting to play audio from Blob URL:", audioURL);
+    const audio = new Audio(audioURL);
+
+    audio.onerror = (e) => {
+      console.error("Audio playback error:", e);
+      alert(
+        `Failed to play recorded audio. Error: ${e.message || "Unknown error"}`
+      );
+      // Clean up URL object if playback fails
+      URL.revokeObjectURL(audioURL);
+    };
+
+    audio.oncanplaythrough = () => {
+      console.log("Audio ready for playback.");
+      audio.play();
+    };
+
+    audio.onended = () => {
+      console.log("Recorded audio playback finished.");
+      // Revoke the object URL to free up memory after playback finishes
+      URL.revokeObjectURL(audioURL);
+      console.log("Blob URL revoked:", audioURL);
+    };
+
+    // Preload audio metadata to catch potential errors early
+    audio.load();
+  } catch (error) {
+    console.error("Error creating or playing audio element:", error);
+    alert("An unexpected error occurred while trying to play the audio.");
+  }
 }
 
 // Event listeners
 listenButton.addEventListener("click", speakSentence);
 listen2Button.addEventListener("click", speakSentence);
-bookmarkIcon.addEventListener("click", playRecordedAudio);
-bookmarkIcon2.addEventListener("click", playRecordedAudio);
+
+// Find the actual elements to attach listeners
+const firstBookmarkButton = bookmarkIcon
+  ? bookmarkIcon.closest(".icon-wrapper")
+  : null;
+const secondBookmarkButton = bookmarkIcon2
+  ? bookmarkIcon2.closest(".icon-wrapper")
+  : null;
+
+// Attach listener to the FIRST icon's button (if it exists)
+if (firstBookmarkButton) {
+  firstBookmarkButton.addEventListener("click", playRecordedAudio);
+  console.log(
+    "Event listener attached to parent button of the first bookmark icon."
+  );
+} else {
+  console.error("Could not find parent button for the first bookmark icon.");
+}
+
+// Attach listener to the SECOND icon's button (if it exists)
+if (secondBookmarkButton) {
+  secondBookmarkButton.addEventListener("click", playRecordedAudio);
+  console.log("Event listener attached to parent button of #bookmark-icon2.");
+} else {
+  console.error("Could not find parent button for #bookmark-icon2.");
+}
 
 // Load lessons from the JSON file
 async function loadLessons() {
