@@ -1,6 +1,7 @@
 // DOM Elements
 const sentenceElement = document.getElementById("sentence");
 const micButton = document.getElementById("micButton");
+const micLoadingSpinner = document.getElementById("micLoadingSpinner");
 const retryButton = document.getElementById("retryButton");
 const nextButton = document.getElementById("nextButton");
 const recognizedTextDiv = document.getElementById("recognizedText");
@@ -344,11 +345,9 @@ function stopWaveformVisualization() {
 
 // Function to reset UI without changing the sentence
 function resetUI() {
-  console.log("[resetUI] Resetting UI state.");
-  // Reset UI elements
-  recognizedTextDiv.textContent = "";
-  pronunciationScoreDiv.textContent = "0%";
-  micButton.style.display = "flex"; // ENSURE Mic button is VISIBLE
+  console.log("[resetUI] Resetting: Showing Mic, Hiding Spinner.");
+  micButton.style.display = "flex"; // Show Mic button
+  micLoadingSpinner.style.display = "none"; // Hide Spinner
   micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
   micButton.style.backgroundColor = "";
   micButton.disabled = false;
@@ -832,9 +831,10 @@ async function startAudioRecording() {
 
     // --- Recording Start UI ---
     console.log(
-      "[startAudioRecording] Setting recording UI: Mic visible (stop icon)."
+      "[startAudioRecording] Setting recording UI: Mic visible (stop icon), Spinner hidden."
     );
     micButton.style.display = "flex"; // Keep mic visible
+    micLoadingSpinner.style.display = "none"; // Keep spinner hidden
     micButton.innerHTML = '<i class="fas fa-stop mic-icon"></i>';
     micButton.style.backgroundColor = "#dc3545";
     micButton.disabled = true;
@@ -856,13 +856,15 @@ async function startAudioRecording() {
       stopWaveformVisualization();
 
       if (isRecordingCancelled) {
-        // ... (cancellation logic, calls resetUI) ...
+        // ... (cancellation logic, should call resetUI) ...
         return;
       }
 
-      // --- REMOVED Show Spinner, Hide Mic Button ---
-      // Mic button state will be reset after processing or by resetUI
-      // -------------------------------------------
+      // --- Show Spinner, Hide Mic Button DURING PROCESSING ---
+      console.log("[onstop] Hiding Mic, Showing Spinner for processing.");
+      micButton.style.display = "none";
+      micLoadingSpinner.style.display = "flex";
+      // ----------------------------------------------------
 
       if (audioChunks.length === 0) {
         console.warn("[onstop] No audio chunks, resetting UI.");
@@ -883,52 +885,33 @@ async function startAudioRecording() {
             // ... (update score UI) ...
             console.log("[onstop] Processing SUCCESS, opening dialog.");
             openDialog();
-            // Mic button state resets when dialog is closed via resetUI
           } else {
+            // Transcription Error
             console.log("[onstop] Transcription FAILED, resetting UI.");
             processingError = true;
-            resetUI(); // Resets mic button state
+            resetUI();
           }
         } else {
+          // Blob Error
           console.warn("[onstop] Blob invalid, resetting UI.");
           processingError = true;
-          resetUI(); // Resets mic button state
+          resetUI();
         }
       } catch (error) {
+        // General Error
         console.error("[onstop] Processing CATCH block error:", error);
         alert("Failed to process audio. Please try again.");
         processingError = true;
-        resetUI(); // Resets mic button state
+        resetUI();
       } finally {
-        // --- REMOVED Hide Spinner ---
-        console.log("[onstop] FINALLY block finished.");
-        // ---------------------------
+        // --- Hide Spinner AFTER Processing ---
+        console.log("[onstop] FINALLY block: Hiding Spinner.");
+        micLoadingSpinner.style.display = "none";
+        // Mic button visibility depends on whether dialog opened or resetUI was called.
+        // ------------------------------------
       }
 
-      // Common UI updates AFTER processing attempt
-      isRecording = false;
-      recordingStartTime = null;
-      toggleListenButtons(false);
-      toggleBookmarkButtons(false);
-      document.getElementById("recordingIndicator").style.display = "none";
-      if (!processingError) {
-        // Only show retry if processing didn't error out (dialog is likely open)
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-      }
-      console.log("Common UI updates completed after processing attempt.");
-
-      // Explicitly reset mic button here if NO error occurred AND dialog didn't open (edge case)
-      // Although resetUI should handle most cases
-      if (!processingError && dialogContainer.style.display === "none") {
-        console.log(
-          "[onstop] Resetting mic button appearance as dialog didn't open."
-        );
-        micButton.style.display = "flex";
-        micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-        micButton.style.backgroundColor = "";
-        micButton.disabled = false;
-      }
+      // ... (Common UI updates AFTER processing attempt) ...
     };
 
     mediaRecorder.onerror = (event) => {
