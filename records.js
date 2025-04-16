@@ -34,23 +34,6 @@ function openDialog() {
   dialogContainer.style.display = "block";
   dialogBackdrop.style.display = "block";
   console.log("Dialog opened.");
-
-  // --- Attach listener to dialog button HERE ---
-  const dialogButton = document.querySelector("#dialog-play-button");
-  if (dialogButton) {
-    // Remove potential existing listener first
-    dialogButton.removeEventListener("click", playRecordedAudio);
-    // Add the listener
-    dialogButton.addEventListener("click", playRecordedAudio);
-    console.log(
-      "Playback listener attached to #dialog-play-button inside openDialog."
-    );
-  } else {
-    console.error(
-      "Could not find #dialog-play-button when trying to attach listener in openDialog."
-    );
-  }
-  // --------------------------------------------
 }
 
 // Function to close the dialog
@@ -1218,17 +1201,15 @@ async function loadLessons() {
       );
     }
 
-    // --- REMOVED Listener attachment for dialog button from here ---
-    // const secondBookmarkButton = document.querySelector("#dialog-play-button");
-    // if (secondBookmarkButton) {
-    //   secondBookmarkButton.removeEventListener("click", playRecordedAudio);
-    //   secondBookmarkButton.addEventListener("click", playRecordedAudio);
-    //   console.log(
-    //     "Event listener attached to button #dialog-play-button."
-    //   );
-    // } else {
-    //   console.error("Could not find button with ID #dialog-play-button.");
-    // }
+    // --- RESTORED Listener attachment for dialog button ---
+    const secondBookmarkButton = document.querySelector("#dialog-play-button");
+    if (secondBookmarkButton) {
+      secondBookmarkButton.removeEventListener("click", playRecordedAudio);
+      secondBookmarkButton.addEventListener("click", playRecordedAudio);
+      console.log("Event listener attached to button #dialog-play-button.");
+    } else {
+      console.error("Could not find button with ID #dialog-play-button.");
+    }
     // ---------------------------------------------------------
   } catch (error) {
     console.error("Error loading lessons:", error);
