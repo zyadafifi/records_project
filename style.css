@@ -136,6 +136,7 @@ body {
   transition: transform 0.3s ease;
   text-align: center;
   font-style: initial;
+  z-index: 1; /* Add z-index to create stacking context */
 }
 
 .sentence-text {
@@ -187,7 +188,8 @@ body {
   font-family: "Tajawal", sans-serif;
   font-weight: bold;
   direction: rtl;
-  z-index: 10;
+  z-index: 100; /* Increase z-index to ensure visibility */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Add shadow for better visibility */
 }
 .dialog-btn {
   width: 200px;
