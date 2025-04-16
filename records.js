@@ -827,14 +827,21 @@ async function startAudioRecording() {
         recognizedTextDiv.textContent = "(Recording too short or silent)";
         retryButton.style.display = "inline-block";
         retryButton.disabled = false;
-        stream.getTracks().forEach((track) => track.stop());
+        if (mediaRecorder && mediaRecorder.stream) {
+          mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+        }
         return;
       }
 
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      // Use a more standard blob type
+      recordedAudioBlob = new Blob(audioChunks, {
+        type: "audio/webm;codecs=opus",
+      });
       console.log(
         "Recorded audio blob created, size:",
-        recordedAudioBlob?.size
+        recordedAudioBlob?.size,
+        "type:",
+        recordedAudioBlob?.type
       );
       audioChunks = []; // Clear chunks
 
@@ -855,7 +862,9 @@ async function startAudioRecording() {
 
       // Stop tracks
       console.log("Stopping media stream tracks normally...");
-      stream.getTracks().forEach((track) => track.stop());
+      if (mediaRecorder && mediaRecorder.stream) {
+        mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+      }
       console.log("Media stream tracks stopped normally.");
 
       // Upload for transcription
@@ -1079,36 +1088,6 @@ function playRecordedAudio() {
   }
 }
 
-// Event listeners
-listenButton.addEventListener("click", speakSentence);
-listen2Button.addEventListener("click", speakSentence);
-
-// Find the actual elements to attach listeners
-const firstBookmarkButton = bookmarkIcon
-  ? bookmarkIcon.closest(".icon-wrapper")
-  : null;
-const secondBookmarkButton = bookmarkIcon2
-  ? bookmarkIcon2.closest(".icon-wrapper")
-  : null;
-
-// Attach listener to the FIRST icon's button (if it exists)
-if (firstBookmarkButton) {
-  firstBookmarkButton.addEventListener("click", playRecordedAudio);
-  console.log(
-    "Event listener attached to parent button of the first bookmark icon."
-  );
-} else {
-  console.error("Could not find parent button for the first bookmark icon.");
-}
-
-// Attach listener to the SECOND icon's button (if it exists)
-if (secondBookmarkButton) {
-  secondBookmarkButton.addEventListener("click", playRecordedAudio);
-  console.log("Event listener attached to parent button of #bookmark-icon2.");
-} else {
-  console.error("Could not find parent button for #bookmark-icon2.");
-}
-
 // Load lessons from the JSON file
 async function loadLessons() {
   try {
@@ -1149,6 +1128,41 @@ async function loadLessons() {
 
     // Update the UI with the first sentence
     updateSentence();
+
+    // --- Attach Event Listeners AFTER initial UI update ---
+    listenButton.addEventListener("click", speakSentence);
+    listen2Button.addEventListener("click", speakSentence);
+
+    // Find the actual elements to attach listeners
+    const firstBookmarkButton = bookmarkIcon
+      ? bookmarkIcon.closest(".icon-wrapper")
+      : null;
+    const secondBookmarkButton = bookmarkIcon2
+      ? bookmarkIcon2.closest(".icon-wrapper")
+      : null;
+
+    // Attach listener to the FIRST icon's button (if it exists)
+    if (firstBookmarkButton) {
+      firstBookmarkButton.addEventListener("click", playRecordedAudio);
+      console.log(
+        "Event listener attached to parent button of the first bookmark icon."
+      );
+    } else {
+      console.error(
+        "Could not find parent button for the first bookmark icon."
+      );
+    }
+
+    // Attach listener to the SECOND icon's button (if it exists)
+    if (secondBookmarkButton) {
+      secondBookmarkButton.addEventListener("click", playRecordedAudio);
+      console.log(
+        "Event listener attached to parent button of #bookmark-icon2."
+      );
+    } else {
+      console.error("Could not find parent button for #bookmark-icon2.");
+    }
+    // ---------------------------------------------------------
   } catch (error) {
     console.error("Error loading lessons:", error);
   }
