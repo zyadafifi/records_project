@@ -1166,7 +1166,10 @@ async function loadLessons() {
 
     // Attach listener to the SECOND icon's button (if it exists)
     if (secondBookmarkButton) {
-      secondBookmarkButton.addEventListener("click", playRecordedAudio);
+      secondBookmarkButton.addEventListener("click", () => {
+        console.log("--- Click listener on DIALOG button fired! ---");
+        playRecordedAudio();
+      });
       console.log(
         "Event listener attached to parent button of #bookmark-icon2."
       );
