@@ -54,7 +54,6 @@ let totalPronunciationScore = 0; // Tracks total pronunciation score
 let mediaRecorder;
 let audioChunks = [];
 let recordedAudioBlob; // Stores the recorded audio blob
-let lastRecordedAudioURL = null; // ADDED: To store the URL for playback
 let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
 retryButton.style.display = "none"; // Hide retry button initially
@@ -843,23 +842,6 @@ async function startAudioRecording() {
       );
       audioChunks = []; // Clear chunks
 
-      // --- Create and Store URL for playback ---
-      if (lastRecordedAudioURL) {
-        console.log("Revoking previous audio URL:", lastRecordedAudioURL);
-        URL.revokeObjectURL(lastRecordedAudioURL);
-      }
-      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
-        lastRecordedAudioURL = URL.createObjectURL(recordedAudioBlob);
-        console.log(
-          "Created new audio URL for playback:",
-          lastRecordedAudioURL
-        );
-      } else {
-        lastRecordedAudioURL = null; // Ensure it's null if blob is invalid
-        console.log("Blob invalid, not creating playback URL.");
-      }
-      // ----------------------------------------
-
       // UI Updates after stopping normally
       micButton.innerHTML = '<i class="fas fa-microphone"></i>';
       micButton.style.backgroundColor = "";
@@ -907,9 +889,7 @@ async function startAudioRecording() {
             "[Before Dialog] Is recordedAudioBlob valid?",
             !!recordedAudioBlob,
             "Size:",
-            recordedAudioBlob?.size,
-            "URL:",
-            lastRecordedAudioURL
+            recordedAudioBlob?.size
           );
           // ---------------------------------------------
 
@@ -1062,18 +1042,24 @@ async function uploadAudioToAssemblyAI(audioBlob) {
 function playRecordedAudio() {
   console.log("playRecordedAudio function called.");
   console.log("Current recording state (isRecording):", isRecording);
-  // Check the URL now, not the blob directly for playback
-  console.log("Is lastRecordedAudioURL available?", !!lastRecordedAudioURL);
-  console.log("URL value:", lastRecordedAudioURL);
+  console.log("Is recordedAudioBlob available?", !!recordedAudioBlob);
 
-  if (!lastRecordedAudioURL) {
-    // Check the URL
+  if (!recordedAudioBlob) {
     alert("No recorded audio available to play.");
-    console.log("No lastRecordedAudioURL found.");
+    console.log("No recordedAudioBlob found.");
     return;
   }
 
-  // No need for size check here as URL creation already checked it
+  // Explicit size check before attempting playback
+  if (recordedAudioBlob.size <= 100) {
+    // Use a small threshold
+    alert("Recorded audio is empty or too short to play.");
+    console.log("recordedAudioBlob size is too small:", recordedAudioBlob.size);
+    return;
+  }
+
+  console.log("Recorded Blob size:", recordedAudioBlob.size);
+  console.log("Recorded Blob type:", recordedAudioBlob.type);
 
   // Prevent playing recorded audio during recording
   if (isRecording) {
@@ -1083,20 +1069,16 @@ function playRecordedAudio() {
   }
 
   try {
-    // Use the stored URL directly
-    console.log(
-      "Attempting to play audio from stored URL:",
-      lastRecordedAudioURL
-    );
-    const audio = new Audio(lastRecordedAudioURL);
+    const audioURL = URL.createObjectURL(recordedAudioBlob);
+    console.log("Attempting to play audio from Blob URL:", audioURL);
+    const audio = new Audio(audioURL);
 
     audio.onerror = (e) => {
       console.error("Audio playback error:", e);
       alert(
         `Failed to play recorded audio. Error: ${e.message || "Unknown error"}`
       );
-      // Don't revoke here on error, maybe user wants to try again?
-      // Consider if URL should be nullified: lastRecordedAudioURL = null;
+      URL.revokeObjectURL(audioURL);
     };
 
     audio.oncanplaythrough = () => {
@@ -1106,7 +1088,8 @@ function playRecordedAudio() {
 
     audio.onended = () => {
       console.log("Recorded audio playback finished.");
-      // We don't revoke here anymore to allow multiple plays
+      URL.revokeObjectURL(audioURL);
+      console.log("Blob URL revoked:", audioURL);
     };
 
     audio.load();
