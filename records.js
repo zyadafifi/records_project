@@ -14,7 +14,7 @@ const sentencesSpokenDiv = document.getElementById("sentencesSpoken");
 const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
-const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
+const bookmarkIcon2 = document.querySelector(".bookmark-icon2");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
@@ -1179,10 +1179,10 @@ async function loadLessons() {
         playRecordedAudio();
       });
       console.log(
-        "Event listener attached to parent button of #bookmark-icon2."
+        "Event listener attached to parent button of .bookmark-icon2."
       );
     } else {
-      console.error("Could not find parent button for #bookmark-icon2.");
+      console.error("Could not find parent button for .bookmark-icon2.");
     }
     // ---------------------------------------------------------
   } catch (error) {
