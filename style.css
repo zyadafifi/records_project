@@ -133,10 +133,8 @@ body {
   width: 285px;
   margin: 35px auto 20px;
   border: 2px solid #457a76;
-  transition: transform 0.3s ease;
   text-align: center;
   font-style: initial;
-  z-index: 1; /* Add z-index to create stacking context */
 }
 
 .sentence-text {
@@ -169,27 +167,25 @@ body {
 }
 .tip {
   position: absolute;
-  top: -25px;
+  top: -30px;
   left: 50%;
   transform: translateX(-50%);
   background-color: white;
-  padding: 2px 15px;
+  padding: 5px 15px;
   border-radius: 10px;
-  border: 1px solid #457a76;
+  border: 2px solid #457a76;
   font-size: 18px;
   color: #2c3e50;
   white-space: nowrap;
-  height: auto;
-  min-height: 25px;
-  width: auto;
+  min-height: 30px;
   min-width: 100px;
-  display: inline-block;
+  display: block;
   text-align: center;
   font-family: "Tajawal", sans-serif;
   font-weight: bold;
   direction: rtl;
-  z-index: 100; /* Increase z-index to ensure visibility */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Add shadow for better visibility */
+  z-index: 9999;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 .dialog-btn {
   width: 200px;
