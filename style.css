@@ -167,24 +167,22 @@ body {
 }
 .tip {
   position: absolute;
-  top: -30px;
+  top: 290px;
   left: 50%;
   transform: translateX(-50%);
   background-color: white;
-  padding: 5px 15px;
+  padding: 0px 10px;
   border-radius: 10px;
-  border: 2px solid #457a76;
+  border: 1px solid #0aa989;
   font-size: 18px;
   color: #2c3e50;
   white-space: nowrap;
-  min-height: 30px;
-  min-width: 100px;
-  display: block;
+  height: 23px;
+  width: 150px;
   text-align: center;
-  font-family: "Tajawal", sans-serif;
+  font-family: "Tajawal", "Cairo", "Amiri", sans-serif;
   font-weight: bold;
   direction: rtl;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 .dialog-btn {
   width: 200px;
