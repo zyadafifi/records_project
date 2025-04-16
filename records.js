@@ -21,15 +21,6 @@ const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 // AssemblyAI API Key
 const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
 
-// Add CSS variables reference at the top
-const root = document.documentElement;
-const primaryColor = getComputedStyle(root)
-  .getPropertyValue("--primary-color")
-  .trim();
-const primaryDark = getComputedStyle(root)
-  .getPropertyValue("--primary-dark")
-  .trim();
-
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -131,7 +122,7 @@ function setupWaveformVisualization(stream) {
     // Basic styling (customize as needed)
     deleteRecButton.style.background = "none";
     deleteRecButton.style.border = "none";
-    deleteRecButton.style.color = "#dc3545"; // Keep red for delete/cancel
+    deleteRecButton.style.color = "#dc3545"; // Red color for delete
     deleteRecButton.style.fontSize = "1.2em";
     deleteRecButton.style.cursor = "pointer";
     deleteRecButton.style.padding = "0 10px";
@@ -141,25 +132,27 @@ function setupWaveformVisualization(stream) {
     // --- Create Canvas ---
     waveformCanvas = document.createElement("canvas");
     waveformCanvas.id = "waveformCanvas";
-    waveformCanvas.width = 200;
-    waveformCanvas.height = 50;
+    waveformCanvas.width = 200; // Adjust width to make space for buttons
+    waveformCanvas.height = 50; // Adjust height if needed
+    // Remove margin-top as container handles spacing
+    // waveformCanvas.style.marginTop = '10px';
     waveformCanvas.style.borderRadius = "4px";
     waveformCanvas.style.backgroundColor = "#f0f0f0";
-    waveformCanvas.style.flexGrow = "1";
+    waveformCanvas.style.flexGrow = "1"; // Allow canvas to take available space
     waveformContainer.appendChild(waveformCanvas);
 
     // --- Create Stop Button ---
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
-    stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
+    stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>'; // Send icon
     stopRecButton.title = "Send Recording";
-    stopRecButton.style.color = primaryColor;
+    stopRecButton.style.color = "#0aa989"; // Green color for send
     stopRecButton.style.background = "none";
     stopRecButton.style.border = "none";
     stopRecButton.style.fontSize = "1.2em";
     stopRecButton.style.cursor = "pointer";
     stopRecButton.style.padding = "0 10px";
-    stopRecButton.onclick = handleStopRecording;
+    stopRecButton.onclick = handleStopRecording; // Assign click handler
     waveformContainer.appendChild(stopRecButton);
 
     // Insert container into DOM (adjust placement as needed)
@@ -220,14 +213,14 @@ function drawWhatsAppWaveform() {
   canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
 
   // --- Draw Bars ---
-  const barCount = 20;
-  const barWidth = 4;
-  const barSpacing = 2;
-  const totalBarAreaWidth = barCount * (barWidth + barSpacing) - barSpacing;
-  const startX = (waveformCanvas.width - totalBarAreaWidth) / 2;
-  const maxBarHeight = waveformCanvas.height * 0.8;
+  const barCount = 20; // Adjusted for smaller canvas width potentially
+  const barWidth = 4; // Width of each bar
+  const barSpacing = 2; // Space between bars
+  const totalBarAreaWidth = barCount * (barWidth + barSpacing) - barSpacing; // Total width occupied by bars+spaces
+  const startX = (waveformCanvas.width - totalBarAreaWidth) / 2; // Center the bars
+  const maxBarHeight = waveformCanvas.height * 0.8; // Max height relative to canvas height
 
-  canvasCtx.fillStyle = primaryColor; // Update bar color to match brand
+  canvasCtx.fillStyle = "#0aa989"; // Bar color
 
   for (let i = 0; i < barCount; i++) {
     const dataIndex = Math.floor((i * dataArray.length) / barCount);
