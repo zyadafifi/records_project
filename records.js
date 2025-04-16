@@ -1183,13 +1183,8 @@ async function loadLessons() {
     if (secondBookmarkButton) {
       // Remove potential old listener (safety)
       secondBookmarkButton.removeEventListener("click", playRecordedAudio);
-      secondBookmarkButton.addEventListener("click", () => {
-        // Keep arrow function w/ log
-        console.log(
-          "--- Click listener on DIALOG button (ID: bookmark-icon2) fired! ---"
-        );
-        playRecordedAudio();
-      });
+      // Directly attach the function, removing the arrow wrapper
+      secondBookmarkButton.addEventListener("click", playRecordedAudio);
       console.log(
         "Event listener attached to parent button of #bookmark-icon2."
       );
