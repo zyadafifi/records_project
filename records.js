@@ -810,12 +810,11 @@ async function startAudioRecording() {
       // ***** Check Cancellation Flag *****
       if (isRecordingCancelled) {
         console.log("onstop: Recording was cancelled, skipping processing.");
-        // UI reset should have already happened in handleDeleteRecording
         isRecordingCancelled = false; // Reset flag just in case
         return;
       }
 
-      // Stop the waveform visual (should be quick)
+      // Stop the waveform visual
       stopWaveformVisualization();
 
       // --- Normal stop processing ---
@@ -833,15 +832,13 @@ async function startAudioRecording() {
         return;
       }
 
-      // Use a more standard blob type
-      recordedAudioBlob = new Blob(audioChunks, {
-        type: "audio/webm;codecs=opus",
-      });
+      // Let browser infer blob type
+      recordedAudioBlob = new Blob(audioChunks);
       console.log(
         "Recorded audio blob created, size:",
         recordedAudioBlob?.size,
-        "type:",
-        recordedAudioBlob?.type
+        "inferred type:",
+        recordedAudioBlob?.type // Log inferred type
       );
       audioChunks = []; // Clear chunks
 
@@ -1033,19 +1030,26 @@ async function uploadAudioToAssemblyAI(audioBlob) {
 
 // Play the recorded audio
 function playRecordedAudio() {
-  console.log("playRecordedAudio function called."); // Log function entry
+  console.log("playRecordedAudio function called.");
   console.log("Current recording state (isRecording):", isRecording);
   console.log("Is recordedAudioBlob available?", !!recordedAudioBlob);
-  if (recordedAudioBlob) {
-    console.log("Recorded Blob size:", recordedAudioBlob.size);
-    console.log("Recorded Blob type:", recordedAudioBlob.type);
-  }
 
   if (!recordedAudioBlob) {
     alert("No recorded audio available to play.");
     console.log("No recordedAudioBlob found.");
     return;
   }
+
+  // Explicit size check before attempting playback
+  if (recordedAudioBlob.size <= 100) {
+    // Use a small threshold
+    alert("Recorded audio is empty or too short to play.");
+    console.log("recordedAudioBlob size is too small:", recordedAudioBlob.size);
+    return;
+  }
+
+  console.log("Recorded Blob size:", recordedAudioBlob.size);
+  console.log("Recorded Blob type:", recordedAudioBlob.type);
 
   // Prevent playing recorded audio during recording
   if (isRecording) {
@@ -1064,7 +1068,6 @@ function playRecordedAudio() {
       alert(
         `Failed to play recorded audio. Error: ${e.message || "Unknown error"}`
       );
-      // Clean up URL object if playback fails
       URL.revokeObjectURL(audioURL);
     };
 
@@ -1075,12 +1078,10 @@ function playRecordedAudio() {
 
     audio.onended = () => {
       console.log("Recorded audio playback finished.");
-      // Revoke the object URL to free up memory after playback finishes
       URL.revokeObjectURL(audioURL);
       console.log("Blob URL revoked:", audioURL);
     };
 
-    // Preload audio metadata to catch potential errors early
     audio.load();
   } catch (error) {
     console.error("Error creating or playing audio element:", error);
