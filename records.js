@@ -57,6 +57,9 @@ function openDialog() {
 function closeDialog() {
   dialogContainer.style.display = "none";
   dialogBackdrop.style.display = "none";
+  console.log("Dialog closed.");
+  // Reset the main UI when dialog is closed
+  resetUI();
 }
 
 // Event listeners for closing the dialog
