@@ -164,7 +164,7 @@ function setupWaveformVisualization(stream) {
     stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>'; // Send icon
     stopRecButton.title = "Send Recording";
     // WhatsApp-style send button styling
-    stopRecButton.style.background = "#457a76"; // Changed color (WhatsApp green)
+    stopRecButton.style.background = "#457a76"; // Primary color
     stopRecButton.style.border = "none";
     stopRecButton.style.color = "#fff"; // White icon
     stopRecButton.style.fontSize = "1em"; // Smaller font size
@@ -178,10 +178,10 @@ function setupWaveformVisualization(stream) {
     stopRecButton.style.height = "28px"; // Smaller height
     stopRecButton.style.transition = "background-color 0.2s";
     stopRecButton.onmouseover = () => {
-      stopRecButton.style.backgroundColor = "#3a6862"; // Changed hover color (Darker shade)
+      stopRecButton.style.backgroundColor = "#316762"; // Darker logo shade for hover
     };
     stopRecButton.onmouseout = () => {
-      stopRecButton.style.backgroundColor = "#457a76"; // Changed color (Original color)
+      stopRecButton.style.backgroundColor = "#457a76"; // Primary color
     };
     stopRecButton.onclick = handleStopRecording; // Assign click handler
     waveformContainer.appendChild(stopRecButton);
@@ -494,13 +494,13 @@ function updateProgressCircle(score) {
 
   // Change circle color based on score
   if (score >= 80) {
-    progressCircle.style.stroke = "#457a76"; // Changed color (Green for high scores)
+    progressCircle.style.stroke = "#457a76"; // Primary color
     playSoundEffect(800, 200); // High-pitched beep for success
   } else if (score >= 50) {
-    progressCircle.style.stroke = "#ffa500"; // Orange for medium scores
+    progressCircle.style.stroke = "#f0ad4e"; // Muted orange/yellow for medium scores
     playSoundEffect(500, 200); // Medium-pitched beep for neutral
   } else {
-    progressCircle.style.stroke = "#ff0000"; // Red for low scores
+    progressCircle.style.stroke = "#dc3545"; // Softer red for low scores
     playSoundEffect(300, 200); // Low-pitched beep for failure
   }
 }
@@ -714,9 +714,9 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
   // Update the "Continue" button color based on the score
   if (pronunciationScore < 50) {
-    nextButton.style.backgroundColor = "#ff0000"; // Red for low scores
+    nextButton.style.backgroundColor = "#dc3545"; // Softer red for low scores
   } else {
-    nextButton.style.backgroundColor = "#457a76"; // Changed color (Reset to default color)
+    nextButton.style.backgroundColor = "#457a76"; // Primary color
   }
 
   return Math.round(pronunciationScore);
