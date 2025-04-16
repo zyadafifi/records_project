@@ -55,8 +55,14 @@ function openDialog() {
 
 // Function to close the dialog
 function closeDialog() {
-  dialogContainer.style.display = "none";
-  dialogBackdrop.style.display = "none";
+  // Check if dialog is actually open before potentially resetting UI
+  if (dialogContainer.style.display !== "none") {
+    console.log("closeDialog called. Dialog is closing.");
+    dialogContainer.style.display = "none";
+    dialogBackdrop.style.display = "none";
+    // Reset the main UI when dialog is closed - This will show the mic button again
+    resetUI();
+  }
 }
 
 // Event listeners for closing the dialog
@@ -341,14 +347,14 @@ function stopWaveformVisualization() {
 
 // Function to reset UI without changing the sentence
 function resetUI() {
+  console.log("resetUI called. Restoring initial UI state.");
   // Reset UI elements
   recognizedTextDiv.textContent = "";
   pronunciationScoreDiv.textContent = "0%";
-  micButton.style.display = "flex";
-  micLoadingSpinner.style.display = "none";
-  micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-  micButton.style.backgroundColor = "";
-  micButton.style.color = "#fff";
+  micButton.style.display = "flex"; // ENSURE Mic button is VISIBLE
+  micLoadingSpinner.style.display = "none"; // ENSURE Spinner is HIDDEN
+  micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>'; // Reset icon
+  micButton.style.backgroundColor = ""; // Reset background
   micButton.disabled = false;
   retryButton.style.display = "none";
   retryButton.disabled = true;
@@ -826,16 +832,20 @@ async function startAudioRecording() {
     recordingStartTime = Date.now();
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
-    isRecordingCancelled = false; // Ensure flag is reset
+    isRecordingCancelled = false;
 
-    // Hide mic button and show spinner immediately when recording starts
-    micButton.style.display = "none";
-    micLoadingSpinner.style.display = "flex";
-    retryButton.style.display = "inline-block";
-    retryButton.disabled = false;
-
-    // Setup and start waveform visualization (this now shows the container)
+    // --- Recording Start UI ---
+    micButton.style.display = "flex"; // Mic button STAYS visible
+    micLoadingSpinner.style.display = "none"; // Spinner STAYS hidden
+    // Change mic button appearance ONLY (e.g., icon/color)
+    micButton.innerHTML = '<i class="fas fa-stop mic-icon"></i>'; // Change icon to stop
+    micButton.style.backgroundColor = "#dc3545"; // Example: Red background
+    micButton.disabled = true; // Disable mic button while recording
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
+    // Show waveform instead of spinner
     setupWaveformVisualization(stream);
+    // --------------------------
 
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0 && !isRecordingCancelled) {
@@ -844,32 +854,32 @@ async function startAudioRecording() {
       }
     };
 
-    // Assign the NORMAL onstop handler HERE
     mediaRecorder.onstop = async () => {
       console.log("mediaRecorder.onstop triggered.");
+
+      // Stop waveform visual FIRST
+      stopWaveformVisualization();
 
       // ***** Check Cancellation Flag *****
       if (isRecordingCancelled) {
         console.log("onstop: Recording was cancelled, skipping processing.");
-        isRecordingCancelled = false; // Reset flag just in case
-        // Don't reset UI here, handleDeleteRecording should have done it
+        isRecordingCancelled = false;
+        // UI should have been reset by handleDeleteRecording which calls resetUI
         return;
       }
 
-      // Stop the waveform visual
-      stopWaveformVisualization();
-
-      // Keep showing the spinner while processing
-      micLoadingSpinner.style.display = "flex";
+      // --- Show Spinner, Hide Mic Button DURING PROCESSING ---
       micButton.style.display = "none";
-      console.log("Showing mic loading spinner while processing");
+      micLoadingSpinner.style.display = "flex";
+      console.log(
+        "Showing mic loading spinner, hiding mic button for processing."
+      );
+      // ----------------------------------------------------
 
       // --- Normal stop processing ---
       if (audioChunks.length === 0) {
-        console.warn(
-          "No audio chunks recorded. Recording might have been too short or silent."
-        );
-        resetUI(); // Ensure UI resets if no chunks
+        console.warn("No audio chunks recorded.");
+        resetUI(); // Reset UI (will hide spinner, show mic)
         return;
       }
 
@@ -937,7 +947,7 @@ async function startAudioRecording() {
             );
             // ---------------------------------------------
 
-            openDialog(); // Dialog opens on success
+            openDialog(); // SUCCESS: Dialog opens
             console.log("Dialog opened.");
           } else {
             console.log(
@@ -964,31 +974,37 @@ async function startAudioRecording() {
         processingError = true;
         resetUI(); // Reset UI on general processing error
       } finally {
-        // Hide spinner when processing is complete
+        // --- Hide Spinner AFTER Processing ---
+        console.log("Hiding mic loading spinner (in finally block).");
         micLoadingSpinner.style.display = "none";
-        // Show mic button again unless we're showing the dialog
-        if (!processingError) {
-          micButton.style.display = "flex";
-        }
-        console.log("Processing complete, UI updated.");
+        // If dialog opened successfully, mic button remains hidden until dialog closed.
+        // If error occurred, resetUI already made mic button visible.
+        // ------------------------------------
       }
+
+      // Common UI updates AFTER processing attempt
+      isRecording = false;
+      recordingStartTime = null;
+      toggleListenButtons(false);
+      toggleBookmarkButtons(false);
+      document.getElementById("recordingIndicator").style.display = "none";
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      console.log("Common UI updates completed after processing attempt.");
     };
 
     mediaRecorder.onerror = (event) => {
       console.error("MediaRecorder error:", event.error);
       alert(`Recording error: ${event.error.name} - ${event.error.message}`);
-      // Reset UI on error
-      resetUI(); // resetUI already calls stopWaveformVisualization
+      resetUI(); // Ensure reset on recorder error
       if (stream) {
-        stream.getTracks().forEach((track) => track.stop()); // Stop stream on error
+        stream.getTracks().forEach((track) => track.stop());
       }
     };
 
     // Start recording
     mediaRecorder.start(100);
-    document.getElementById("recordingIndicator").style.display =
-      "inline-block";
-    console.log("UI updated for recording start.");
+    console.log("Recording started.");
 
     // Set timeout to automatically stop recording after RECORDING_DURATION
     clearTimeout(recordingTimeout); // Clear any previous timeout
@@ -1005,18 +1021,7 @@ async function startAudioRecording() {
     alert(
       `Could not start recording: ${error.message}. Please check microphone permissions.`
     );
-
-    // Ensure recording flag is reset and buttons are re-enabled in case of error
-    isRecording = false;
-    recordingStartTime = null;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
-    // Make sure waveform is stopped and hidden on error
-    stopWaveformVisualization();
-
-    // Reset UI to show mic button and hide spinner
-    micButton.style.display = "flex";
-    micLoadingSpinner.style.display = "none";
+    resetUI(); // Ensure reset on start error
   }
 }
 
@@ -1241,16 +1246,18 @@ loadLessons();
 
 // Event listeners for buttons
 micButton.addEventListener("click", async () => {
-  // Initialize and resume AudioContext on user gesture
+  // Check if already recording to prevent multiple starts
+  if (isRecording) {
+    console.log(
+      "Recording already in progress. Stop button should be handled by waveform."
+    );
+    // Or maybe call handleStopRecording() if the button acts as toggle?
+    // handleStopRecording();
+    return;
+  }
+
   initializeAudioContext();
   await resumeAudioContext();
-
-  // Hide mic button and show spinner immediately when recording starts
-  micButton.style.display = "none";
-  micLoadingSpinner.style.display = "flex";
-  retryButton.style.display = "inline-block";
-  retryButton.disabled = false;
-
   startAudioRecording();
 });
 
