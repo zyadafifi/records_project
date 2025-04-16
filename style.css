@@ -131,8 +131,8 @@ body {
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   width: 285px;
-  margin: 30px auto 20px; /* Add more top margin to make room for the tip */
-  border: 2px solid #457a76; /* Primary color */
+  margin: 35px auto 20px;
+  border: 2px solid #457a76;
   transition: transform 0.3s ease;
   text-align: center;
   font-style: initial;
@@ -168,13 +168,13 @@ body {
 }
 .tip {
   position: absolute;
-  top: -12px;
+  top: -25px;
   left: 50%;
   transform: translateX(-50%);
   background-color: white;
   padding: 2px 15px;
   border-radius: 10px;
-  border: 1px solid #457a76; /* Primary color */
+  border: 1px solid #457a76;
   font-size: 18px;
   color: #2c3e50;
   white-space: nowrap;
@@ -184,8 +184,8 @@ body {
   min-width: 100px;
   display: inline-block;
   text-align: center;
-  font-family: "Tajawal", sans-serif; /* Standardize to Tajawal */
-  font-weight: bold; /* Corresponds to 700 weight */
+  font-family: "Tajawal", sans-serif;
+  font-weight: bold;
   direction: rtl;
   z-index: 10;
 }
