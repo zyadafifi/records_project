@@ -1161,7 +1161,7 @@ async function loadLessons() {
     const firstBookmarkButton = bookmarkIcon
       ? bookmarkIcon.closest(".icon-wrapper")
       : null;
-    const secondBookmarkButton = bookmarkIcon2 // Use the ID selector variable
+    const secondBookmarkButton = bookmarkIcon2
       ? bookmarkIcon2.closest(".icon-wrapper")
       : null;
 
@@ -1180,16 +1180,25 @@ async function loadLessons() {
     }
 
     // Attach listener to the SECOND icon's button (if it exists)
-    if (secondBookmarkButton) {
-      // Remove potential old listener (safety)
-      secondBookmarkButton.removeEventListener("click", playRecordedAudio);
-      // Directly attach the function, removing the arrow wrapper
-      secondBookmarkButton.addEventListener("click", playRecordedAudio);
-      console.log(
-        "Event listener attached to parent button of #bookmark-icon2."
-      );
+    if (bookmarkIcon2) {
+      const secondBookmarkButton = bookmarkIcon2.closest(".icon-wrapper");
+      if (secondBookmarkButton) {
+        // Remove potential old listener (safety)
+        secondBookmarkButton.removeEventListener("click", playRecordedAudio);
+        // Directly attach the function
+        secondBookmarkButton.addEventListener("click", playRecordedAudio);
+        console.log(
+          "Event listener attached to parent button of #bookmark-icon2."
+        );
+      } else {
+        console.error(
+          "Could not find parent button (.icon-wrapper) for #bookmark-icon2."
+        );
+      }
     } else {
-      console.error("Could not find parent button for #bookmark-icon2.");
+      console.error(
+        "Could not find the element with ID #bookmark-icon2 itself."
+      );
     }
     // ---------------------------------------------------------
   } catch (error) {
