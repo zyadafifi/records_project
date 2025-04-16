@@ -111,6 +111,25 @@
               <i class="fas fa-microphone mic-icon"></i>
             </button>
 
+            <!-- Loading Spinner for Mic Area (Initially Hidden) -->
+            <div
+              id="micLoadingSpinner"
+              class="mic-circle d-flex align-items-center justify-content-center"
+              style="
+                display: none;
+                background-color: #e0e0e0;
+                border-color: #ccc;
+                cursor: default;
+                animation: none;
+                box-shadow: none;
+              "
+            >
+              <i
+                class="fas fa-spinner fa-spin mic-icon"
+                style="color: #555"
+              ></i>
+            </div>
+
             <!-- Recording Indicator -->
             <div
               id="recordingIndicator"
