@@ -144,12 +144,11 @@ function setupWaveformVisualization(stream) {
     // --- Create Stop Button ---
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
-    stopRecButton.innerHTML = '<i class="fas fa-stop-circle"></i>'; // Stop icon
-    stopRecButton.title = "Stop Recording";
-    // Basic styling
+    stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>'; // Send icon
+    stopRecButton.title = "Send Recording";
+    stopRecButton.style.color = "#0aa989"; // Green color for send
     stopRecButton.style.background = "none";
     stopRecButton.style.border = "none";
-    stopRecButton.style.color = "#007bff"; // Blue color for stop
     stopRecButton.style.fontSize = "1.2em";
     stopRecButton.style.cursor = "pointer";
     stopRecButton.style.padding = "0 10px";
