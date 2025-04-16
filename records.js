@@ -14,7 +14,6 @@ const sentencesSpokenDiv = document.getElementById("sentencesSpoken");
 const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
-const dialogPlayButton = document.querySelector("#dialog-play-button");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
@@ -33,6 +32,24 @@ dialogBackdrop.style.display = "none";
 function openDialog() {
   dialogContainer.style.display = "block";
   dialogBackdrop.style.display = "block";
+  console.log("Dialog opened.");
+
+  // --- Attach listener to dialog button HERE ---
+  const dialogButton = document.querySelector("#dialog-play-button");
+  if (dialogButton) {
+    // Remove potential existing listener first
+    dialogButton.removeEventListener("click", playRecordedAudio);
+    // Add the listener
+    dialogButton.addEventListener("click", playRecordedAudio);
+    console.log(
+      "Playback listener attached to #dialog-play-button inside openDialog."
+    );
+  } else {
+    console.error(
+      "Could not find #dialog-play-button when trying to attach listener in openDialog."
+    );
+  }
+  // --------------------------------------------
 }
 
 // Function to close the dialog
@@ -147,7 +164,7 @@ function setupWaveformVisualization(stream) {
     stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>'; // Send icon
     stopRecButton.title = "Send Recording";
     // WhatsApp-style send button styling
-    stopRecButton.style.background = "#0aa989"; // WhatsApp green
+    stopRecButton.style.background = "#457a76"; // Changed color (WhatsApp green)
     stopRecButton.style.border = "none";
     stopRecButton.style.color = "#fff"; // White icon
     stopRecButton.style.fontSize = "1em"; // Smaller font size
@@ -161,10 +178,10 @@ function setupWaveformVisualization(stream) {
     stopRecButton.style.height = "28px"; // Smaller height
     stopRecButton.style.transition = "background-color 0.2s";
     stopRecButton.onmouseover = () => {
-      stopRecButton.style.backgroundColor = "#0c8f72"; // Darker shade on hover
+      stopRecButton.style.backgroundColor = "#3a6862"; // Changed hover color (Darker shade)
     };
     stopRecButton.onmouseout = () => {
-      stopRecButton.style.backgroundColor = "#0aa989"; // Original color
+      stopRecButton.style.backgroundColor = "#457a76"; // Changed color (Original color)
     };
     stopRecButton.onclick = handleStopRecording; // Assign click handler
     waveformContainer.appendChild(stopRecButton);
@@ -477,7 +494,7 @@ function updateProgressCircle(score) {
 
   // Change circle color based on score
   if (score >= 80) {
-    progressCircle.style.stroke = "#0aa989"; // Green for high scores
+    progressCircle.style.stroke = "#457a76"; // Changed color (Green for high scores)
     playSoundEffect(800, 200); // High-pitched beep for success
   } else if (score >= 50) {
     progressCircle.style.stroke = "#ffa500"; // Orange for medium scores
@@ -699,7 +716,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   if (pronunciationScore < 50) {
     nextButton.style.backgroundColor = "#ff0000"; // Red for low scores
   } else {
-    nextButton.style.backgroundColor = "#0aa989"; // Reset to default color
+    nextButton.style.backgroundColor = "#457a76"; // Changed color (Reset to default color)
   }
 
   return Math.round(pronunciationScore);
@@ -1177,17 +1194,17 @@ async function loadLessons() {
       );
     }
 
-    // Find the second button using its NEW ID
-    const secondBookmarkButton = document.querySelector("#dialog-play-button");
-
-    // Attach listener to the SECOND icon's button (if it exists)
-    if (secondBookmarkButton) {
-      secondBookmarkButton.removeEventListener("click", playRecordedAudio);
-      secondBookmarkButton.addEventListener("click", playRecordedAudio);
-      console.log("Event listener attached to button #dialog-play-button.");
-    } else {
-      console.error("Could not find button with ID #dialog-play-button.");
-    }
+    // --- REMOVED Listener attachment for dialog button from here ---
+    // const secondBookmarkButton = document.querySelector("#dialog-play-button");
+    // if (secondBookmarkButton) {
+    //   secondBookmarkButton.removeEventListener("click", playRecordedAudio);
+    //   secondBookmarkButton.addEventListener("click", playRecordedAudio);
+    //   console.log(
+    //     "Event listener attached to button #dialog-play-button."
+    //   );
+    // } else {
+    //   console.error("Could not find button with ID #dialog-play-button.");
+    // }
     // ---------------------------------------------------------
   } catch (error) {
     console.error("Error loading lessons:", error);
