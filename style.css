@@ -1,9 +1,20 @@
+/* Color Variables */
+:root {
+  --primary-color: #4b9b94;
+  --primary-dark: #3d7d77;
+  --primary-light: #6eb5ae;
+  --accent-color: #0aa989;
+  --text-dark: #2c3e50;
+  --text-light: #ffffff;
+  --background-light: #f4f7f6;
+}
+
 body {
   align-items: center;
   right: 0;
   left: 0;
   font-family: "Poppins", sans-serif; /* Default font */
-  background-color: #f4f7f6; /* Light background for body */
+  background-color: var(--background-light); /* Light background for body */
 } /* Centering the card */
 .card-container {
   min-height: 100vh;
@@ -50,6 +61,7 @@ body {
 .sound-icon {
   width: 24px; /* Adjust the size as needed */
   height: 24px; /* Adjust the size as needed */
+  color: var(--primary-color);
 }
 
 /* Mic Icon */
@@ -68,8 +80,8 @@ body {
   width: 100px;
   height: 40px;
   border-radius: 50px;
-  background-color: #457a76; /* Primary color */
-  border: 2px solid #457a76; /* Primary color */
+  background-color: var(--primary-color);
+  border: 2px solid var(--primary-color);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -100,7 +112,7 @@ body {
 }
 
 .mic-circle:hover {
-  background-color: #316762; /* Darker logo shade for hover */
+  background-color: var(--primary-dark);
   transform: scale(1.1);
   animation: none; /* Stop animation on hover */
 }
@@ -114,14 +126,14 @@ body {
   width: 24px;
   height: 24px;
   border-radius: 50px;
-  color: #457a76; /* Primary color */
+  color: var(--primary-color);
 }
 .bookmark-icon {
   width: 24px;
   height: 24px;
   cursor: pointer;
   transition: color 0.3s ease;
-  color: #457a76; /* Primary color */
+  color: var(--primary-color);
 }
 
 .sentence-container {
@@ -132,7 +144,7 @@ body {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   width: 285px;
   margin: 35px auto 20px;
-  border: 2px solid #457a76;
+  border: 2px solid var(--primary-color);
   text-align: center;
   font-style: initial;
 }
@@ -173,9 +185,9 @@ body {
   background-color: white;
   padding: 0px 10px;
   border-radius: 10px;
-  border: 1px solid #0aa989;
+  border: 1px solid var(--primary-color);
   font-size: 18px;
-  color: #2c3e50;
+  color: var(--text-dark);
   white-space: nowrap;
   height: 23px;
   width: 150px;
@@ -186,6 +198,7 @@ body {
 }
 .dialog-btn {
   width: 200px;
+  background-color: var(--primary-color);
 }
 .tip-2 {
   position: absolute;
@@ -195,7 +208,7 @@ body {
   background-color: white;
   padding: 0px 10px;
   border-radius: 10px;
-  border: 1px solid #457a76; /* Primary color */
+  border: 1px solid var(--primary-color);
   font-size: 15px;
   color: #000;
   white-space: nowrap;
@@ -251,7 +264,7 @@ body {
 }
 
 .text-primary {
-  color: #457a76 !important; /* Primary color */
+  color: var(--primary-color) !important;
 }
 
 .text-success {
@@ -260,7 +273,7 @@ body {
 
 /* Add a hover effect for interactivity */
 .text-center:hover h4 {
-  color: #457a76; /* Primary color on hover */
+  color: var(--primary-color);
   transition: color 0.3s ease;
 }
 
@@ -273,6 +286,7 @@ body {
 }
 .continue-to-next-lesson {
   width: 100%;
+  background-color: var(--primary-color) !important;
 }
 #recordingIndicator {
   display: inline-block;
@@ -295,7 +309,7 @@ body {
 }
 /* Mic Button Styles */
 .mic-circle {
-  background-color: #0aa989; /* Default background color */
+  background-color: var(--primary-color); /* Default background color */
   border: none;
   border-radius: 50%;
   width: 60px;
@@ -369,7 +383,7 @@ body {
 }
 
 .try-again-button {
-  background-color: #457a76; /* Primary color */
+  background-color: var(--primary-color);
   color: white;
   border: none;
   border-radius: 4px;
@@ -381,7 +395,7 @@ body {
 }
 
 .try-again-button:hover {
-  background-color: #316762; /* Darker logo shade for hover */
+  background-color: var(--primary-dark);
 }
 
 .no-speech-popup .dialog-content {
@@ -474,4 +488,18 @@ input[type="text"].form-control {
     margin-bottom: 30px; /* More space on mobile */
     transform: translateY(-15px); /* Lift up on mobile */
   }
+}
+
+/* Update progress circle colors */
+#progress {
+  stroke: var(--primary-color);
+}
+
+/* Update dialog buttons */
+.dialog-btn:hover {
+  background-color: var(--primary-dark);
+}
+
+.continue-to-next-lesson:hover {
+  background-color: var(--primary-dark) !important;
 }
