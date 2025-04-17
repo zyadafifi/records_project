@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&family=Cairo:wght@400;700&family=Tajawal:wght@400;700&display=swap");
+
 /* Color Variables */
 :root {
   --primary-color: #4b9b94;
@@ -7,176 +9,50 @@
   --text-dark: #2c3e50;
   --text-light: #ffffff;
   --background-light: #f4f7f6;
+  --font-english: "Nunito", sans-serif;
+  --font-arabic: "Cairo", "Tajawal", sans-serif;
 }
 
 body {
   align-items: center;
   right: 0;
   left: 0;
-  font-family: "Poppins", sans-serif; /* Default font */
-  background-color: var(--background-light); /* Light background for body */
-} /* Centering the card */
-.card-container {
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
+  font-family: var(--font-english);
+  background-color: var(--background-light);
 }
+
 .arabic-text {
-  font-family: "Tajawal", sans-serif; /* Explicitly use Tajawal */
+  font-family: var(--font-arabic);
   font-size: 20px;
   font-weight: 700;
   text-align: right;
 }
-/* Icons Container (Evenly Space Left, Center, Right) */
-.icons-container {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%; /* Ensure full width for spacing */
-  max-width: 300px; /* Set max width for better alignment */
-  margin: auto;
-}
-
-/* Wrapper for Sound & Bookmark Icons */
-.icon-circle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px; /* Adjust the size as needed */
-  height: 30px; /* Adjust the size as needed */
-  background-color: rgba(0, 0, 0, 0.1); /* Background color for the circle */
-  border-radius: 50%; /* Makes the background a circle */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Optional: Adds a shadow */
-}
-
-.icon-wrapper {
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-}
-
-.sound-icon {
-  width: 24px; /* Adjust the size as needed */
-  height: 24px; /* Adjust the size as needed */
-  color: var(--primary-color);
-}
-
-/* Mic Icon */
-
-.mic-icon {
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  /* color: #0aa989; */
-  color: #fff;
-  transition: color 0.3s ease;
-}
-
-/* Mic Circle */
-.mic-circle {
-  width: 100px;
-  height: 40px;
-  border-radius: 50px;
-  background-color: var(--primary-color);
-  border: 2px solid var(--primary-color);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  animation: pulse 2s infinite, glow 2s infinite alternate; /* Combine animations */
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.05);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-@keyframes glow {
-  0% {
-    box-shadow: 0 0 5px rgba(69, 122, 118, 0.5); /* Primary color w/ alpha */
-  }
-  100% {
-    box-shadow: 0 0 20px rgba(69, 122, 118, 0.8); /* Primary color w/ alpha */
-  }
-}
-
-.mic-circle:hover {
-  background-color: var(--primary-dark);
-  transform: scale(1.1);
-  animation: none; /* Stop animation on hover */
-}
-
-.mic-circle:hover .mic-icon {
-  color: #fff;
-}
-
-/* Sound & Bookmark Icons */
-.sound-icon {
-  width: 24px;
-  height: 24px;
-  border-radius: 50px;
-  color: var(--primary-color);
-}
-.bookmark-icon {
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  transition: color 0.3s ease;
-  color: var(--primary-color);
-}
-
-.sentence-container {
-  position: relative;
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  width: 285px;
-  margin: 35px auto 20px;
-  border: 2px solid var(--primary-color);
-  text-align: center;
-  font-style: initial;
-}
 
 .sentence-text {
-  font-family: "Poppins", sans-serif; /* Ensure Poppins for English sentence */
+  font-family: var(--font-english);
   font-size: 22px;
-  font-weight: bold; /* Corresponds to 700 weight */
+  font-weight: bold;
   color: #333;
   text-align: center;
   line-height: 1.6;
   margin: 0;
-  opacity: 0; /* For fade-in animation */
+  opacity: 0;
   animation: fadeIn 0.5s ease forwards;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Soft shadow for focus */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
 .sentence-text-2 {
-  font-family: "Tajawal", sans-serif; /* Use Tajawal for the dialog text */
+  font-family: var(--font-arabic);
   font-size: 20px;
-  font-weight: 600; /* Use 600 weight for Poppins if needed, 700 for Tajawal if desired */
+  font-weight: 600;
   color: #333;
   text-align: center;
   line-height: 1.6;
   margin: 0;
-  opacity: 0; /* For fade-in animation */
+  opacity: 0;
   animation: fadeIn 0.5s ease forwards;
 }
-@keyframes fadeIn {
-  to {
-    opacity: 1;
-  }
-}
+
 .tip {
   position: absolute;
   top: 290px;
@@ -192,17 +68,14 @@ body {
   height: 23px;
   width: 150px;
   text-align: center;
-  font-family: "Tajawal", "Cairo", "Amiri", sans-serif;
+  font-family: var(--font-arabic);
   font-weight: bold;
   direction: rtl;
 }
-.dialog-btn {
-  width: 200px;
-  background-color: var(--primary-color);
-}
+
 .tip-2 {
   position: absolute;
-  top: 145px; /* تعديل الموضع حسب الحاجة */
+  top: 145px;
   left: 50%;
   transform: translateX(-50%);
   background-color: white;
@@ -215,52 +88,54 @@ body {
   height: 23px;
   width: 200px;
   text-align: center;
+  font-family: var(--font-arabic);
 }
+
 .dialog-container {
   height: 390px;
   display: none;
-  position: fixed; /* Fixed positioning to overlay on top of everything */
-  top: 50%; /* Center vertically */
-  left: 50%; /* Center horizontally */
-  transform: translate(-50%, -50%); /* Adjust for exact centering */
-  z-index: 1000; /* High z-index to ensure it's on top */
-  background-color: white; /* Ensure background is visible */
-  padding: 20px; /* Add padding for better spacing */
-  border-radius: 10px; /* Rounded corners */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Add shadow for depth */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background-color: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
+
 .dialog-backdrop {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
-  z-index: 999; /* Just below the dialog */
-  display: none; /* Hidden by default */
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+  display: none;
 }
 
-/* Show the backdrop when the dialog is open */
 .dialog-container.active + .dialog-backdrop {
   display: block;
 }
-/* Custom styles for the statistics container */
+
 .d-flex.justify-content-around {
-  background-color: #f8f9fa; /* Light background color */
+  background-color: #f8f9fa;
   padding: 20px;
-  border-radius: 12px; /* Rounded corners */
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  border-radius: 12px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .text-center h4 {
   font-size: 1.1rem;
-  color: #6c757d; /* Muted text color */
+  color: #6c757d;
   margin-bottom: 10px;
 }
 
 .display-6 {
-  font-size: 2.5rem; /* Large font size for numbers */
-  font-weight: 700; /* Bold text */
+  font-size: 2.5rem;
+  font-weight: 700;
 }
 
 .text-primary {
@@ -268,26 +143,28 @@ body {
 }
 
 .text-success {
-  color: #28a745 !important; /* Bootstrap success color */
+  color: #28a745 !important;
 }
 
-/* Add a hover effect for interactivity */
 .text-center:hover h4 {
   color: var(--primary-color);
   transition: color 0.3s ease;
 }
 
 .text-center:hover .display-6 {
-  transform: scale(1.05); /* Slight scale effect on hover */
+  transform: scale(1.05);
   transition: transform 0.3s ease;
 }
+
 .congrats_img {
   border-radius: 10%;
 }
+
 .continue-to-next-lesson {
   width: 100%;
   background-color: var(--primary-color) !important;
 }
+
 #recordingIndicator {
   display: inline-block;
   font-size: 14px;
@@ -307,9 +184,9 @@ body {
     opacity: 1;
   }
 }
-/* Mic Button Styles */
+
 .mic-circle {
-  background-color: var(--primary-color); /* Default background color */
+  background-color: var(--primary-color);
   border: none;
   border-radius: 50%;
   width: 60px;
@@ -322,15 +199,14 @@ body {
 }
 
 .mic-circle.recording {
-  background-color: #ff0000; /* Red background when recording */
+  background-color: #ff0000;
 }
 
 .mic-icon {
-  color: #fff; /* White color for the mic icon */
+  color: #fff;
   font-size: 24px;
 }
 
-/* Recording Indicator */
 #recordingIndicator {
   display: flex;
   align-items: center;
@@ -338,7 +214,7 @@ body {
   font-size: 14px;
   color: #ff0000;
 }
-/* No speech popup styles */
+
 .no-speech-popup {
   display: none;
   position: fixed;
@@ -437,12 +313,11 @@ body {
   }
 }
 
-/* Adjust the input field for Arabic text to prevent overlap on Android */
 input[type="text"],
 input[type="text"].form-control {
   margin-bottom: 20px;
   padding: 10px;
-  font-family: "Tajawal", sans-serif; /* Use Tajawal for input if it contains Arabic */
+  font-family: var(--font-arabic);
   font-size: 16px;
   text-align: right;
   direction: rtl;
@@ -450,14 +325,12 @@ input[type="text"].form-control {
   z-index: 10;
 }
 
-/* Style for the "اقرأ هذا" sentence - lift it up for Android */
 .sentence-input-container {
   position: relative;
   margin: 0;
   padding: 0;
 }
 
-/* Mobile-specific adjustments */
 @media screen and (max-width: 768px) {
   .sentence-container {
     margin-top: 40px;
@@ -473,7 +346,6 @@ input[type="text"].form-control {
     box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
   }
 
-  /* Android-specific adjustments */
   @supports (-webkit-appearance: none) and (not (overflow: -webkit-marquee)) and
     (not (-ms-ime-align: auto)) {
     .tip {
@@ -485,21 +357,25 @@ input[type="text"].form-control {
 
   input[type="text"],
   input[type="text"].form-control {
-    margin-bottom: 30px; /* More space on mobile */
-    transform: translateY(-15px); /* Lift up on mobile */
+    margin-bottom: 30px;
+    transform: translateY(-15px);
   }
 }
 
-/* Update progress circle colors */
 #progress {
   stroke: var(--primary-color);
 }
 
-/* Update dialog buttons */
 .dialog-btn:hover {
   background-color: var(--primary-dark);
 }
 
 .continue-to-next-lesson:hover {
   background-color: var(--primary-dark) !important;
+}
+
+/* Ensure buttons use the English font */
+.btn,
+button {
+  font-family: var(--font-english);
 }
