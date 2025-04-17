@@ -37,9 +37,9 @@
           <div dir="rtl" class="arabic-text mb-1">
             <p>مرحبا! كيف حالك؟ اضغط على الميكروفون واقرأ الجملة التالية:</p>
           </div>
+          <div class="tip">اقرأ هذا</div>
 
           <div class="sentence-container" id="sentence">
-            <div class="tip">اقرأ هذا</div>
             <p class="sentence-text">Sentence will appear here</p>
           </div>
 
@@ -49,11 +49,7 @@
           >
             <!-- Sound Icon (Left) -->
             <div class="icon-circle" id="listenButton">
-              <button
-                class="icon-wrapper startButton"
-                id="startButton"
-                style="color: #3d7d77"
-              >
+              <button class="icon-wrapper startButton" id="startButton">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   fill="none"
@@ -92,14 +88,16 @@
               <button class="icon-wrapper">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 512 512"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
                   class="bookmark-icon"
-                  id="bookmark-icon2"
-                  style="color: #3d7d77"
                 >
-                  <!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
                   <path
-                    d="M398.3 3.4c-15.8-7.9-35-1.5-42.9 14.3c-7.9 15.8-1.5 34.9 14.2 42.9l.4 .2c.4 .2 1.1 .6 2.1 1.2c2 1.2 5 3 8.7 5.6c7.5 5.2 17.6 13.2 27.7 24.2C428.5 113.4 448 146 448 192c0 17.7 14.3 32 32 32s32-14.3 32-32c0-66-28.5-113.4-56.5-143.7C441.6 33.2 427.7 22.2 417.3 15c-5.3-3.7-9.7-6.4-13-8.3c-1.6-1-3-1.7-4-2.2c-.5-.3-.9-.5-1.2-.7l-.4-.2-.2-.1c0 0 0 0-.1 0c0 0 0 0 0 0L384 32 398.3 3.4zM128.7 227.5c6.2-56 53.7-99.5 111.3-99.5c61.9 0 112 50.1 112 112c0 29.3-11.2 55.9-29.6 75.9c-17 18.4-34.4 45.1-34.4 78l0 6.1c0 26.5-21.5 48-48 48c-17.7 0-32 14.3-32 32s14.3 32 32 32c61.9 0 112-50.1 112-112l0-6.1c0-9.8 5.4-21.7 17.4-34.7C398.3 327.9 416 286 416 240c0-97.2-78.8-176-176-176C149.4 64 74.8 132.5 65.1 220.5c-1.9 17.6 10.7 33.4 28.3 35.3s33.4-10.7 35.3-28.3zM32 512a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM192 352a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3l64 64c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-64-64c-12.5-12.5-32.8-12.5-45.3 0zM208 240c0-17.7 14.3-32 32-32s32 14.3 32 32c0 13.3 10.7 24 24 24s24-10.7 24-24c0-44.2-35.8-80-80-80s-80 35.8-80 80c0 13.3 10.7 24 24 24s24-10.7 24-24z"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM7 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"
                   />
                 </svg>
               </button>
@@ -112,7 +110,7 @@
           class="dialog-container"
           style="
             position: relative;
-            border: 2px solid var(--primary-color);
+            border: 2px solid #0aa989;
             border-radius: 10px;
             padding: 20px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
@@ -178,7 +176,7 @@
                   cx="50"
                   cy="50"
                   r="40"
-                  stroke="var(--primary-color)"
+                  stroke="#0aa989"
                   stroke-width="10"
                   fill="none"
                   stroke-dasharray="251.2"
@@ -221,7 +219,6 @@
                     stroke-width="1.5"
                     stroke="currentColor"
                     class="sound-icon"
-                    style="color: #3d7d77"
                   >
                     <path
                       stroke-linecap="round"
@@ -240,7 +237,11 @@
                 >
                   <i class="fas fa-redo"></i> Retry
                 </a>
-                <a href="#" class="btn text-white dialog-btn" id="nextButton"
+                <a
+                  href="#"
+                  class="btn text-white dialog-btn"
+                  style="background-color: #0aa989"
+                  id="nextButton"
                   >Continue</a
                 >
               </div>
@@ -250,14 +251,17 @@
                 <button class="icon-wrapper">
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 512 512"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
                     class="bookmark-icon"
                     id="bookmark-icon2"
-                    style="color: var(--primary-color)"
                   >
-                    <!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
                     <path
-                      d="M398.3 3.4c-15.8-7.9-35-1.5-42.9 14.3c-7.9 15.8-1.5 34.9 14.2 42.9l.4 .2c.4 .2 1.1 .6 2.1 1.2c2 1.2 5 3 8.7 5.6c7.5 5.2 17.6 13.2 27.7 24.2C428.5 113.4 448 146 448 192c0 17.7 14.3 32 32 32s32-14.3 32-32c0-66-28.5-113.4-56.5-143.7C441.6 33.2 427.7 22.2 417.3 15c-5.3-3.7-9.7-6.4-13-8.3c-1.6-1-3-1.7-4-2.2c-.5-.3-.9-.5-1.2-.7l-.4-.2-.2-.1c0 0 0 0-.1 0c0 0 0 0 0 0L384 32 398.3 3.4zM128.7 227.5c6.2-56 53.7-99.5 111.3-99.5c61.9 0 112 50.1 112 112c0 29.3-11.2 55.9-29.6 75.9c-17 18.4-34.4 45.1-34.4 78l0 6.1c0 26.5-21.5 48-48 48c-17.7 0-32 14.3-32 32s14.3 32 32 32c61.9 0 112-50.1 112-112l0-6.1c0-9.8 5.4-21.7 17.4-34.7C398.3 327.9 416 286 416 240c0-97.2-78.8-176-176-176C149.4 64 74.8 132.5 65.1 220.5c-1.9 17.6 10.7 33.4 28.3 35.3s33.4-10.7 35.3-28.3zM32 512a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM192 352a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3l64 64c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-64-64c-12.5-12.5-32.8-12.5-45.3 0zM208 240c0-17.7 14.3-32 32-32s32 14.3 32 32c0 13.3 10.7 24 24 24s24-10.7 24-24c0-44.2-35.8-80-80-80s-80 35.8-80 80c0 13.3 10.7 24 24 24s24-10.7 24-24z"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M17 20h5v-2a3 3 0 0 0-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 0 1 5.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 0 1 9.288 0M15 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2 2 0 1 1-4 0 2 2 0 0 1 4 0ZM7 10a2 2 0 1 1-4 0 2 2 0 0 1 4 0Z"
                     />
                   </svg>
                 </button>
@@ -317,6 +321,7 @@
             <button
               type="button"
               class="btn btn-primary continue-to-next-lesson"
+              style="background-color: #0aa989; border: none"
             >
               Close
             </button>
