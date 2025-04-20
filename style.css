@@ -156,6 +156,11 @@ body {
   color: var(--primary-color);
 }
 
+.recording-sentence {
+  position: relative;
+  margin-top: 20px;
+}
+
 .sentence-container {
   position: relative;
   padding: 20px;
@@ -163,10 +168,32 @@ body {
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   width: 285px;
-  margin: 35px auto 20px;
+  margin: 0 auto;
   border: 2px solid var(--primary-color);
   text-align: center;
   font-style: initial;
+}
+
+.read-this-label {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: white;
+  padding: 0 10px;
+  height: 24px;
+  line-height: 24px;
+  border: 1px solid var(--primary-color);
+  border-radius: 12px;
+  font-family: "Tajawal", "Cairo", "Amiri", sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  color: var(--text-dark);
+  white-space: nowrap;
+  text-align: center;
+  direction: rtl;
+  z-index: 10;
+  min-width: 80px;
 }
 
 .sentence-text {
@@ -507,6 +534,12 @@ input[type="text"].form-control {
   input[type="text"].form-control {
     margin-bottom: 30px; /* More space on mobile */
     transform: translateY(-15px); /* Lift up on mobile */
+  }
+
+  .read-this-label {
+    font-size: 14px;
+    padding: 0 8px;
+    border-width: 1px;
   }
 }
 
