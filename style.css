@@ -199,7 +199,7 @@ body {
 }
 .tip {
   position: absolute;
-  top: 290px;
+  top: -15px;
   left: 50%;
   transform: translateX(-50%);
   background-color: white;
@@ -215,6 +215,7 @@ body {
   font-family: "Tajawal", "Cairo", "Amiri", sans-serif;
   font-weight: bold;
   direction: rtl;
+  z-index: 10;
 }
 .dialog-btn {
   width: 200px;
@@ -508,6 +509,38 @@ input[type="text"].form-control {
     margin-bottom: 30px; /* More space on mobile */
     transform: translateY(-15px); /* Lift up on mobile */
   }
+}
+
+/* Tablet-specific adjustments */
+@media screen and (min-width: 769px) and (max-width: 1024px) {
+  .sentence-container {
+    margin-top: 45px;
+    margin-bottom: 45px;
+  }
+
+  .tip {
+    top: -15px;
+    font-size: 17px;
+  }
+}
+
+/* Desktop-specific adjustments */
+@media screen and (min-width: 1025px) {
+  .sentence-container {
+    margin-top: 50px;
+    margin-bottom: 50px;
+  }
+
+  .tip {
+    top: -15px;
+    font-size: 18px;
+  }
+}
+
+/* Ensure the tip stays above WordPress iframe content */
+.tip {
+  position: absolute;
+  z-index: 9999;
 }
 
 /* Update progress circle colors */
