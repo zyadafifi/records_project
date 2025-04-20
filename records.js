@@ -866,7 +866,9 @@ async function startAudioRecording() {
           '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
         pronunciationScoreDiv.textContent = "...";
         micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        micButton.style.color = "#0aa989";
+        micButton.style.color = "#fff";
+        micButton.style.backgroundColor = "#0aa989";
+        micButton.style.animation = "glow 2s infinite alternate";
         const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
         if (transcription !== null) {
           console.log("Transcription received:", transcription);
