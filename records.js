@@ -833,9 +833,16 @@ async function startAudioRecording() {
       audioChunks = []; // Clear chunks
 
       // UI Updates after stopping normally
-      micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+      micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
       micButton.style.backgroundColor = "";
       micButton.disabled = false;
+      micButton.style.color = "#fff";
+      micButton.style.display = "inline-block";
+      micButton.style.opacity = "1";
+      micButton.classList.remove("recording");
+      micButton.style.animation =
+        "pulse 2s infinite, glow 2s infinite alternate";
+
       retryButton.style.display = "inline-block";
       retryButton.disabled = false;
       document.getElementById("recordingIndicator").style.display = "none";
@@ -873,6 +880,17 @@ async function startAudioRecording() {
           totalSentencesSpoken++;
           totalPronunciationScore += pronunciationScore;
           console.log("Score calculated and totals updated.");
+
+          // Restore mic icon after transcription is complete
+          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+          micButton.style.color = "#fff";
+          micButton.style.backgroundColor = "";
+          micButton.style.display = "inline-block";
+          micButton.style.opacity = "1";
+          micButton.classList.remove("recording");
+          micButton.style.animation =
+            "pulse 2s infinite, glow 2s infinite alternate";
+
           openDialog();
           console.log("Dialog opened.");
         } else {
@@ -880,8 +898,14 @@ async function startAudioRecording() {
             "Transcription was null, likely an error during processing."
           );
           recognizedTextDiv.textContent = "(Transcription failed)";
-          micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
           micButton.style.color = "#fff";
+          micButton.style.backgroundColor = "";
+          micButton.style.display = "inline-block";
+          micButton.style.opacity = "1";
+          micButton.classList.remove("recording");
+          micButton.style.animation =
+            "pulse 2s infinite, glow 2s infinite alternate";
         }
       } else {
         console.warn(
