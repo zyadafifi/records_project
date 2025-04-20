@@ -199,7 +199,7 @@ body {
 }
 .tip {
   position: absolute;
-  top: 290px;
+  top: 300px;
   left: 50%;
   transform: translateX(-50%);
   background-color: white;
@@ -485,7 +485,7 @@ input[type="text"].form-control {
   }
 
   .tip {
-    top: -15px;
+    top: -50px;
     font-size: 16px;
     padding: 3px 10px;
     border-width: 2px;
