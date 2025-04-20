@@ -1167,27 +1167,9 @@ continueButton.addEventListener("click", () => {
   );
   congratulationModal.hide(); // Hide the modal
 
-  // Reset icons container to default state
+  // Restore mic icon
   micButton.innerHTML = '<i class="fas fa-microphone"></i>';
   micButton.style.color = "#fff";
-  micButton.style.backgroundColor = "";
   micButton.style.display = "inline-block";
   micButton.disabled = false;
-
-  // Reset listen buttons
-  listenButton.disabled = false;
-  listen2Button.disabled = false;
-
-  // Reset bookmark buttons
-  toggleBookmarkButtons(false);
-
-  // Reset recording state
-  isRecording = false;
-  recordingStartTime = null;
-
-  // Hide any recording indicators
-  document.getElementById("recordingIndicator").style.display = "none";
-
-  // Stop and hide waveform visualization if it exists
-  stopWaveformVisualization();
 });
