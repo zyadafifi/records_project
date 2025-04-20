@@ -203,9 +203,9 @@ body {
 }
 .tip {
   position: absolute;
-  top: 0;
+  top: -11px;
   left: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, 0);
   background-color: white;
   padding: 0px 10px;
   border-radius: 10px;
@@ -492,6 +492,7 @@ input[type="text"].form-control {
 
   .tip {
     font-size: 14px;
+    top: -11px;
   }
 
   /* Android-specific adjustments */
