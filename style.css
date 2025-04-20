@@ -156,6 +156,10 @@ body {
   color: var(--primary-color);
 }
 
+.recording-sentence {
+  position: relative;
+}
+
 .sentence-container {
   position: relative;
   padding: 20px;
@@ -163,7 +167,7 @@ body {
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   width: 285px;
-  margin: 10px auto;
+  margin: 0 auto;
   border: 2px solid var(--primary-color);
   text-align: center;
   font-style: initial;
@@ -199,9 +203,9 @@ body {
 }
 .tip {
   position: absolute;
-  top: -11px;
+  top: 0;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   background-color: white;
   padding: 0px 10px;
   border-radius: 10px;
@@ -483,16 +487,11 @@ input[type="text"].form-control {
 /* Mobile-specific adjustments */
 @media screen and (max-width: 768px) {
   .sentence-container {
-    margin: 10px auto;
+    margin: 0 auto;
   }
 
   .tip {
-    top: -11px;
     font-size: 14px;
-    height: 22px;
-    line-height: 22px;
-    padding: 0px 10px;
-    border-width: 1px;
   }
 
   /* Android-specific adjustments */
@@ -515,28 +514,14 @@ input[type="text"].form-control {
 /* Tablet-specific adjustments */
 @media screen and (min-width: 769px) and (max-width: 1024px) {
   .sentence-container {
-    margin: 10px auto;
-  }
-
-  .tip {
-    top: -11px;
-    font-size: 16px;
-    height: 22px;
-    line-height: 22px;
+    margin: 0 auto;
   }
 }
 
 /* Desktop-specific adjustments */
 @media screen and (min-width: 1025px) {
   .sentence-container {
-    margin: 10px auto;
-  }
-
-  .tip {
-    top: -11px;
-    font-size: 16px;
-    height: 22px;
-    line-height: 22px;
+    margin: 0 auto;
   }
 }
 
