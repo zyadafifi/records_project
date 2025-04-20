@@ -156,10 +156,6 @@ body {
   color: var(--primary-color);
 }
 
-.recording-sentence {
-  position: relative;
-}
-
 .sentence-container {
   position: relative;
   padding: 20px;
@@ -167,7 +163,7 @@ body {
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   width: 285px;
-  margin: 0 auto;
+  margin: 35px auto 20px;
   border: 2px solid var(--primary-color);
   text-align: center;
   font-style: initial;
@@ -203,25 +199,22 @@ body {
 }
 .tip {
   position: absolute;
-  top: -12px;
+  top: 290px;
   left: 50%;
-  transform: translate(-50%, 0);
+  transform: translateX(-50%);
   background-color: white;
-  padding: 2px 10px;
+  padding: 0px 10px;
   border-radius: 10px;
   border: 1px solid var(--primary-color);
-  font-size: 16px;
+  font-size: 18px;
   color: var(--text-dark);
   white-space: nowrap;
-  height: 24px;
-  width: auto;
-  min-width: 80px;
+  height: 23px;
+  width: 150px;
   text-align: center;
   font-family: "Tajawal", "Cairo", "Amiri", sans-serif;
   font-weight: bold;
   direction: rtl;
-  z-index: 10;
-  line-height: 20px;
 }
 .dialog-btn {
   width: 200px;
@@ -487,14 +480,17 @@ input[type="text"].form-control {
 /* Mobile-specific adjustments */
 @media screen and (max-width: 768px) {
   .sentence-container {
-    margin: 0 auto;
+    margin-top: 40px;
+    margin-bottom: 40px;
   }
 
   .tip {
-    font-size: 14px;
-    top: -12px;
-    height: 24px;
-    line-height: 20px;
+    top: -15px;
+    font-size: 16px;
+    padding: 3px 10px;
+    border-width: 2px;
+    background-color: white;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
   }
 
   /* Android-specific adjustments */
@@ -512,26 +508,6 @@ input[type="text"].form-control {
     margin-bottom: 30px; /* More space on mobile */
     transform: translateY(-15px); /* Lift up on mobile */
   }
-}
-
-/* Tablet-specific adjustments */
-@media screen and (min-width: 769px) and (max-width: 1024px) {
-  .sentence-container {
-    margin: 0 auto;
-  }
-}
-
-/* Desktop-specific adjustments */
-@media screen and (min-width: 1025px) {
-  .sentence-container {
-    margin: 0 auto;
-  }
-}
-
-/* Ensure the tip stays above WordPress iframe content */
-.tip {
-  position: absolute;
-  z-index: 9999;
 }
 
 /* Update progress circle colors */
