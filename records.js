@@ -1167,9 +1167,21 @@ continueButton.addEventListener("click", () => {
   );
   congratulationModal.hide(); // Hide the modal
 
-  // Restore mic icon
-  micButton.innerHTML = '<i class="fas fa-microphone"></i>';
-  micButton.style.color = "#fff";
-  micButton.style.display = "inline-block";
-  micButton.disabled = false;
+  // Reset icons container to default state
+  const iconsContainer = document.querySelector(".icons-container");
+  if (iconsContainer) {
+    // Reset mic button
+    micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+    micButton.style.color = "#fff";
+    micButton.style.backgroundColor = "";
+    micButton.style.display = "inline-block";
+    micButton.disabled = false;
+
+    // Reset listen button
+    listenButton.disabled = false;
+    listenButton.style.opacity = "1";
+
+    // Hide recording indicator
+    document.getElementById("recordingIndicator").style.display = "none";
+  }
 });
