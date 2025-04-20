@@ -163,7 +163,7 @@ body {
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   width: 285px;
-  margin: 35px auto 20px;
+  margin: 10px auto;
   border: 2px solid var(--primary-color);
   text-align: center;
   font-style: initial;
@@ -199,23 +199,25 @@ body {
 }
 .tip {
   position: absolute;
-  top: -15px;
+  top: -11px;
   left: 50%;
   transform: translateX(-50%);
   background-color: white;
   padding: 0px 10px;
   border-radius: 10px;
   border: 1px solid var(--primary-color);
-  font-size: 18px;
+  font-size: 16px;
   color: var(--text-dark);
   white-space: nowrap;
-  height: 23px;
-  width: 150px;
+  height: 22px;
+  width: auto;
+  min-width: 80px;
   text-align: center;
   font-family: "Tajawal", "Cairo", "Amiri", sans-serif;
   font-weight: bold;
   direction: rtl;
   z-index: 10;
+  line-height: 22px;
 }
 .dialog-btn {
   width: 200px;
@@ -481,17 +483,16 @@ input[type="text"].form-control {
 /* Mobile-specific adjustments */
 @media screen and (max-width: 768px) {
   .sentence-container {
-    margin-top: 40px;
-    margin-bottom: 40px;
+    margin: 10px auto;
   }
 
   .tip {
-    top: -15px;
-    font-size: 16px;
-    padding: 3px 10px;
-    border-width: 2px;
-    background-color: white;
-    box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+    top: -11px;
+    font-size: 14px;
+    height: 22px;
+    line-height: 22px;
+    padding: 0px 10px;
+    border-width: 1px;
   }
 
   /* Android-specific adjustments */
@@ -514,26 +515,28 @@ input[type="text"].form-control {
 /* Tablet-specific adjustments */
 @media screen and (min-width: 769px) and (max-width: 1024px) {
   .sentence-container {
-    margin-top: 45px;
-    margin-bottom: 45px;
+    margin: 10px auto;
   }
 
   .tip {
-    top: -15px;
-    font-size: 17px;
+    top: -11px;
+    font-size: 16px;
+    height: 22px;
+    line-height: 22px;
   }
 }
 
 /* Desktop-specific adjustments */
 @media screen and (min-width: 1025px) {
   .sentence-container {
-    margin-top: 50px;
-    margin-bottom: 50px;
+    margin: 10px auto;
   }
 
   .tip {
-    top: -15px;
-    font-size: 18px;
+    top: -11px;
+    font-size: 16px;
+    height: 22px;
+    line-height: 22px;
   }
 }
 
