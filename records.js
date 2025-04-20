@@ -1171,11 +1171,12 @@ continueButton.addEventListener("click", () => {
   const iconsContainer = document.querySelector(".icons-container");
   if (iconsContainer) {
     // Reset mic button
-    micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+    micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
     micButton.style.color = "#fff";
     micButton.style.backgroundColor = "";
     micButton.style.display = "inline-block";
     micButton.disabled = false;
+    micButton.style.opacity = "1";
 
     // Reset listen button
     listenButton.disabled = false;
@@ -1183,5 +1184,9 @@ continueButton.addEventListener("click", () => {
 
     // Hide recording indicator
     document.getElementById("recordingIndicator").style.display = "none";
+
+    // Make sure the mic circle is visible and properly styled
+    micButton.classList.remove("recording");
+    micButton.style.animation = "pulse 2s infinite, glow 2s infinite alternate";
   }
 });
