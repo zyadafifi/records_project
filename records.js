@@ -858,6 +858,8 @@ async function startAudioRecording() {
         recognizedTextDiv.innerHTML =
           '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
         pronunciationScoreDiv.textContent = "...";
+        micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        micButton.style.color = "#0aa989";
         const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
         if (transcription !== null) {
           console.log("Transcription received:", transcription);
@@ -878,6 +880,8 @@ async function startAudioRecording() {
             "Transcription was null, likely an error during processing."
           );
           recognizedTextDiv.textContent = "(Transcription failed)";
+          micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+          micButton.style.color = "#fff";
         }
       } else {
         console.warn(
