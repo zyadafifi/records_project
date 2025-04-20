@@ -1171,40 +1171,22 @@ continueButton.addEventListener("click", () => {
   const iconsContainer = document.querySelector(".icons-container");
   if (iconsContainer) {
     // Reset mic button
-    const micIcon = iconsContainer.querySelector("#micButton");
-    if (micIcon) {
-      micIcon.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-      micIcon.style.color = "#fff";
-      micIcon.style.backgroundColor = "";
-      micIcon.style.display = "inline-block";
-      micIcon.disabled = false;
-      micIcon.style.opacity = "1";
-      micIcon.classList.remove("recording");
-      micIcon.style.animation = "pulse 2s infinite, glow 2s infinite alternate";
-    }
+    micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+    micButton.style.color = "#fff";
+    micButton.style.backgroundColor = "";
+    micButton.style.display = "inline-block";
+    micButton.disabled = false;
+    micButton.style.opacity = "1";
 
     // Reset listen button
-    const listenIcon = iconsContainer.querySelector("#listenButton");
-    if (listenIcon) {
-      listenIcon.disabled = false;
-      listenIcon.style.opacity = "1";
-    }
+    listenButton.disabled = false;
+    listenButton.style.opacity = "1";
 
-    // Reset recording indicator
-    const recordingIndicator = document.getElementById("recordingIndicator");
-    if (recordingIndicator) {
-      recordingIndicator.style.display = "none";
-    }
+    // Hide recording indicator
+    document.getElementById("recordingIndicator").style.display = "none";
 
-    // Reset waveform container if it exists
-    if (waveformContainer) {
-      waveformContainer.style.display = "none";
-    }
+    // Make sure the mic circle is visible and properly styled
+    micButton.classList.remove("recording");
+    micButton.style.animation = "pulse 2s infinite, glow 2s infinite alternate";
   }
-
-  // Reset counters for next lesson
-  totalSentencesSpoken = 0;
-  totalPronunciationScore = 0;
-  currentSentenceIndex = 0;
-  updateSentence();
 });
