@@ -1166,4 +1166,10 @@ continueButton.addEventListener("click", () => {
     document.getElementById("congratulationModal")
   );
   congratulationModal.hide(); // Hide the modal
+
+  // Restore mic icon
+  micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+  micButton.style.color = "#fff";
+  micButton.style.display = "inline-block";
+  micButton.disabled = false;
 });
