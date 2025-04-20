@@ -203,17 +203,17 @@ body {
 }
 .tip {
   position: absolute;
-  top: -11px;
+  top: -12px;
   left: 50%;
   transform: translate(-50%, 0);
   background-color: white;
-  padding: 0px 10px;
+  padding: 2px 10px;
   border-radius: 10px;
   border: 1px solid var(--primary-color);
   font-size: 16px;
   color: var(--text-dark);
   white-space: nowrap;
-  height: 22px;
+  height: 24px;
   width: auto;
   min-width: 80px;
   text-align: center;
@@ -221,7 +221,7 @@ body {
   font-weight: bold;
   direction: rtl;
   z-index: 10;
-  line-height: 22px;
+  line-height: 20px;
 }
 .dialog-btn {
   width: 200px;
@@ -492,7 +492,9 @@ input[type="text"].form-control {
 
   .tip {
     font-size: 14px;
-    top: -11px;
+    top: -12px;
+    height: 24px;
+    line-height: 20px;
   }
 
   /* Android-specific adjustments */
