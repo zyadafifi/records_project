@@ -245,13 +245,24 @@ function drawWhatsAppWaveform() {
     const minutes = Math.floor(recordingTime / 60);
     const seconds = recordingTime % 60;
     const timeText = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
-
+  
+    // Clear the area where the timer will be drawn
+    canvasCtx.fillStyle = "#f0f0f0"; // Background color
+    canvasCtx.fillRect(waveformCanvas.width - 40, 0, 40, 20);
+    
+    // Apply anti-aliasing settings
+    canvasCtx.imageSmoothingEnabled = true;
+    canvasCtx.imageSmoothingQuality = "high";
+    
+    // Draw the timer with improved settings
     canvasCtx.fillStyle = "#333"; // Timer text color
-    canvasCtx.font = "11px Arial"; // Slightly smaller font
+    canvasCtx.font = "bold 12px Arial"; // Slightly larger and bold font
     canvasCtx.textAlign = "right";
-    canvasCtx.fillText(timeText, waveformCanvas.width - 5, 12); // Adjust position for smaller canvas
+    canvasCtx.textBaseline = "top"; // Align text from the top
+    
+    // Draw the text at a pixel-aligned position
+    canvasCtx.fillText(timeText, waveformCanvas.width - 5, 5);
   }
-}
 
 // --- Button Click Handlers ---
 
