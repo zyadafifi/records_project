@@ -709,45 +709,88 @@ function speakSentence() {
   // Check if currently recording - if so, don't allow listening
   if (isRecording) {
     console.log("Cannot listen while recording");
-    function speakSentence() {
-      // Check if currently recording - if so, don't allow listening
-      if (isRecording) {
-        console.log("Cannot listen while recording");
-        alert("Cannot listen to example while recording. Please finish recording first.");
-        return;
-      }
-    
-      if (isSpeaking) {
-        // If already speaking, stop the speech
-        speechSynthesis.cancel();
-        isSpeaking = false;
-        updateListenButtonIcons();
-        return;
-      }
-    
-      if (lessons.length === 0) return;
-      const currentLesson = lessons[currentLessonIndex];
-      const sentence = currentLesson.sentences[currentSentenceIndex];
-    
-      // Update button immediately
-      isSpeaking = true;
-      updateListenButtonIcons();
-    
-      currentUtterance = new SpeechSynthesisUtterance(sentence);
-      currentUtterance.lang = "en-US";
-    
-      currentUtterance.onend = function() {
-        isSpeaking = false;
-        updateListenButtonIcons();
-      };
-    
-      currentUtterance.onerror = function() {
-        isSpeaking = false;
-        updateListenButtonIcons();
-      };
-    
-      speechSynthesis.speak(currentUtterance);
+    alert(
+      "Cannot listen to example while recording. Please finish recording first."
+    );
+    return;
+  }
+
+  if (isSpeaking) {
+    // If already speaking, stop the speech
+    speechSynthesis.cancel();
+    isSpeaking = false;
+    updateListenButtonIcons();
+    return;
+  }
+
+  if (lessons.length === 0) return;
+  const currentLesson = lessons[currentLessonIndex];
+  const sentence = currentLesson.sentences[currentSentenceIndex];
+
+  // Update button immediately
+  isSpeaking = true;
+  updateListenButtonIcons();
+
+  currentUtterance = new SpeechSynthesisUtterance(sentence);
+  currentUtterance.lang = "en-US";
+
+  currentUtterance.onend = function () {
+    isSpeaking = false;
+    updateListenButtonIcons();
+  };
+
+  currentUtterance.onerror = function () {
+    isSpeaking = false;
+    updateListenButtonIcons();
+  };
+
+  speechSynthesis.speak(currentUtterance);
+}
+
+// Modified playRecordedAudio function with toggle functionality
+function playRecordedAudio() {
+  if (!recordedAudioBlob) {
+    alert("No recorded audio available.");
+    return;
+  }
+
+  // Prevent playing recorded audio during recording
+  if (isRecording) {
+    console.log("Cannot play audio while recording");
+    alert("Cannot play audio while recording. Please finish recording first.");
+    return;
+  }
+
+  if (isPlaying) {
+    // If already playing, stop the audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
     }
+    isPlaying = false;
+    updateBookmarkIcons();
+    return;
+  }
+
+  const audioURL = URL.createObjectURL(recordedAudioBlob);
+  currentAudio = new Audio(audioURL);
+
+  // Update button immediately
+  isPlaying = true;
+  updateBookmarkIcons();
+
+  currentAudio.play();
+
+  currentAudio.onended = function () {
+    isPlaying = false;
+    updateBookmarkIcons();
+  };
+
+  currentAudio.onerror = function () {
+    isPlaying = false;
+    updateBookmarkIcons();
+  };
+}
 function updateListenButtonIcon() {
   if (isSpeaking) {
     listenButton.innerHTML = '<i class="fas fa-pause"></i>';
@@ -1114,19 +1157,19 @@ function playRecordedAudio() {
 
   const audioURL = URL.createObjectURL(recordedAudioBlob);
   currentAudio = new Audio(audioURL);
-  
+
   // Update button immediately
   isPlaying = true;
   updateBookmarkIcons();
 
   currentAudio.play();
 
-  currentAudio.onended = function() {
+  currentAudio.onended = function () {
     isPlaying = false;
     updateBookmarkIcons();
   };
 
-  currentAudio.onerror = function() {
+  currentAudio.onerror = function () {
     isPlaying = false;
     updateBookmarkIcons();
   };
@@ -1161,28 +1204,28 @@ function updateBookmarkIcons() {
   }
 }
 // Event listeners
-listenButton.addEventListener("click", function() {
+listenButton.addEventListener("click", function () {
   // Add visual feedback
   this.classList.add("active");
   setTimeout(() => this.classList.remove("active"), 200);
   speakSentence();
 });
 
-listen2Button.addEventListener("click", function() {
+listen2Button.addEventListener("click", function () {
   // Add visual feedback
   this.classList.add("active");
   setTimeout(() => this.classList.remove("active"), 200);
   speakSentence();
 });
 
-bookmarkIcon.addEventListener("click", function() {
+bookmarkIcon.addEventListener("click", function () {
   // Add visual feedback
   this.classList.add("active");
   setTimeout(() => this.classList.remove("active"), 200);
   playRecordedAudio();
 });
 
-bookmarkIcon2.addEventListener("click", function() {
+bookmarkIcon2.addEventListener("click", function () {
   // Add visual feedback
   this.classList.add("active");
   setTimeout(() => this.classList.remove("active"), 200);
