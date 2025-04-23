@@ -1145,11 +1145,14 @@ function playRecordedAudio() {
   }
 
   if (isPlaying) {
-    bookmarkIcon.innerHTML = '<i class="fas fa-pause"></i>';
-    bookmarkIcon2.innerHTML = '<i class="fas fa-pause"></i>';
-  } else {
-    bookmarkIcon.innerHTML = '<i class="fas fa-ear-listen"></i>';
-    bookmarkIcon2.innerHTML = '<i class="fas fa-ear-listen"></i>';
+    // If already playing, stop the audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    }
+    isPlaying = false;
+    updateBookmarkIcons();
+    return;
   }
 
   const audioURL = URL.createObjectURL(recordedAudioBlob);
@@ -1187,19 +1190,19 @@ function updateListenButtonIcons() {
 }
 
 // Function to update bookmark icons
-function updateBookmarkIcons() {
-  if (isPlaying) {
-    bookmarkIcon.innerHTML = '<i class="fas fa-pause"></i>';
-    bookmarkIcon2.innerHTML = '<i class="fas fa-pause"></i>';
-    bookmarkIcon.title = "Stop playback";
-    bookmarkIcon2.title = "Stop playback";
-  } else {
-    bookmarkIcon.innerHTML = '<i class="fa-solid fa-play"></i>';
-    bookmarkIcon2.innerHTML = '<i class="fa-solid fa-play"></i>';
-    bookmarkIcon.title = "Play recorded audio";
-    bookmarkIcon2.title = "Play recorded audio";
-  }
-}
+// function updateBookmarkIcons() {
+//   if (isPlaying) {
+//     bookmarkIcon.innerHTML = '<i class="fas fa-pause"></i>';
+//     bookmarkIcon2.innerHTML = '<i class="fas fa-pause"></i>';
+//     bookmarkIcon.title = "Stop playback";
+//     bookmarkIcon2.title = "Stop playback";
+//   } else {
+//     bookmarkIcon.innerHTML = '<i class="fa-solid fa-play"></i>';
+//     bookmarkIcon2.innerHTML = '<i class="fa-solid fa-play"></i>';
+//     bookmarkIcon.title = "Play recorded audio";
+//     bookmarkIcon2.title = "Play recorded audio";
+//   }
+// }
 // Event listeners
 listenButton.addEventListener("click", function () {
   // Add visual feedback
