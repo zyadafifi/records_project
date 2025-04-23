@@ -57,6 +57,8 @@ let recordedAudioBlob; // Stores the recorded audio blob
 let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
 retryButton.style.display = "none"; // Hide retry button initially
+let isSpeaking = false;
+let currentUtterance = null;
 
 // AudioContext for sound effects and waveform
 let audioContext;
@@ -708,15 +710,52 @@ function speakSentence() {
     alert(
       "Cannot listen to example while recording. Please finish recording first."
     );
-    return; // Exit the function without speaking
+    return;
   }
 
-  if (lessons.length === 0) return; // Ensure lessons are loaded
+  if (isSpeaking) {
+    // If already speaking, stop the speech
+    speechSynthesis.cancel();
+    isSpeaking = false;
+    updateListenButtonIcon();
+    return;
+  }
+
+  if (lessons.length === 0) return;
   const currentLesson = lessons[currentLessonIndex];
   const sentence = currentLesson.sentences[currentSentenceIndex];
-  const utterance = new SpeechSynthesisUtterance(sentence);
-  utterance.lang = "en-US";
-  speechSynthesis.speak(utterance);
+
+  // Update button immediately
+  isSpeaking = true;
+  updateListenButtonIcon();
+
+  currentUtterance = new SpeechSynthesisUtterance(sentence);
+  currentUtterance.lang = "en-US";
+
+  currentUtterance.onend = function () {
+    isSpeaking = false;
+    updateListenButtonIcon();
+  };
+
+  currentUtterance.onerror = function () {
+    isSpeaking = false;
+    updateListenButtonIcon();
+  };
+
+  speechSynthesis.speak(currentUtterance);
+}
+function updateListenButtonIcon() {
+  if (isSpeaking) {
+    listenButton.innerHTML = '<i class="fas fa-pause"></i>';
+    listen2Button.innerHTML = '<i class="fas fa-pause"></i>';
+    listenButton.title = "Stop playback";
+    listen2Button.title = "Stop playback";
+  } else {
+    listenButton.innerHTML = '<i class="fas fa-ear-listen"></i>'; // Or your ear icon class
+    listen2Button.innerHTML = '<i class="fas fa-ear-listen"></i>';
+    listenButton.title = "Listen to example";
+    listen2Button.title = "Listen to example";
+  }
 }
 
 // Toggle listen buttons state
@@ -733,11 +772,9 @@ function toggleListenButtons(disabled) {
   } else {
     listenButton.style.opacity = "1";
     listen2Button.style.opacity = "1";
-    listenButton.title = "Listen to example";
-    listen2Button.title = "Listen to example";
+    updateListenButtonIcon(); // Use our new function to set correct icon/text
   }
 }
-
 // Toggle bookmark buttons state
 function toggleBookmarkButtons(disabled) {
   bookmarkIcon.disabled = disabled;
@@ -1067,10 +1104,32 @@ function playRecordedAudio() {
 }
 
 // Event listeners
-listenButton.addEventListener("click", speakSentence);
-listen2Button.addEventListener("click", speakSentence);
-bookmarkIcon.addEventListener("click", playRecordedAudio);
-bookmarkIcon2.addEventListener("click", playRecordedAudio);
+listenButton.addEventListener("click", function () {
+  // Immediate visual feedback
+  this.classList.add("active");
+  setTimeout(() => this.classList.remove("active"), 200);
+  speakSentence();
+});
+
+listen2Button.addEventListener("click", function () {
+  // Immediate visual feedback
+  this.classList.add("active");
+  setTimeout(() => this.classList.remove("active"), 200);
+  speakSentence();
+});
+
+// Add this CSS for click feedback
+const style = document.createElement("style");
+style.textContent = `
+  #listenButton.active, #listen2Button.active {
+    transform: scale(0.9);
+    transition: transform 0.1s;
+  }
+  #listenButton, #listen2Button {
+    transition: transform 0.2s, opacity 0.2s;
+  }
+`;
+document.head.appendChild(style);
 
 // Load lessons from the JSON file
 async function loadLessons() {
