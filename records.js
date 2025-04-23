@@ -1193,7 +1193,6 @@ function updateListenButtonIcons() {
 function updateBookmarkIcons() {
   if (isPlaying) {
     bookmarkIcon.innerHTML = '<i class="fas fa-pause"></i>';
-    bookmarkIcon2.innerHTML = '<i class="fas fa-pause"></i>';
     bookmarkIcon.title = "Stop playback";
     bookmarkIcon2.title = "Stop playback";
   } else {
