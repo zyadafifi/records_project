@@ -1182,8 +1182,8 @@ function updateListenButtonIcons() {
     listenButton.title = "Stop playback";
     listen2Button.title = "Stop playback";
   } else {
-    listenButton.innerHTML = '<i class="fas fa-ear-listen"></i>';
-    listen2Button.innerHTML = '<i class="fas fa-ear-listen"></i>';
+    listenButton.innerHTML = '<i class="fa-solid fa-play"></i>';
+    listen2Button.innerHTML = '<i class="fa-solid fa-play"></i>';
     listenButton.title = "Listen to example";
     listen2Button.title = "Listen to example";
   }
