@@ -206,7 +206,7 @@ function setupWaveformVisualization(stream) {
   console.log("Waveform drawing started.");
 }
 
-// Function to draw WhatsApp-style waveform with improved timer rendering
+// Function to draw WhatsApp-style waveform
 function drawWhatsAppWaveform() {
   if (!isRecording || !analyser || !canvasCtx || !dataArray) return; // Exit if not recording or not setup
 
@@ -246,28 +246,10 @@ function drawWhatsAppWaveform() {
     const seconds = recordingTime % 60;
     const timeText = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 
-    // Clear only the timer area to prevent pixelation
-    const timerWidth = 30; // Estimated width needed for timer
-    const timerHeight = 15; // Estimated height needed for timer
-    const timerX = waveformCanvas.width - timerWidth - 5;
-    const timerY = 0;
-
-    canvasCtx.fillStyle = "#f0f0f0";
-    canvasCtx.fillRect(timerX, timerY, timerWidth, timerHeight);
-
-    // Draw timer text with crisp rendering
     canvasCtx.fillStyle = "#333"; // Timer text color
     canvasCtx.font = "11px Arial"; // Slightly smaller font
     canvasCtx.textAlign = "right";
-    canvasCtx.textBaseline = "top";
-
-    // Use translate/scale to ensure crisp text rendering
-    const scale = window.devicePixelRatio || 1;
-    canvasCtx.save();
-    canvasCtx.translate(waveformCanvas.width - 5, 12);
-    canvasCtx.scale(1 / scale, 1 / scale);
-    canvasCtx.fillText(timeText, 0, 0);
-    canvasCtx.restore();
+    canvasCtx.fillText(timeText, waveformCanvas.width - 5, 12); // Adjust position for smaller canvas
   }
 }
 
