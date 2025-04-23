@@ -206,55 +206,55 @@ function setupWaveformVisualization(stream) {
   waveformContainer.style.display = "flex"; // Show container
   stopRecButton.disabled = false; // Ensure buttons are enabled
   deleteRecButton.disabled = false;
-  drawWhatsAppWaveform();
+  drawSimpleWaveform();
   console.log("Waveform drawing started.");
 }
 
 // Function to draw WhatsApp-style waveform
-function drawWhatsAppWaveform() {
-  if (!isRecording || !analyser || !canvasCtx || !dataArray) return; // Exit if not recording or not setup
+function drawSimpleWaveform() {
+  if (!isRecording || !analyser || !canvasCtx || !dataArray) return;
 
-  // Schedule next frame
-  animationId = requestAnimationFrame(drawWhatsAppWaveform);
-
-  // Get frequency data from analyzer
+  animationId = requestAnimationFrame(drawSimpleWaveform);
   analyser.getByteFrequencyData(dataArray);
 
   // Clear canvas
-  canvasCtx.fillStyle = "#f0f0f0"; // Background color
+  canvasCtx.fillStyle = "#f0f0f0";
   canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
 
-  // --- Draw Bars ---
-  const barCount = 20; // Adjusted for smaller canvas width potentially
-  const barWidth = 4; // Width of each bar
-  const barSpacing = 2; // Space between bars
-  const totalBarAreaWidth = barCount * (barWidth + barSpacing) - barSpacing; // Total width occupied by bars+spaces
-  const startX = (waveformCanvas.width - totalBarAreaWidth) / 2; // Center the bars
-  const maxBarHeight = waveformCanvas.height * 0.8; // Max height relative to canvas height
+  // Draw simple line waveform
+  canvasCtx.lineWidth = 2;
+  canvasCtx.strokeStyle = "#0aa989";
+  canvasCtx.beginPath();
 
-  canvasCtx.fillStyle = "#0aa989"; // Bar color
+  const centerY = waveformCanvas.height / 2;
+  const step = Math.ceil(dataArray.length / waveformCanvas.width);
 
-  for (let i = 0; i < barCount; i++) {
-    const dataIndex = Math.floor((i * dataArray.length) / barCount);
-    const value = dataArray[dataIndex]; // Value from 0 to 255
-    const barHeight = Math.max(2, (value / 255) * maxBarHeight);
-    const x = startX + i * (barWidth + barSpacing);
-    const y = (waveformCanvas.height - barHeight) / 2; // Center vertically
-    canvasCtx.fillRect(x, y, barWidth, barHeight);
+  for (let i = 0; i < waveformCanvas.width; i++) {
+    const value = dataArray[i * step] / 255;
+    const x = i;
+    const y = centerY - value * centerY;
+
+    if (i === 0) {
+      canvasCtx.moveTo(x, y);
+    } else {
+      canvasCtx.lineTo(x, y);
+    }
   }
 
-  // --- Draw Timer ---
+  canvasCtx.stroke();
+
+  // Draw timer (same as before)
   if (recordingStartTime) {
     const recordingTime = Math.floor((Date.now() - recordingStartTime) / 1000);
     const minutes = Math.floor(recordingTime / 60);
     const seconds = recordingTime % 60;
     const timeText = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 
-    canvasCtx.fillStyle = "#333"; // Timer text color
-    canvasCtx.font = "bold 12px Arial"; // Slightly smaller font
+    canvasCtx.fillStyle = "#333";
+    canvasCtx.font = "bold 12px Arial";
     canvasCtx.textAlign = "right";
     canvasCtx.textBaseline = "top";
-    canvasCtx.fillText(timeText, waveformCanvas.width - 5, 5); // Adjust position for smaller canvas
+    canvasCtx.fillText(timeText, waveformCanvas.width - 5, 5);
   }
 }
 
