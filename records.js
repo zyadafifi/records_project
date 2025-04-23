@@ -1197,8 +1197,8 @@ function updateBookmarkIcons() {
     bookmarkIcon.title = "Stop playback";
     bookmarkIcon2.title = "Stop playback";
   } else {
-    bookmarkIcon.innerHTML = '<i class="fa-solid fa-play"></i>';
-    bookmarkIcon2.innerHTML = '<i class="fa-solid fa-play"></i>';
+    bookmarkIcon.innerHTML = '<i class="fa-solid fa-ear-listen"></i>';
+    bookmarkIcon2.innerHTML = '<i class="fa-solid fa-ear-listen"></i>';
     bookmarkIcon.title = "Play recorded audio";
     bookmarkIcon2.title = "Play recorded audio";
   }
