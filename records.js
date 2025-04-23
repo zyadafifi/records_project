@@ -130,11 +130,14 @@ function setupWaveformVisualization(stream) {
     waveformContainer.appendChild(deleteRecButton);
 
     // --- Create Canvas ---
+    const scale = window.devicePixelRatio || 1;
     waveformCanvas = document.createElement("canvas");
     waveformCanvas.id = "waveformCanvas";
-    waveformCanvas.width = 200; // Adjust width to make space for buttons
-    waveformCanvas.height = 50; // Adjust height if needed
-    // Remove margin-top as container handles spacing
+    waveformCanvas.width = 200 * scale; // Adjust width to make space for buttons
+    waveformCanvas.height = 50 * scale;
+    waveformCanvas.style.width = "200px";
+    waveformCanvas.style.height = "50px";
+    canvasCtx.scale(scale, scale); // Remove margin-top as container handles spacing
     // waveformCanvas.style.marginTop = '10px';
     waveformCanvas.style.borderRadius = "4px";
     waveformCanvas.style.backgroundColor = "#f0f0f0";
