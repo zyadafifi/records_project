@@ -709,7 +709,7 @@ function speakSentence() {
   // Check if currently recording - if so, don't allow listening
   if (isRecording) {
     console.log("Cannot listen while recording");
-    afunction speakSentence() {
+    function speakSentence() {
       // Check if currently recording - if so, don't allow listening
       if (isRecording) {
         console.log("Cannot listen while recording");
