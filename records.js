@@ -1191,14 +1191,16 @@ function updateListenButtonIcons() {
 
 //Function to update bookmark icons
 function updateBookmarkIcons() {
-  if (isSpeaking) {
+  if (isPlaying) {
+    // When audio is playing - show pause icon
     bookmarkIcon.innerHTML = '<i class="fas fa-pause"></i>';
     bookmarkIcon2.innerHTML = '<i class="fas fa-pause"></i>';
     bookmarkIcon.title = "Stop playback";
     bookmarkIcon2.title = "Stop playback";
   } else {
-    bookmarkIcon.innerHTML = '<i class="fa-solid fa-ear-listen"></i>';
-    bookmarkIcon2.innerHTML = '<i class="fa-solid fa-ear-listen"></i>';
+    // When no audio is playing - show ear/listen icon
+    bookmarkIcon.innerHTML = '<i class="fas fa-ear-listen"></i>'; // Font Awesome ear icon
+    bookmarkIcon2.innerHTML = '<i class="fas fa-ear-listen"></i>';
     bookmarkIcon.title = "Play recorded audio";
     bookmarkIcon2.title = "Play recorded audio";
   }
