@@ -136,7 +136,7 @@ function setupWaveformVisualization(stream) {
     timerElement.style.fontSize = "12px"; // Smaller font
     timerElement.style.fontWeight = "bold";
     timerElement.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
-    timerElement.style.marginTop = "7px"; // Reduced margin
+    timerElement.style.marginTop = "11px"; // Reduced margin
     timerElement.textContent = "0:00";
 
     // Create and style buttons
