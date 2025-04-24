@@ -149,7 +149,7 @@ function setupWaveformVisualization(stream) {
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
     stopRecButton.innerHTML =
-      '<i class="fas fa-paper-plane" style="font-size: 20px;"></i>';
+      '<i class="fas fa-paper-plane" style="font-size: 20px; background-color: #f0f0f0"></i>';
     stopRecButton.title = "Send Recording";
     stopRecButton.style.color = "#0aa989";
     stopRecButton.style.background = "none";
