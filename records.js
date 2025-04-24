@@ -217,7 +217,7 @@ function setupWaveformVisualization(stream) {
 
 // Function to draw WhatsApp-style waveform
 function drawWhatsAppWaveform() {
-  if (!isRecording || !analyser || !canvasCtx || !dataArray) return; // Exit if not recording or not setup
+  if (!isRecording || !analyser || !canvasCtx || !dataArray) return;
 
   // Schedule next frame
   animationId = requestAnimationFrame(drawWhatsAppWaveform);
@@ -230,21 +230,21 @@ function drawWhatsAppWaveform() {
   canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
 
   // --- Draw Bars ---
-  const barCount = 20; // Adjusted for smaller canvas width potentially
-  const barWidth = 4; // Width of each bar
-  const barSpacing = 2; // Space between bars
-  const totalBarAreaWidth = barCount * (barWidth + barSpacing) - barSpacing; // Total width occupied by bars+spaces
-  const startX = (waveformCanvas.width - totalBarAreaWidth) / 2; // Center the bars
-  const maxBarHeight = waveformCanvas.height * 0.8; // Max height relative to canvas height
+  const barCount = 20; // Number of bars
+  const barWidth = 6; // Increased from 4 to 6 (wider bars)
+  const barSpacing = 3; // Space between bars
+  const totalBarAreaWidth = barCount * (barWidth + barSpacing) - barSpacing;
+  const startX = (waveformCanvas.width - totalBarAreaWidth) / 2;
+  const maxBarHeight = waveformCanvas.height * 0.8;
 
   canvasCtx.fillStyle = "#f0f0f0"; // Bar color
 
   for (let i = 0; i < barCount; i++) {
     const dataIndex = Math.floor((i * dataArray.length) / barCount);
-    const value = dataArray[dataIndex]; // Value from 0 to 255
+    const value = dataArray[dataIndex];
     const barHeight = Math.max(2, (value / 255) * maxBarHeight);
     const x = startX + i * (barWidth + barSpacing);
-    const y = (waveformCanvas.height - barHeight) / 2; // Center vertically
+    const y = (waveformCanvas.height - barHeight) / 2;
     canvasCtx.fillRect(x, y, barWidth, barHeight);
   }
 
@@ -255,11 +255,26 @@ function drawWhatsAppWaveform() {
     const seconds = recordingTime % 60;
     const timeText = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
 
-    canvasCtx.fillStyle = "#333"; // Timer text color
-    canvasCtx.font = "bold 12px Arial"; // Slightly smaller font
-    canvasCtx.textAlign = "right";
-    canvasCtx.textBaseline = "top";
-    canvasCtx.fillText(timeText, waveformCanvas.width - 5, 5); // Adjust position for smaller canvas
+    // Timer styling
+    canvasCtx.fillStyle = "#fff"; // White text for better visibility
+    canvasCtx.font = "bold 14px Arial"; // Slightly larger font
+    canvasCtx.textAlign = "left";
+    canvasCtx.textBaseline = "middle";
+
+    // Position timer on the left side
+    const timerX = 10;
+    const timerY = waveformCanvas.height / 2;
+
+    // Add subtle text shadow for better readability
+    canvasCtx.shadowColor = "rgba(0, 0, 0, 0.3)";
+    canvasCtx.shadowBlur = 2;
+    canvasCtx.shadowOffsetX = 1;
+    canvasCtx.shadowOffsetY = 1;
+
+    canvasCtx.fillText(timeText, timerX, timerY);
+
+    // Reset shadow
+    canvasCtx.shadowColor = "transparent";
   }
 }
 
