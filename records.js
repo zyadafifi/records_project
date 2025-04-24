@@ -140,8 +140,8 @@ function setupWaveformVisualization(stream) {
     waveformCanvas.height = 50; // Adjust height if needed
     // Remove margin-top as container handles spacing
     // waveformCanvas.style.marginTop = '10px';
-    waveformCanvas.style.borderRadius = "4px";
-    waveformCanvas.style.backgroundColor = "#f0f0f0";
+    waveformCanvas.style.borderRadius = "30px";
+    waveformCanvas.style.backgroundColor = "#0aa989";
     waveformCanvas.style.flexGrow = "1"; // Allow canvas to take available space
     waveformContainer.appendChild(waveformCanvas);
 
