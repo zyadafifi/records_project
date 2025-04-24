@@ -136,7 +136,7 @@ function setupWaveformVisualization(stream) {
     // --- Create Canvas ---
     waveformCanvas = document.createElement("canvas");
     waveformCanvas.id = "waveformCanvas";
-    waveformCanvas.style.width = "100%"; // Adjust width to make space for buttons
+    waveformCanvas.style.width = "150%"; // Adjust width to make space for buttons
     waveformCanvas.style.height = "50px"; // Adjust height if needed
     // Remove margin-top as container handles spacing
     // waveformCanvas.style.marginTop = '10px';
