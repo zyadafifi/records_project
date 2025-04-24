@@ -148,15 +148,20 @@ function setupWaveformVisualization(stream) {
     // --- Create Stop Button ---
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
-    stopRecButton.innerHTML =
-      '<i class="fas fa-paper-plane" style="font-size: 20px; background-color: #f0f0f0"></i>';
+    stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
     stopRecButton.title = "Send Recording";
     stopRecButton.style.color = "#0aa989";
-    stopRecButton.style.background = "none";
+    stopRecButton.style.background = "#fff"; // White circular background
+    stopRecButton.style.borderRadius = "50%"; // Make it circular
+    stopRecButton.style.width = "36px"; // Larger size
+    stopRecButton.style.height = "36px";
+    stopRecButton.style.display = "flex";
+    stopRecButton.style.alignItems = "center";
+    stopRecButton.style.justifyContent = "center";
     stopRecButton.style.border = "none";
     stopRecButton.style.fontSize = "1.2em";
     stopRecButton.style.cursor = "pointer";
-    stopRecButton.style.padding = "0 10px";
+    stopRecButton.style.padding = "0";
     stopRecButton.style.transition = "transform 0.2s ease";
     stopRecButton.onmouseover = function () {
       this.style.transform = "scale(1.1)";
