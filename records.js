@@ -112,28 +112,31 @@ function setupWaveformVisualization(stream) {
     waveformContainer.style.display = "flex";
     waveformContainer.style.flexDirection = "column";
     waveformContainer.style.alignItems = "center";
-    waveformContainer.style.width = "100%";
+    waveformContainer.style.width = "250px";
     waveformContainer.style.marginTop = "10px";
-    waveformContainer.style.padding = "8px 15px";
+    waveformContainer.style.marginLeft = "55px";
+    waveformContainer.style.padding = "5px 15px"; // Reduced padding
     waveformContainer.style.backgroundColor = "#0aa989";
     waveformContainer.style.borderRadius = "30px";
     waveformContainer.style.display = "none";
-
+    waveformContainer.style.height = "40px";
     // Create inner container for buttons and waveform
     const controlsContainer = document.createElement("div");
     controlsContainer.style.display = "flex";
     controlsContainer.style.alignItems = "center";
     controlsContainer.style.width = "100%";
+    controlsContainer.style.height = "30px"; // Reduced height
     controlsContainer.style.justifyContent = "space-between";
-    controlsContainer.style.marginBottom = "5px"; // Space between waveform and timer
-
+    controlsContainer.style.marginTop = "0"; // Removed margin
+    controlsContainer.style.marginBottom = "0";
     // Create timer element
     const timerElement = document.createElement("div");
     timerElement.id = "recordingTimer";
-    timerElement.style.color = "#fff";
-    timerElement.style.fontSize = "14px";
+    timerElement.style.color = "#908c8c";
+    timerElement.style.fontSize = "12px"; // Smaller font
     timerElement.style.fontWeight = "bold";
     timerElement.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
+    timerElement.style.marginTop = "7px"; // Reduced margin
     timerElement.textContent = "0:00";
 
     // Create and style buttons
@@ -144,24 +147,24 @@ function setupWaveformVisualization(stream) {
     deleteRecButton.style.background = "none";
     deleteRecButton.style.border = "none";
     deleteRecButton.style.color = "#f0f0f0";
-    deleteRecButton.style.fontSize = "1.2em";
+    deleteRecButton.style.fontSize = "1em"; // Smaller icon
     deleteRecButton.style.cursor = "pointer";
-    deleteRecButton.style.padding = "0 10px";
-
+    deleteRecButton.style.padding = "0 8px";
+    deleteRecButton.style.marginRight = "10px";
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
     stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
     stopRecButton.title = "Send Recording";
     stopRecButton.style.color = "#0aa989";
     stopRecButton.style.background = "#fff";
-    stopRecButton.style.borderRadius = "50%";
-    stopRecButton.style.width = "36px";
-    stopRecButton.style.height = "36px";
-    stopRecButton.style.display = "flex";
+    stopRecButton.style.borderRadius = "80%";
+    stopRecButton.style.width = "35px"; // Smaller button
+    stopRecButton.style.height = "25px"; // Smaller button
+    stopRecButton.style.display = "block";
     stopRecButton.style.alignItems = "center";
     stopRecButton.style.justifyContent = "center";
     stopRecButton.style.border = "none";
-    stopRecButton.style.fontSize = "1.2em";
+    stopRecButton.style.fontSize = "1em"; // Smaller icon
     stopRecButton.style.cursor = "pointer";
     stopRecButton.style.padding = "0";
     stopRecButton.style.transition = "transform 0.2s ease";
@@ -170,9 +173,10 @@ function setupWaveformVisualization(stream) {
     waveformCanvas = document.createElement("canvas");
     waveformCanvas.id = "waveformCanvas";
     waveformCanvas.style.width = "100%";
-    waveformCanvas.style.height = "40px";
+    waveformCanvas.style.height = "25px"; // Reduced height
     waveformCanvas.style.borderRadius = "30px";
     waveformCanvas.style.flexGrow = "1";
+    waveformCanvas.style.margin = "0 5px";
 
     // Build the structure
     controlsContainer.appendChild(deleteRecButton);
@@ -192,33 +196,6 @@ function setupWaveformVisualization(stream) {
     } else {
       document.body.appendChild(waveformContainer);
     }
-
-    // --- Create Stop Button ---
-    stopRecButton = document.createElement("button");
-    stopRecButton.id = "stopRecButton";
-    stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
-    stopRecButton.title = "Send Recording";
-    stopRecButton.style.color = "#0aa989";
-    stopRecButton.style.background = "#fff"; // White circular background
-    stopRecButton.style.borderRadius = "50%"; // Make it circular
-    stopRecButton.style.width = "36px"; // Larger size
-    stopRecButton.style.height = "36px";
-    stopRecButton.style.display = "flex";
-    stopRecButton.style.alignItems = "center";
-    stopRecButton.style.justifyContent = "center";
-    stopRecButton.style.border = "none";
-    stopRecButton.style.fontSize = "1.2em";
-    stopRecButton.style.cursor = "pointer";
-    stopRecButton.style.padding = "0";
-    stopRecButton.style.transition = "transform 0.2s ease";
-    stopRecButton.onmouseover = function () {
-      this.style.transform = "scale(1.1)";
-    };
-    stopRecButton.onmouseout = function () {
-      this.style.transform = "scale(1)";
-    };
-    stopRecButton.onclick = handleStopRecording;
-    waveformContainer.appendChild(stopRecButton);
 
     // Insert container into DOM (adjust placement as needed)
     if (micButtonContainer && micButtonContainer.parentNode) {
@@ -300,7 +277,7 @@ function drawWhatsAppWaveform() {
     const minutes = Math.floor(recordingTime / 60);
     const seconds = recordingTime % 60;
     const timeText = `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
-    
+
     const timerElement = document.getElementById("recordingTimer");
     if (timerElement) {
       timerElement.textContent = timeText;
@@ -368,7 +345,7 @@ function stopWaveformVisualization() {
   if (waveformContainer) {
     waveformContainer.style.display = "none";
   }
-  
+
   if (waveformCanvas && canvasCtx) {
     canvasCtx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
   }
