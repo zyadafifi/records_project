@@ -114,7 +114,7 @@ function setupWaveformVisualization(stream) {
     waveformContainer.style.width = "100%";
     waveformContainer.style.marginTop = "10px";
     waveformContainer.style.padding = "5px";
-    waveformContainer.style.backgroundColor = "#f0f0f0"; // Match canvas background
+    waveformContainer.style.backgroundColor = "#0aa989"; // Match canvas background
     waveformContainer.style.borderRadius = "30px";
     waveformContainer.style.display = "none"; // Initially hidden
     waveformContainer.style.height = "50px";
@@ -141,7 +141,7 @@ function setupWaveformVisualization(stream) {
     // Remove margin-top as container handles spacing
     // waveformCanvas.style.marginTop = '10px';
     waveformCanvas.style.borderRadius = "30px";
-    waveformCanvas.style.backgroundColor = "#0aa989";
+    // waveformCanvas.style.backgroundColor = "#0aa989";
     waveformCanvas.style.flexGrow = "1"; // Allow canvas to take available space
     waveformContainer.appendChild(waveformCanvas);
 
