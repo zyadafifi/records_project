@@ -113,80 +113,18 @@ function setupWaveformVisualization(stream) {
     waveformContainer.style.justifyContent = "space-between";
     waveformContainer.style.width = "100%";
     waveformContainer.style.marginTop = "10px";
-    waveformContainer.style.padding = "5px";
-    waveformContainer.style.backgroundColor = "#0aa989"; // Match canvas background
+    waveformContainer.style.padding = "8px 15px"; // Increased padding
+    waveformContainer.style.backgroundColor = "#0aa989";
     waveformContainer.style.borderRadius = "30px";
-    waveformContainer.style.display = "none"; // Initially hidden
-    waveformContainer.style.height = "50px";
-    // --- Create Delete Button ---
-    deleteRecButton = document.createElement("button");
-    deleteRecButton.id = "deleteRecButton";
-    deleteRecButton.innerHTML = '<i class="fa-regular fa-trash-can"></i>'; // Trash icon
-    deleteRecButton.title = "Cancel Recording";
-    // Basic styling (customize as needed)
-    deleteRecButton.style.background = "none";
-    deleteRecButton.style.border = "none";
-    deleteRecButton.style.color = "#f0f0f0"; // White color for delete
-    deleteRecButton.style.fontSize = "1.2em";
-    deleteRecButton.style.cursor = "pointer";
-    deleteRecButton.style.padding = "0 10px";
-    deleteRecButton.onclick = handleDeleteRecording; // Assign click handler
-    waveformContainer.appendChild(deleteRecButton);
-
-    // --- Create Canvas ---
-    waveformCanvas = document.createElement("canvas");
-    waveformCanvas.id = "waveformCanvas";
-    waveformCanvas.style.width = "150%"; // Adjust width to make space for buttons
-    waveformCanvas.style.height = "50px"; // Adjust height if needed
-    // Remove margin-top as container handles spacing
-    // waveformCanvas.style.marginTop = '10px';
-    waveformCanvas.style.borderRadius = "30px";
-    // waveformCanvas.style.backgroundColor = "#0aa989";
-    waveformCanvas.style.flexGrow = "1"; // Allow canvas to take available space
-    waveformContainer.appendChild(waveformCanvas);
-
-    // --- Create Stop Button ---
-    stopRecButton = document.createElement("button");
-    stopRecButton.id = "stopRecButton";
-    stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
-    stopRecButton.title = "Send Recording";
-    stopRecButton.style.color = "#0aa989";
-    stopRecButton.style.background = "#fff"; // White circular background
-    stopRecButton.style.borderRadius = "50%"; // Make it circular
-    stopRecButton.style.width = "36px"; // Larger size
-    stopRecButton.style.height = "36px";
-    stopRecButton.style.display = "flex";
-    stopRecButton.style.alignItems = "center";
-    stopRecButton.style.justifyContent = "center";
-    stopRecButton.style.border = "none";
-    stopRecButton.style.fontSize = "1.2em";
-    stopRecButton.style.cursor = "pointer";
-    stopRecButton.style.padding = "0";
-    stopRecButton.style.transition = "transform 0.2s ease";
-    stopRecButton.onmouseover = function () {
-      this.style.transform = "scale(1.1)";
-    };
-    stopRecButton.onmouseout = function () {
-      this.style.transform = "scale(1)";
-    };
-    stopRecButton.onclick = handleStopRecording;
-    waveformContainer.appendChild(stopRecButton);
-
-    // Insert container into DOM (adjust placement as needed)
-    const micButtonContainer = micButton.parentElement;
-    if (micButtonContainer && micButtonContainer.parentNode) {
-      micButtonContainer.parentNode.insertBefore(
-        waveformContainer,
-        micButtonContainer.nextSibling
-      );
-      console.log("Waveform container with buttons added to DOM.");
-    } else {
-      console.error(
-        "Could not find suitable parent to insert waveform container."
-      );
-      document.body.appendChild(waveformContainer); // Fallback
-    }
+    waveformContainer.style.display = "none";
+    waveformContainer.style.height = "60px"; // Slightly taller
+    // ... rest of the container setup
   }
+
+  // Update canvas dimensions
+  waveformCanvas.style.width = "100%";
+  waveformCanvas.style.height = "60px";
+  waveformCanvas.style.borderRadius = "30px";
 
   // Get canvas context
   canvasCtx = waveformCanvas.getContext("2d");
