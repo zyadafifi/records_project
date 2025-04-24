@@ -115,9 +115,9 @@ function setupWaveformVisualization(stream) {
     waveformContainer.style.marginTop = "10px";
     waveformContainer.style.padding = "5px";
     waveformContainer.style.backgroundColor = "#f0f0f0"; // Match canvas background
-    waveformContainer.style.borderRadius = "4px";
+    waveformContainer.style.borderRadius = "30px";
     waveformContainer.style.display = "none"; // Initially hidden
-
+    waveformContainer.style.height = "50px";
     // --- Create Delete Button ---
     deleteRecButton = document.createElement("button");
     deleteRecButton.id = "deleteRecButton";
