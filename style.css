@@ -523,3 +523,20 @@ input[type="text"].form-control {
 .continue-to-next-lesson:hover {
   background-color: var(--primary-dark) !important;
 }
+#waveformContainer {
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+#waveformCanvas {
+  margin: 0 10px;
+}
+
+#stopRecButton:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+#recordingTimer {
+  font-family: Arial, sans-serif;
+  letter-spacing: 1px;
+}
