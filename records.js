@@ -139,6 +139,9 @@ function setupWaveformVisualization(stream) {
     waveformCanvas.style.width = "100%";
     waveformCanvas.style.height = "60px";
     waveformCanvas.style.borderRadius = "30px";
+    waveformCanvas.width = waveformCanvas.offsetWidth * 2; // For high DPI displays
+    waveformCanvas.height = waveformCanvas.offsetHeight * 2;
+    canvasCtx.scale(2, 2); // Scale the context to match
     // waveformCanvas.style.backgroundColor = "#0aa989";
     waveformCanvas.style.flexGrow = "1"; // Allow canvas to take available space
     waveformContainer.appendChild(waveformCanvas);
