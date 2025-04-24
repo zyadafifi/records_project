@@ -229,7 +229,7 @@ function drawWhatsAppWaveform() {
   const barWidth = 4; // Width of each bar
   const barSpacing = 2; // Space between bars
   const totalBarAreaWidth = barCount * (barWidth + barSpacing) - barSpacing; // Total width occupied by bars+spaces
-  const startX = waveformCanvas.width - totalBarAreaWidth; // Center the bars
+  const startX = (waveformCanvas.width - totalBarAreaWidth) / 2; // Center the bars
   const maxBarHeight = waveformCanvas.height * 0.8; // Max height relative to canvas height
 
   canvasCtx.fillStyle = "#f0f0f0"; // Bar color
