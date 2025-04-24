@@ -126,7 +126,7 @@ function setupWaveformVisualization(stream) {
     // Basic styling (customize as needed)
     deleteRecButton.style.background = "none";
     deleteRecButton.style.border = "none";
-    deleteRecButton.style.color = "#dc3545"; // Red color for delete
+    deleteRecButton.style.color = "#f0f0f0"; // White color for delete
     deleteRecButton.style.fontSize = "1.2em";
     deleteRecButton.style.cursor = "pointer";
     deleteRecButton.style.padding = "0 10px";
@@ -151,7 +151,7 @@ function setupWaveformVisualization(stream) {
     stopRecButton.innerHTML =
       '<i class="fas fa-paper-plane" style="font-size: 20px; background-color: #f0f0f0"></i>';
     stopRecButton.title = "Send Recording";
-    stopRecButton.style.color = "#f0f0f0";
+    stopRecButton.style.color = "#0aa989";
     stopRecButton.style.background = "none";
     stopRecButton.style.border = "none";
     stopRecButton.style.fontSize = "1.2em";
