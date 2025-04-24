@@ -221,7 +221,7 @@ function drawWhatsAppWaveform() {
   analyser.getByteFrequencyData(dataArray);
 
   // Clear canvas
-  canvasCtx.fillStyle = "#f0f0f0"; // Background color
+  canvasCtx.fillStyle = "#0aa989"; // Background color
   canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
 
   // --- Draw Bars ---
@@ -232,7 +232,7 @@ function drawWhatsAppWaveform() {
   const startX = (waveformCanvas.width - totalBarAreaWidth) / 2; // Center the bars
   const maxBarHeight = waveformCanvas.height * 0.8; // Max height relative to canvas height
 
-  canvasCtx.fillStyle = "#0aa989"; // Bar color
+  canvasCtx.fillStyle = "#f0f0f0"; // Bar color
 
   for (let i = 0; i < barCount; i++) {
     const dataIndex = Math.floor((i * dataArray.length) / barCount);
