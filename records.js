@@ -121,7 +121,7 @@ function setupWaveformVisualization(stream) {
     // --- Create Delete Button ---
     deleteRecButton = document.createElement("button");
     deleteRecButton.id = "deleteRecButton";
-    deleteRecButton.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Trash icon
+    deleteRecButton.innerHTML = '<i class="fa-regular fa-trash-can"></i>'; // Trash icon
     deleteRecButton.title = "Cancel Recording";
     // Basic styling (customize as needed)
     deleteRecButton.style.background = "none";
