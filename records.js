@@ -40,7 +40,15 @@ function closeDialog() {
   dialogContainer.style.display = "none";
   dialogBackdrop.style.display = "none";
 }
+// JavaScript for mobile support
+function addButtonActiveClass(e) {
+  e.currentTarget.classList.add('button-active');
+  setTimeout(() => e.currentTarget.classList.remove('button-active'), 200);
+}
 
+micButton.addEventListener('touchstart', addButtonActiveClass);
+listenButton.addEventListener('touchstart', addButtonActiveClass);
+// ... and so on for other buttons
 // Event listeners for closing the dialog
 document.querySelector(".close-icon").addEventListener("click", closeDialog);
 dialogBackdrop.addEventListener("click", closeDialog);
@@ -112,9 +120,8 @@ function setupWaveformVisualization(stream) {
     waveformContainer.style.display = "flex";
     waveformContainer.style.flexDirection = "column";
     waveformContainer.style.alignItems = "center";
-    waveformContainer.style.width = "250px";
+    waveformContainer.style.width = "100%";
     waveformContainer.style.marginTop = "10px";
-    waveformContainer.style.marginLeft = "55px";
     waveformContainer.style.padding = "5px 15px"; // Reduced padding
     waveformContainer.style.backgroundColor = "#0aa989";
     waveformContainer.style.borderRadius = "30px";
@@ -182,6 +189,8 @@ function setupWaveformVisualization(stream) {
     controlsContainer.appendChild(deleteRecButton);
     controlsContainer.appendChild(waveformCanvas);
     controlsContainer.appendChild(stopRecButton);
+    deleteRecButton.addEventListener("click", handleDeleteRecording);
+    stopRecButton.addEventListener("click", handleStopRecording);
 
     waveformContainer.appendChild(controlsContainer);
     waveformContainer.appendChild(timerElement);
