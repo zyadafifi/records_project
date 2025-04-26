@@ -540,3 +540,35 @@ input[type="text"].form-control {
   font-family: Arial, sans-serif;
   letter-spacing: 1px;
 }
+/* Button click effects - shadows and animations */
+#micButton {
+  transition: all 0.2s ease;
+}
+
+#micButton:active {
+  box-shadow: 0 0 15px rgba(10, 169, 137, 0.8);
+  transform: scale(0.95);
+}
+
+#listenButton, #listen2Button {
+  transition: all 0.2s ease;
+}
+
+#listenButton:active, #listen2Button:active {
+  box-shadow: 0 0 15px rgba(75, 155, 148, 0.8);
+  transform: scale(0.95);
+}
+
+.bookmark-icon, #bookmark-icon2 {
+  transition: all 0.2s ease;
+}
+
+.bookmark-icon:active, #bookmark-icon2:active {
+  box-shadow: 0 0 15px rgba(75, 155, 148, 0.8);
+  transform: scale(0.95);
+}
+/* CSS */
+.button-active {
+  box-shadow: 0 0 15px rgba(75, 155, 148, 0.8);
+  transform: scale(0.95);
+}
