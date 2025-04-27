@@ -123,7 +123,7 @@ function setupWaveformVisualization(stream) {
     waveformContainer.style.width = "100%";
     waveformContainer.style.marginTop = "10px";
     waveformContainer.style.padding = "5px 15px"; // Reduced padding
-    waveformContainer.style.backgroundColor = "#0aa989";
+    waveformContainer.style.backgroundColor = "#4b9b94";
     waveformContainer.style.borderRadius = "30px";
     waveformContainer.style.display = "none";
     waveformContainer.style.height = "40px";
