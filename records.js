@@ -42,12 +42,12 @@ function closeDialog() {
 }
 // JavaScript for mobile support
 function addButtonActiveClass(e) {
-  e.currentTarget.classList.add('button-active');
-  setTimeout(() => e.currentTarget.classList.remove('button-active'), 200);
+  e.currentTarget.classList.add("button-active");
+  setTimeout(() => e.currentTarget.classList.remove("button-active"), 200);
 }
 
-micButton.addEventListener('touchstart', addButtonActiveClass);
-listenButton.addEventListener('touchstart', addButtonActiveClass);
+micButton.addEventListener("touchstart", addButtonActiveClass);
+listenButton.addEventListener("touchstart", addButtonActiveClass);
 // ... and so on for other buttons
 // Event listeners for closing the dialog
 document.querySelector(".close-icon").addEventListener("click", closeDialog);
@@ -258,7 +258,7 @@ function drawWhatsAppWaveform() {
   analyser.getByteFrequencyData(dataArray);
 
   // Clear canvas
-  canvasCtx.fillStyle = "#0aa989";
+  canvasCtx.fillStyle = "#4b9b94";
   canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
 
   // Draw bars
