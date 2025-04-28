@@ -530,6 +530,23 @@ input[type="text"].form-control {
 #waveformCanvas {
   margin: 0 10px;
 }
+#stopRecButton {
+  color: rgb(10, 169, 137);
+  background: rgb(255, 255, 255);
+  border-radius: 50%;
+  width: 29px;
+  height: 29px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  font-size: 14px; /* Use px instead of em for more precise control */
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s;
+  margin-right: 10px;
+  margin-top: 3px;
+}
 
 #stopRecButton:hover {
   transform: scale(1.1);
@@ -550,20 +567,24 @@ input[type="text"].form-control {
   transform: scale(0.95);
 }
 
-#listenButton, #listen2Button {
+#listenButton,
+#listen2Button {
   transition: all 0.2s ease;
 }
 
-#listenButton:active, #listen2Button:active {
+#listenButton:active,
+#listen2Button:active {
   box-shadow: 0 0 15px rgba(75, 155, 148, 0.8);
   transform: scale(0.95);
 }
 
-.bookmark-icon, #bookmark-icon2 {
+.bookmark-icon,
+#bookmark-icon2 {
   transition: all 0.2s ease;
 }
 
-.bookmark-icon:active, #bookmark-icon2:active {
+.bookmark-icon:active,
+#bookmark-icon2:active {
   box-shadow: 0 0 15px rgba(75, 155, 148, 0.8);
   transform: scale(0.95);
 }
@@ -571,4 +592,10 @@ input[type="text"].form-control {
 .button-active {
   box-shadow: 0 0 15px rgba(75, 155, 148, 0.8);
   transform: scale(0.95);
+}
+.fa-paper-plane {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 2px;
 }
