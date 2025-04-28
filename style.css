@@ -568,11 +568,19 @@ input[type="text"].form-control {
 #waveformCanvas {
   margin: 0 10px;
 }
+#deleteRecButton{
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
 #stopRecButton {
   color: rgb(10, 169, 137);
   background: rgb(255, 255, 255);
   border-radius: 50%;
-  width: 29px;
+  width: 40px;
   height: 29px;
   display: flex;
   align-items: center;
@@ -583,9 +591,8 @@ input[type="text"].form-control {
   padding: 0;
   transition: transform 0.2s;
   margin-right: 10px;
-  margin-top: 3px;
+  margin-top: 2px;
 }
-
 #stopRecButton:hover {
   transform: scale(1.1);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
