@@ -119,6 +119,7 @@ function setupWaveformVisualization(stream) {
     waveformContainer.id = "waveformContainer";
     waveformContainer.style.display = "flex";
     waveformContainer.style.flexDirection = "column";
+    waveformContainer.style.justifyContent = "space-between"
     waveformContainer.style.alignItems = "center";
     waveformContainer.style.width = "100%";
     waveformContainer.style.marginTop = "10px";
@@ -136,6 +137,9 @@ function setupWaveformVisualization(stream) {
     controlsContainer.style.justifyContent = "space-between";
     controlsContainer.style.marginTop = "0"; // Removed margin
     controlsContainer.style.marginBottom = "0";
+    controlsContainer.style.padding = "0 15px";
+    controlsContainer.style.gap = "10px";
+
     // Create timer element
     const timerElement = document.createElement("div");
     timerElement.id = "recordingTimer";
@@ -157,24 +161,13 @@ function setupWaveformVisualization(stream) {
     deleteRecButton.style.fontSize = "1em"; // Smaller icon
     deleteRecButton.style.cursor = "pointer";
     deleteRecButton.style.padding = "0 8px";
-    deleteRecButton.style.marginRight = "10px";
+    deleteRecButton.style.margin = "0";
+
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
     stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
     stopRecButton.title = "Send Recording";
-    stopRecButton.style.color = "#0aa989";
-    stopRecButton.style.background = "#fff";
-    stopRecButton.style.borderRadius = "80%";
-    stopRecButton.style.width = "35px"; // Smaller button
-    stopRecButton.style.height = "25px"; // Smaller button
-    stopRecButton.style.display = "block";
-    stopRecButton.style.alignItems = "center";
-    stopRecButton.style.justifyContent = "center";
-    stopRecButton.style.border = "none";
-    stopRecButton.style.fontSize = "1em"; // Smaller icon
-    stopRecButton.style.cursor = "pointer";
-    stopRecButton.style.padding = "0";
-    stopRecButton.style.transition = "transform 0.2s ease";
+   
 
     // Create waveform canvas
     waveformCanvas = document.createElement("canvas");
@@ -183,7 +176,7 @@ function setupWaveformVisualization(stream) {
     waveformCanvas.style.height = "25px"; // Reduced height
     waveformCanvas.style.borderRadius = "30px";
     waveformCanvas.style.flexGrow = "1";
-    waveformCanvas.style.margin = "0 5px";
+    waveformCanvas.style.margin = "0";
 
     // Build the structure
     controlsContainer.appendChild(deleteRecButton);
