@@ -1,19 +1,57 @@
 /* Color Variables */
+
+/* Updated Font Variables */
 :root {
-  --font-english: "Lora", "Nunito", serif; /* Prioritize Lora */
-  --font-arabic: "Amiri", "Cairo", "Tajawal", serif;
+  /* Modern pairing as default */
+  --font-english: "Nunito", sans-serif;
+  --font-arabic: "Tajawal", sans-serif;
+  
+  /* Classic pairing alternative */
+  --font-classic-english: "Lora", serif;
+  --font-classic-arabic: "Amiri", serif;
+  
+  /* Neutral pairing alternative */
+  --font-neutral-english: "Poppins", sans-serif;
+  --font-neutral-arabic: "Cairo", sans-serif;
 }
+
+/* Body text - using modern pairing */
 body {
   font-family: var(--font-english);
 }
+.arabic-text {
+  line-height: 1.8; /* Arabic generally needs more line spacing */
+}
+
+.sentence-text {
+  line-height: 1.6; /* Slightly less for English */
+}
+/* English medium (500) with Arabic bold (700) often works well */
+.sentence-text {
+  font-weight: 500;
+}
+
+.arabic-text {
+  font-weight: 700;
+}
+/* Arabic text elements */
 .arabic-text,
 .tip,
 .tip-2,
 .sentence-text-2 {
   font-family: var(--font-arabic);
+  font-weight: 500; /* Medium weight for better readability */
 }
-.sentence-text {
-  font-family: var(--font-english);
+
+/* For classic content sections */
+.classic-mode .arabic-text,
+.classic-mode .sentence-text-2 {
+  font-family: var(--font-classic-arabic);
+}
+
+.classic-mode body,
+.classic-mode .sentence-text {
+  font-family: var(--font-classic-english);
 }
 .btn,
 button {
