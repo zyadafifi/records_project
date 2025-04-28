@@ -119,7 +119,7 @@ function setupWaveformVisualization(stream) {
     waveformContainer.id = "waveformContainer";
     waveformContainer.style.display = "flex";
     waveformContainer.style.flexDirection = "column";
-    waveformContainer.style.justifyContent = "space-between"
+    waveformContainer.style.justifyContent = "space-between";
     waveformContainer.style.alignItems = "center";
     waveformContainer.style.width = "100%";
     waveformContainer.style.marginTop = "10px";
@@ -167,7 +167,6 @@ function setupWaveformVisualization(stream) {
     stopRecButton.id = "stopRecButton";
     stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
     stopRecButton.title = "Send Recording";
-   
 
     // Create waveform canvas
     waveformCanvas = document.createElement("canvas");
@@ -984,7 +983,7 @@ async function startAudioRecording() {
         pronunciationScoreDiv.textContent = "...";
         micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
         micButton.style.color = "#fff";
-        micButton.style.backgroundColor = "#0aa989";
+        micButton.style.backgroundColor = "#4b9b94";
         micButton.style.animation = "glow 2s infinite alternate";
         const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
         if (transcription !== null) {
