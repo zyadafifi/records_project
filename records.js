@@ -161,7 +161,6 @@ function setupWaveformVisualization(stream) {
     deleteRecButton.style.fontSize = "1em"; // Smaller icon
     deleteRecButton.style.cursor = "pointer";
     deleteRecButton.style.padding = "0 8px";
-    deleteRecButton.style.margin = "0";
 
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
