@@ -759,7 +759,7 @@ function speakSentence() {
     // If already speaking, stop the speech
     speechSynthesis.cancel();
     isSpeaking = false;
-    updateListenButtonIcons();
+    updateListenButtonIcon();
     return;
   }
 
@@ -785,7 +785,7 @@ function speakSentence() {
 
   // Update button immediately
   isSpeaking = true;
-  updateListenButtonIcons();
+  updateListenButtonIcon();
 
   currentUtterance = new SpeechSynthesisUtterance(sentence);
   currentUtterance.lang = "en-US";
@@ -793,14 +793,14 @@ function speakSentence() {
   currentUtterance.onend = function () {
     isSpeaking = false;
     setTimeout(() => {
-      updateListenButtonIcons(); // This will show the sound icon again
+      updateListenButtonIcon(); // This will show the sound icon again
     }, 100); // Small delay to ensure smooth transition
   };
 
   currentUtterance.onerror = function () {
     isSpeaking = false;
     setTimeout(() => {
-      updateListenButtonIcons(); // This will show the sound icon again
+      updateListenButtonIcon(); // This will show the sound icon again
     }, 100); // Small delay to ensure smooth transition
   };
 
