@@ -15,6 +15,8 @@ const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
+const currentSentenceElement = document.querySelector(".current-sentence");
+const totalSentencesElement = document.querySelector(".total-sentences");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
@@ -384,7 +386,13 @@ function resetUI() {
   clearTimeout(recordingTimeout);
   console.log("UI Reset completed.");
 }
+function updateSentenceCounter() {
+  if (lessons.length === 0 || currentLessonIndex === -1) return;
 
+  const currentLesson = lessons[currentLessonIndex];
+  currentSentenceElement.textContent = currentSentenceIndex + 1;
+  totalSentencesElement.textContent = currentLesson.sentences.length;
+}
 // Update the displayed sentence and reset UI
 function updateSentence() {
   if (lessons.length === 0) return; // Ensure lessons are loaded
@@ -392,6 +400,7 @@ function updateSentence() {
 
   // Update the sentence
   sentenceElement.textContent = currentLesson.sentences[currentSentenceIndex];
+  updateSentenceCounter();
 
   // Reset UI
   recognizedTextDiv.textContent = "";
@@ -1369,6 +1378,7 @@ async function loadLessons() {
 
     // Update the UI with the first sentence
     updateSentence();
+    updateSentenceCounter();
   } catch (error) {
     console.error("Error loading lessons:", error);
   }
@@ -1419,7 +1429,7 @@ nextButton.addEventListener("click", () => {
   if (currentSentenceIndex < currentLesson.sentences.length - 1) {
     currentSentenceIndex++;
     updateSentence();
-
+    updateSentenceCounter();
     // Reset recording state and re-enable listen/bookmark buttons
     isRecording = false;
     toggleListenButtons(false);
