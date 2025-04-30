@@ -15,8 +15,8 @@ const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
 const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
-const currentSentenceElement = document.querySelector(".current-sentence");
-const totalSentencesElement = document.querySelector(".total-sentences");
+const currentSentenceElement = document.querySelector(".current-count");
+const totalSentencesElement = document.querySelector(".total-count");
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
