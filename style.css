@@ -851,12 +851,11 @@ input[type="text"].form-control {
 
 #listenButton,
 #listen2Button {
-  transition: all 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
 #listenButton:active,
 #listen2Button:active {
-  box-shadow: 0 0 15px #4b9b94;
   transform: scale(0.95);
 }
 
