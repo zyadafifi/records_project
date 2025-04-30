@@ -102,11 +102,46 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px; /* Adjust the size as needed */
-  height: 30px; /* Adjust the size as needed */
-  background-color: rgba(0, 0, 0, 0.1); /* Background color for the circle */
-  border-radius: 50%; /* Makes the background a circle */
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2); /* Optional: Adds a shadow */
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(75, 155, 148, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.icon-circle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(75, 155, 148, 0.1),
+    transparent
+  );
+  transition: 0.5s;
+}
+
+.icon-circle:hover::before {
+  left: 100%;
+}
+
+.icon-circle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(75, 155, 148, 0.3);
+}
+
+.icon-circle:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(75, 155, 148, 0.2);
 }
 
 .icon-wrapper {
@@ -114,12 +149,82 @@ body {
   border: none;
   padding: 0;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
 }
 
 .sound-icon {
-  width: 24px; /* Adjust the size as needed */
-  height: 24px; /* Adjust the size as needed */
-  color: var(--primary-color);
+  width: 24px;
+  height: 24px;
+  color: #4b9b94;
+  transition: all 0.3s ease;
+}
+
+.bookmark-icon {
+  width: 24px;
+  height: 24px;
+  color: #4b9b94;
+  transition: all 0.3s ease;
+}
+
+.icon-circle:hover .sound-icon,
+.icon-circle:hover .bookmark-icon {
+  transform: scale(1.1);
+  filter: drop-shadow(0 2px 4px rgba(75, 155, 148, 0.3));
+}
+
+.icon-circle:active .sound-icon,
+.icon-circle:active .bookmark-icon {
+  transform: scale(0.95);
+}
+
+/* Active state for icons */
+.icon-circle.active {
+  background: linear-gradient(135deg, #4b9b94 0%, #2c7873 100%);
+  animation: pulse 2s infinite;
+}
+
+.icon-circle.active .sound-icon,
+.icon-circle.active .bookmark-icon {
+  color: white;
+}
+
+/* Disabled state */
+.icon-circle.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: #f8f9fa;
+}
+
+.icon-circle.disabled .sound-icon,
+.icon-circle.disabled .bookmark-icon {
+  color: #6c757d;
+}
+
+/* Update the icon colors */
+.sound-icon path,
+.bookmark-icon path {
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(75, 155, 148, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(75, 155, 148, 0.4);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(75, 155, 148, 0.3);
+  }
 }
 
 /* Mic Icon */
@@ -130,7 +235,8 @@ body {
   cursor: pointer;
   /* color: #0aa989; */
   color: #fff;
-  transition: color 0.3s ease;
+  transition: all 0.3s ease;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 /* Mic Circle */
@@ -138,14 +244,103 @@ body {
   width: 100px;
   height: 40px;
   border-radius: 50px;
-  background-color: #4b9b94;
-  border: 2px solid #4b9b94;
+  background: linear-gradient(135deg, #4b9b94 0%, #2c7873 100%);
+  border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-  animation: pulse 2s infinite, glow 2s infinite alternate; /* Combine animations */
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(75, 155, 148, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.mic-circle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  transition: 0.5s;
+}
+
+.mic-circle:hover::before {
+  left: 100%;
+}
+
+.mic-circle:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(75, 155, 148, 0.4);
+  background: linear-gradient(135deg, #2c7873 0%, #4b9b94 100%);
+}
+
+.mic-circle:active {
+  transform: translateY(1px);
+  box-shadow: 0 2px 8px rgba(75, 155, 148, 0.3);
+}
+
+.mic-circle:hover .mic-icon {
+  transform: scale(1.1);
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(75, 155, 148, 0.3);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(75, 155, 148, 0.4);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 4px 12px rgba(75, 155, 148, 0.3);
+  }
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 5px rgba(75, 155, 148, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(75, 155, 148, 0.8);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(75, 155, 148, 0.5);
+  }
+}
+
+.mic-circle {
+  animation: pulse 2s infinite, glow 2s infinite alternate;
+}
+
+.mic-circle:hover {
+  animation: none;
+}
+
+/* Recording state styles */
+.mic-circle.recording {
+  background: linear-gradient(135deg, #ff4444 0%, #cc0000 100%);
+  animation: none;
+  box-shadow: 0 4px 12px rgba(255, 68, 68, 0.4);
+}
+
+.mic-circle.recording:hover {
+  background: linear-gradient(135deg, #cc0000 0%, #ff4444 100%);
+  box-shadow: 0 6px 16px rgba(255, 68, 68, 0.5);
+}
+
+.mic-circle.recording .mic-icon {
+  animation: pulse 1s infinite;
 }
 
 @keyframes pulse {
@@ -153,30 +348,11 @@ body {
     transform: scale(1);
   }
   50% {
-    transform: scale(1.05);
+    transform: scale(1.1);
   }
   100% {
     transform: scale(1);
   }
-}
-
-@keyframes glow {
-  0% {
-    box-shadow: 0 0 5px rgba(69, 122, 118, 0.5); /* Primary color w/ alpha */
-  }
-  100% {
-    box-shadow: 0 0 20px rgba(69, 122, 118, 0.8); /* Primary color w/ alpha */
-  }
-}
-
-.mic-circle:hover {
-  background-color: #4b9b94;
-  transform: scale(1.1);
-  animation: none; /* Stop animation on hover */
-}
-
-.mic-circle:hover .mic-icon {
-  color: #fff;
 }
 
 /* Sound & Bookmark Icons */
@@ -589,9 +765,8 @@ input[type="text"].form-control {
   border-radius: 50px;
   box-shadow: 0 4px 12px rgba(75, 155, 148, 0.3);
   color: white;
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
 }
-
 
 .current-count {
   font-size: 22px;
@@ -604,7 +779,6 @@ input[type="text"].form-control {
   font-size: 18px;
   opacity: 0.7;
 }
-
 
 .total-count {
   font-size: 18px;
@@ -706,4 +880,35 @@ input[type="text"].form-control {
   align-items: center;
   justify-content: center;
   padding-right: 2px;
+}
+
+/* Simple Progress Bar */
+.simple-progress {
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.simple-progress-bar {
+  flex: 1;
+  height: 4px;
+  background-color: #e9ecef;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.simple-progress-fill {
+  height: 100%;
+  background-color: #4b9b94;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.simple-progress-percentage {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4b9b94;
+  min-width: 45px;
+  text-align: right;
 }
