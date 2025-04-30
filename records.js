@@ -1245,37 +1245,37 @@ function updateListenButtonIcons() {
     listen2Button.title = "Stop playback";
   } else {
     listenButton.innerHTML = `<svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  stroke="currentColor"
-                  class="sound-icon"
-                  style="color: #4b9b94"
-                >
-                  <path
-                    fill="#4b9b94"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
-                  ></path>
-                </svg>`;
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke-width="1.5"
+      stroke="currentColor"
+      class="sound-icon"
+      style="color: #4b9b94; width: 24px; height: 24px"
+    >
+      <path
+        fill="#4b9b94"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+      ></path>
+    </svg>`;
     listen2Button.innerHTML = `<svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke-width="1.5"
-                  stroke="currentColor"
-                  class="sound-icon"
-                  style="color: #4b9b94"
-                >
-                  <path
-                    fill="#4b9b94"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
-                  ></path>
-                </svg>`;
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke-width="1.5"
+      stroke="currentColor"
+      class="sound-icon"
+      style="color: #4b9b94; width: 24px; height: 24px"
+    >
+      <path
+        fill="#4b9b94"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+      ></path>
+    </svg>`;
     listenButton.title = "Listen to example";
     listen2Button.title = "Listen to example";
   }
@@ -1517,7 +1517,12 @@ function updateSimpleProgress() {
 
   const currentLesson = lessons[currentLessonIndex];
   const totalSentences = currentLesson.sentences.length;
-  const progress = ((currentSentenceIndex + 1) / totalSentences) * 100;
+
+  // Calculate progress based on total pronunciation score
+  const progress =
+    totalSentencesSpoken > 0
+      ? (totalPronunciationScore / (totalSentencesSpoken * 100)) * 100
+      : 0;
 
   const simpleProgressFill = document.querySelector(".simple-progress-fill");
   const simpleProgressPercentage = document.querySelector(
