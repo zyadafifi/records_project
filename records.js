@@ -865,12 +865,12 @@ function updateListenButtonIcon() {
     listen2Button.title = "Stop playback";
   } else {
     listenButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
-        <path fill="#4b9b94" d="M215.03 71.05L126.06 160H24c-13.26 0-24 10.74-24 24v144c0 13.25 10.74 24 24 24h102.06l88.97 88.95c15.03 15.03 40.97 4.47 40.97-16.97V88.02c0-21.46-25.96-31.98-40.97-16.97zm233.32-51.08c-11.17-7.33-26.18-4.24-33.51 6.95-7.34 11.17-4.22 26.18 6.95 33.51 66.27 43.49 105.82 116.6 105.82 195.58 0 78.98-39.55 152.09-105.82 195.58-11.17 7.32-14.29 22.34-6.95 33.5 7.04 10.71 21.93 14.56 33.51 6.95C528.27 439.58 576 351.33 576 256S528.27 72.43 448.35 19.97zM480 256c0-63.53-32.06-121.94-85.77-156.24-11.19-7.14-26.03-3.82-33.12 7.46s-3.78 26.21 7.41 33.36C408.27 165.97 432 209.11 432 256s-23.73 90.03-63.48 115.42c-11.19 7.14-14.5 22.07-7.41 33.36 6.51 10.36 21.12 15.14 33.12 7.46C447.94 377.94 480 319.54 480 256zm-141.77-76.87c-11.58-6.33-26.19-2.16-32.61 9.45-6.39 11.61-2.16 26.2 9.45 32.61C327.98 228.28 336 241.63 336 256c0 14.38-8.02 27.72-20.92 34.81-11.61 6.41-15.84 21-9.45 32.61 6.43 11.66 21.05 15.8 32.61 9.45 28.23-15.55 45.77-45 45.77-76.88s-17.54-61.32-45.78-76.86z"/>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
+        <path fill="#4b9b94" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"/>
       </svg>`;
     listen2Button.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
-        <path fill="#4b9b94" d="M215.03 71.05L126.06 160H24c-13.26 0-24 10.74-24 24v144c0 13.25 10.74 24 24 24h102.06l88.97 88.95c15.03 15.03 40.97 4.47 40.97-16.97V88.02c0-21.46-25.96-31.98-40.97-16.97zm233.32-51.08c-11.17-7.33-26.18-4.24-33.51 6.95-7.34 11.17-4.22 26.18 6.95 33.51 66.27 43.49 105.82 116.6 105.82 195.58 0 78.98-39.55 152.09-105.82 195.58-11.17 7.32-14.29 22.34-6.95 33.5 7.04 10.71 21.93 14.56 33.51 6.95C528.27 439.58 576 351.33 576 256S528.27 72.43 448.35 19.97zM480 256c0-63.53-32.06-121.94-85.77-156.24-11.19-7.14-26.03-3.82-33.12 7.46s-3.78 26.21 7.41 33.36C408.27 165.97 432 209.11 432 256s-23.73 90.03-63.48 115.42c-11.19 7.14-14.5 22.07-7.41 33.36 6.51 10.36 21.12 15.14 33.12 7.46C447.94 377.94 480 319.54 480 256zm-141.77-76.87c-11.58-6.33-26.19-2.16-32.61 9.45-6.39 11.61-2.16 26.2 9.45 32.61C327.98 228.28 336 241.63 336 256c0 14.38-8.02 27.72-20.92 34.81-11.61 6.41-15.84 21-9.45 32.61 6.43 11.66 21.05 15.8 32.61 9.45 28.23-15.55 45.77-45 45.77-76.88s-17.54-61.32-45.78-76.86z"/>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
+        <path fill="#4b9b94" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"/>
       </svg>`;
     listenButton.title = "Listen to example";
     listen2Button.title = "Listen to example";
@@ -1134,5 +1134,138 @@ function updateSimpleProgress() {
   }
   if (simpleProgressPercentage) {
     simpleProgressPercentage.textContent = `${Math.round(progress)}%`;
+  }
+}
+
+// Function to start audio recording
+async function startAudioRecording() {
+  try {
+    // Request microphone access
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+    // Initialize recording state
+    isRecording = true;
+    audioChunks = [];
+    recordingStartTime = Date.now();
+    speechDetected = false;
+
+    // Show recording indicator
+    document.getElementById("recordingIndicator").style.display = "block";
+
+    // Setup waveform visualization
+    setupWaveformVisualization(stream);
+
+    // Create MediaRecorder instance
+    mediaRecorder = new MediaRecorder(stream);
+
+    // Handle data available event
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    };
+
+    // Handle recording stop event
+    mediaRecorder.onstop = async () => {
+      if (isRecordingCancelled) {
+        console.log("Recording was cancelled, not processing audio.");
+        return;
+      }
+
+      // Create audio blob from chunks
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+
+      // Stop all tracks in the stream
+      stream.getTracks().forEach((track) => track.stop());
+
+      // Process the recorded audio
+      await processRecordedAudio(recordedAudioBlob);
+    };
+
+    // Start recording
+    mediaRecorder.start();
+
+    // Set timeout for no speech detection
+    noSpeechTimeout = setTimeout(() => {
+      if (
+        !speechDetected &&
+        mediaRecorder &&
+        mediaRecorder.state === "recording"
+      ) {
+        console.log("No speech detected, stopping recording");
+        mediaRecorder.stop();
+      }
+    }, NO_SPEECH_TIMEOUT_MS);
+  } catch (error) {
+    console.error("Error starting audio recording:", error);
+    alert(
+      "Error accessing microphone. Please ensure you have granted microphone permissions."
+    );
+    resetUI();
+  }
+}
+
+// Function to process recorded audio
+async function processRecordedAudio(audioBlob) {
+  try {
+    // Create FormData and append audio
+    const formData = new FormData();
+    formData.append("audio", audioBlob, "recording.wav");
+
+    // Send to AssemblyAI for transcription
+    const response = await fetch("https://api.assemblyai.com/v2/upload", {
+      method: "POST",
+      headers: {
+        Authorization: ASSEMBLYAI_API_KEY,
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to upload audio");
+    }
+
+    const { upload_url } = await response.json();
+
+    // Get transcription
+    const transcriptResponse = await fetch(
+      "https://api.assemblyai.com/v2/transcript",
+      {
+        method: "POST",
+        headers: {
+          Authorization: ASSEMBLYAI_API_KEY,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          audio_url: upload_url,
+          language_code: "en",
+        }),
+      }
+    );
+
+    if (!transcriptResponse.ok) {
+      throw new Error("Failed to get transcription");
+    }
+
+    const { text } = await transcriptResponse.json();
+
+    // Get current sentence
+    const currentLesson = lessons[currentLessonIndex];
+    const expectedSentence = currentLesson.sentences[currentSentenceIndex];
+
+    // Calculate pronunciation score
+    const score = calculatePronunciationScore(text, expectedSentence);
+
+    // Update UI with results
+    updateProgressCircle(score);
+    openDialog();
+
+    // Update statistics
+    totalSentencesSpoken++;
+    totalPronunciationScore += score;
+  } catch (error) {
+    console.error("Error processing audio:", error);
+    alert("Error processing audio. Please try again.");
+    resetUI();
   }
 }
