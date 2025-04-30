@@ -1317,16 +1317,10 @@ function updateBookmarkIcons() {
 }
 // Event listeners
 listenButton.addEventListener("click", function () {
-  // Add visual feedback
-  this.classList.add("active");
-  setTimeout(() => this.classList.remove("active"), 200);
   speakSentence();
 });
 
 listen2Button.addEventListener("click", function () {
-  // Add visual feedback
-  this.classList.add("active");
-  setTimeout(() => this.classList.remove("active"), 200);
   speakSentence();
 });
 
