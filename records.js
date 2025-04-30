@@ -741,6 +741,9 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     nextButton.style.backgroundColor = "#0aa989"; // Reset to default color
   }
 
+  // Update progress bar immediately after score calculation
+  updateSimpleProgress();
+
   return Math.round(pronunciationScore);
 }
 
@@ -1022,6 +1025,9 @@ async function startAudioRecording() {
           totalSentencesSpoken++;
           totalPronunciationScore += pronunciationScore;
           console.log("Score calculated and totals updated.");
+
+          // Update progress bar immediately after score calculation
+          updateSimpleProgress();
 
           // Restore mic icon after transcription is complete
           micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
