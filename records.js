@@ -759,7 +759,7 @@ function speakSentence() {
     // If already speaking, stop the speech
     speechSynthesis.cancel();
     isSpeaking = false;
-    updateListenButtonIcon();
+    updateListenButtonIcons();
     return;
   }
 
@@ -785,23 +785,19 @@ function speakSentence() {
 
   // Update button immediately
   isSpeaking = true;
-  updateListenButtonIcon();
+  updateListenButtonIcons();
 
   currentUtterance = new SpeechSynthesisUtterance(sentence);
   currentUtterance.lang = "en-US";
 
   currentUtterance.onend = function () {
     isSpeaking = false;
-    setTimeout(() => {
-      updateListenButtonIcon(); // This will show the sound icon again
-    }, 100); // Small delay to ensure smooth transition
+    updateListenButtonIcons();
   };
 
   currentUtterance.onerror = function () {
     isSpeaking = false;
-    setTimeout(() => {
-      updateListenButtonIcon(); // This will show the sound icon again
-    }, 100); // Small delay to ensure smooth transition
+    updateListenButtonIcons();
   };
 
   speechSynthesis.speak(currentUtterance);
@@ -853,25 +849,433 @@ function playRecordedAudio() {
 }
 function updateListenButtonIcon() {
   if (isSpeaking) {
+    listenButton.innerHTML = '<i class="fas fa-pause"></i>';
+    listen2Button.innerHTML = '<i class="fas fa-pause"></i>';
+    listenButton.title = "Stop playback";
+    listen2Button.title = "Stop playback";
+  } else {
+    listenButton.innerHTML = '<i class="fa-solid fa-play"></i>';
+    listen2Button.innerHTML = '<i class="fa-solid fa-play">';
+    listenButton.title = "Listen to example";
+    listen2Button.title = "Listen to example";
+  }
+}
+
+// Toggle listen buttons state
+function toggleListenButtons(disabled) {
+  listenButton.disabled = disabled;
+  listen2Button.disabled = disabled;
+
+  // Visual feedback on disabled buttons
+  if (disabled) {
+    listenButton.style.opacity = "0.5";
+    listen2Button.style.opacity = "0.5";
+    listenButton.title = "Cannot listen while recording";
+    listen2Button.title = "Cannot listen while recording";
+  } else {
+    listenButton.style.opacity = "1";
+    listen2Button.style.opacity = "1";
+    updateListenButtonIcons();
+  }
+}
+// Toggle bookmark buttons state
+function toggleBookmarkButtons(disabled) {
+  bookmarkIcon.disabled = disabled;
+  bookmarkIcon2.disabled = disabled;
+
+  // Visual feedback on disabled buttons
+  if (disabled) {
+    bookmarkIcon.style.opacity = "0.5";
+    bookmarkIcon2.style.opacity = "0.5";
+    bookmarkIcon.title = "Cannot play audio while recording";
+    bookmarkIcon2.title = "Cannot play audio while recording";
+  } else {
+    bookmarkIcon.style.opacity = "1";
+    bookmarkIcon2.style.opacity = "1";
+    updateBookmarkIcons();
+  }
+}
+
+// Constants for recording
+const RECORDING_DURATION = 5000; // 5 seconds recording time
+let recordingTimeout;
+
+// Start audio recording with automatic stop
+async function startAudioRecording() {
+  console.log("startAudioRecording called");
+  // Ensure AudioContext is ready (important for iOS/Safari)
+  initializeAudioContext();
+  await resumeAudioContext();
+
+  if (!audioContext) {
+    alert("AudioContext could not be initialized. Cannot record.");
+    return;
+  }
+
+  try {
+    console.log("Requesting microphone access...");
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log("Microphone access granted.");
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    console.log("MediaRecorder created.");
+
+    // Set recording flag, start time, toggle buttons
+    isRecording = true;
+    recordingStartTime = Date.now();
+    toggleListenButtons(true);
+    toggleBookmarkButtons(true);
+    isRecordingCancelled = false; // Ensure flag is reset
+
+    // Setup and start waveform visualization (this now shows the container)
+    setupWaveformVisualization(stream);
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0 && !isRecordingCancelled) {
+        // Don't collect if cancelled
+        audioChunks.push(event.data);
+      }
+    };
+
+    // Assign the NORMAL onstop handler HERE
+    mediaRecorder.onstop = async () => {
+      console.log("mediaRecorder.onstop triggered.");
+
+      // ***** Check Cancellation Flag *****
+      if (isRecordingCancelled) {
+        console.log("onstop: Recording was cancelled, skipping processing.");
+        // UI reset should have already happened in handleDeleteRecording
+        isRecordingCancelled = false; // Reset flag just in case
+        return;
+      }
+
+      // Stop the waveform visual (should be quick)
+      stopWaveformVisualization();
+
+      // --- Normal stop processing ---
+      if (audioChunks.length === 0) {
+        console.warn(
+          "No audio chunks recorded. Recording might have been too short or silent."
+        );
+        resetUI();
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      console.log(
+        "Recorded audio blob created, size:",
+        recordedAudioBlob?.size
+      );
+      audioChunks = []; // Clear chunks
+
+      // UI Updates after stopping normally
+      micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+      micButton.style.backgroundColor = "";
+      micButton.disabled = false;
+      micButton.style.color = "#fff";
+      micButton.style.display = "inline-block";
+      micButton.style.opacity = "1";
+      micButton.classList.remove("recording");
+      micButton.style.animation =
+        "pulse 2s infinite, glow 2s infinite alternate";
+
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      document.getElementById("recordingIndicator").style.display = "none";
+
+      // Set recording flag false AFTER UI updates
+      isRecording = false;
+      recordingStartTime = null;
+      toggleListenButtons(false);
+      toggleBookmarkButtons(false);
+      console.log("UI updated after normal recording stop.");
+
+      // Stop tracks
+      console.log("Stopping media stream tracks normally...");
+      stream.getTracks().forEach((track) => track.stop());
+      console.log("Media stream tracks stopped normally.");
+
+      // Upload for transcription
+      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
+        console.log("Uploading audio for transcription...");
+        recognizedTextDiv.innerHTML =
+          '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
+        pronunciationScoreDiv.textContent = "...";
+        micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        micButton.style.color = "#fff";
+        micButton.style.backgroundColor = "#4b9b94";
+        micButton.style.animation = "glow 2s infinite alternate";
+        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+        if (transcription !== null) {
+          console.log("Transcription received:", transcription);
+          const currentLesson = lessons[currentLessonIndex];
+          const pronunciationScore = calculatePronunciationScore(
+            transcription,
+            currentLesson.sentences[currentSentenceIndex]
+          );
+          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+          updateProgressCircle(pronunciationScore);
+          totalSentencesSpoken++;
+          totalPronunciationScore += pronunciationScore;
+          console.log("Score calculated and totals updated.");
+
+          // Restore mic icon after transcription is complete
+          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+          micButton.style.color = "#fff";
+          micButton.style.backgroundColor = "";
+          micButton.style.display = "inline-block";
+          micButton.style.opacity = "1";
+          micButton.classList.remove("recording");
+          micButton.style.animation =
+            "pulse 2s infinite, glow 2s infinite alternate";
+
+          openDialog();
+          console.log("Dialog opened.");
+        } else {
+          console.log(
+            "Transcription was null, likely an error during processing."
+          );
+          recognizedTextDiv.textContent = "(Transcription failed)";
+          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+          micButton.style.color = "#fff";
+          micButton.style.backgroundColor = "";
+          micButton.style.display = "inline-block";
+          micButton.style.opacity = "1";
+          micButton.classList.remove("recording");
+          micButton.style.animation =
+            "pulse 2s infinite, glow 2s infinite alternate";
+        }
+      } else {
+        console.warn(
+          "Recorded audio blob is empty or very small, skipping transcription."
+        );
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+      }
+    };
+
+    mediaRecorder.onerror = (event) => {
+      console.error("MediaRecorder error:", event.error);
+      alert(`Recording error: ${event.error.name} - ${event.error.message}`);
+      // Reset UI on error
+      resetUI(); // resetUI already calls stopWaveformVisualization
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop()); // Stop stream on error
+      }
+    };
+
+    // Start recording
+    mediaRecorder.start(100);
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#ff0000";
+    micButton.disabled = true;
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
+    console.log("UI updated for recording start.");
+
+    // Set timeout to automatically stop recording after RECORDING_DURATION
+    clearTimeout(recordingTimeout); // Clear any previous timeout
+    recordingTimeout = setTimeout(() => {
+      console.log("Recording duration timeout reached.");
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        console.log("Stopping recorder due to timeout...");
+        mediaRecorder.stop();
+      }
+    }, RECORDING_DURATION);
+    console.log(`Recording timeout set for ${RECORDING_DURATION}ms`);
+  } catch (error) {
+    console.error("Error in startAudioRecording:", error);
+    alert(
+      `Could not start recording: ${error.message}. Please check microphone permissions.`
+    );
+
+    // Ensure recording flag is reset and buttons are re-enabled in case of error
+    isRecording = false;
+    recordingStartTime = null;
+    toggleListenButtons(false);
+    toggleBookmarkButtons(false);
+    // Make sure waveform is stopped and hidden on error
+    stopWaveformVisualization();
+  }
+}
+
+// Upload audio to AssemblyAI and get transcription
+async function uploadAudioToAssemblyAI(audioBlob) {
+  try {
+    // Step 1: Upload the audio file to AssemblyAI
+    const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
+      method: "POST",
+      headers: {
+        authorization: ASSEMBLYAI_API_KEY,
+        "content-type": "application/octet-stream",
+      },
+      body: audioBlob,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Failed to upload audio: ${uploadResponse.statusText}`);
+    }
+
+    const uploadData = await uploadResponse.json();
+    const audioUrl = uploadData.upload_url;
+
+    // Step 2: Submit the transcription request
+    const transcriptionResponse = await fetch(
+      "https://api.assemblyai.com/v2/transcript",
+      {
+        method: "POST",
+        headers: {
+          authorization: ASSEMBLYAI_API_KEY,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          audio_url: audioUrl,
+        }),
+      }
+    );
+
+    if (!transcriptionResponse.ok) {
+      throw new Error(
+        `Failed to submit transcription request: ${transcriptionResponse.statusText}`
+      );
+    }
+
+    const transcriptionData = await transcriptionResponse.json();
+    const transcriptId = transcriptionData.id;
+
+    // Step 3: Poll for the transcription result
+    let transcriptionResult;
+    while (true) {
+      const statusResponse = await fetch(
+        `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
+        {
+          headers: {
+            authorization: ASSEMBLYAI_API_KEY,
+          },
+        }
+      );
+
+      if (!statusResponse.ok) {
+        throw new Error(
+          `Failed to get transcription status: ${statusResponse.statusText}`
+        );
+      }
+
+      const statusData = await statusResponse.json();
+      if (statusData.status === "completed") {
+        transcriptionResult = statusData.text;
+        break;
+      } else if (statusData.status === "error") {
+        throw new Error("Transcription failed");
+      }
+
+      // Wait for 1 second before polling again
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    return transcriptionResult;
+  } catch (error) {
+    console.error("Error in AssemblyAI transcription:", error);
+    alert("Failed to transcribe audio. Please try again.");
+    return null;
+  }
+}
+
+// Play the recorded audio
+function playRecordedAudio() {
+  if (!recordedAudioBlob) {
+    alert("No recorded audio available.");
+    return;
+  }
+
+  // Prevent playing recorded audio during recording
+  if (isRecording) {
+    console.log("Cannot play audio while recording");
+    alert("Cannot play audio while recording. Please finish recording first.");
+    return;
+  }
+
+  if (isPlaying) {
+    // If already playing, stop the audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+    }
+    isPlaying = false;
+    updateBookmarkIcons();
+    return;
+  }
+
+  const audioURL = URL.createObjectURL(recordedAudioBlob);
+  currentAudio = new Audio(audioURL);
+
+  // Update button immediately
+  isPlaying = true;
+  updateBookmarkIcons();
+
+  currentAudio.play();
+
+  currentAudio.onended = function () {
+    isPlaying = false;
+    updateBookmarkIcons();
+  };
+
+  currentAudio.onerror = function () {
+    isPlaying = false;
+    updateBookmarkIcons();
+  };
+}
+// Function to update listen button icons
+function updateListenButtonIcons() {
+  if (isSpeaking) {
     listenButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94; width: 24px; height: 24px">
         <path fill="#4b9b94" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
       </svg>`;
     listen2Button.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94; width: 24px; height: 24px">
         <path fill="#4b9b94" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
       </svg>`;
     listenButton.title = "Stop playback";
     listen2Button.title = "Stop playback";
   } else {
-    listenButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
-        <path fill="#4b9b94" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"/>
-      </svg>`;
-    listen2Button.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
-        <path fill="#4b9b94" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"/>
-      </svg>`;
+    listenButton.innerHTML = `<svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="sound-icon"
+                  style="color: #4b9b94"
+                >
+                  <path
+                    fill="#4b9b94"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+                  ></path>
+                </svg>`;
+    listen2Button.innerHTML = `<svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke-width="1.5"
+                  stroke="currentColor"
+                  class="sound-icon"
+                  style="color: #4b9b94"
+                >
+                  <path
+                    fill="#4b9b94"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+                  ></path>
+                </svg>`;
     listenButton.title = "Listen to example";
     listen2Button.title = "Listen to example";
   }
@@ -882,23 +1286,23 @@ function updateBookmarkIcons() {
   if (isPlaying) {
     // When audio is playing - show pause icon
     bookmarkIcon.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94">
         <path fill="#4b9b94" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
       </svg>`;
     bookmarkIcon2.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94">
         <path fill="#4b9b94" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
       </svg>`;
     bookmarkIcon.title = "Stop playback";
     bookmarkIcon2.title = "Stop playback";
   } else {
-    // When no audio is playing - show ear icon
+    // When no audio is playing - show ear icon (your original SVG)
     bookmarkIcon.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color: #4b9b94">
         <path fill="#4b9b94" d="M398.3 3.4c-15.8-7.9-35-1.5-42.9 14.3c-7.9 15.8-1.5 34.9 14.2 42.9l.4 .2c.4 .2 1.1 .6 2.1 1.2c2 1.2 5 3 8.7 5.6c7.5 5.2 17.6 13.2 27.7 24.2C428.5 113.4 448 146 448 192c0 17.7 14.3 32 32 32s32-14.3 32-32c0-66-28.5-113.4-56.5-143.7C441.6 33.2 427.7 22.2 417.3 15c-5.3-3.7-9.7-6.4-13-8.3c-1.6-1-3-1.7-4-2.2c-.5-.3-.9-.5-1.2-.7l-.4-.2-.2-.1c0 0 0 0-.1 0c0 0 0 0 0 0L384 32 398.3 3.4zM128.7 227.5c6.2-56 53.7-99.5 111.3-99.5c61.9 0 112 50.1 112 112c0 29.3-11.2 55.9-29.6 75.9c-17 18.4-34.4 45.1-34.4 78l0 6.1c0 26.5-21.5 48-48 48c-17.7 0-32 14.3-32 32s14.3 32 32 32c61.9 0 112-50.1 112-112l0-6.1c0-9.8 5.4-21.7 17.4-34.7C398.3 327.9 416 286 416 240c0-97.2-78.8-176-176-176C149.4 64 74.8 132.5 65.1 220.5c-1.9 17.6 10.7 33.4 28.3 35.3s33.4-10.7 35.3-28.3zM32 512a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM192 352a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3l64 64c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-64-64c-12.5-12.5-32.8-12.5-45.3 0zM208 240c0-17.7 14.3-32 32-32s32 14.3 32 32c0 13.3 10.7 24 24 24s24-10.7 24-24c0-44.2-35.8-80-80-80s-80 35.8-80 80c0 13.3 10.7 24 24 24s24-10.7 24-24z"/>
       </svg>`;
     bookmarkIcon2.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color: #4b9b94; width: 24px; height: 24px; background-color: white; transition: all 0.3s ease;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color: #4b9b94">
         <path fill="#4b9b94" d="M398.3 3.4c-15.8-7.9-35-1.5-42.9 14.3c-7.9 15.8-1.5 34.9 14.2 42.9l.4 .2c.4 .2 1.1 .6 2.1 1.2c2 1.2 5 3 8.7 5.6c7.5 5.2 17.6 13.2 27.7 24.2C428.5 113.4 448 146 448 192c0 17.7 14.3 32 32 32s32-14.3 32-32c0-66-28.5-113.4-56.5-143.7C441.6 33.2 427.7 22.2 417.3 15c-5.3-3.7-9.7-6.4-13-8.3c-1.6-1-3-1.7-4-2.2c-.5-.3-.9-.5-1.2-.7l-.4-.2-.2-.1c0 0 0 0-.1 0c0 0 0 0 0 0L384 32 398.3 3.4zM128.7 227.5c6.2-56 53.7-99.5 111.3-99.5c61.9 0 112 50.1 112 112c0 29.3-11.2 55.9-29.6 75.9c-17 18.4-34.4 45.1-34.4 78l0 6.1c0 26.5-21.5 48-48 48c-17.7 0-32 14.3-32 32s14.3 32 32 32c61.9 0 112-50.1 112-112l0-6.1c0-9.8 5.4-21.7 17.4-34.7C398.3 327.9 416 286 416 240c0-97.2-78.8-176-176-176C149.4 64 74.8 132.5 65.1 220.5c-1.9 17.6 10.7 33.4 28.3 35.3s33.4-10.7 35.3-28.3zM32 512a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM192 352a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3l64 64c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-64-64c-12.5-12.5-32.8-12.5-45.3 0zM208 240c0-17.7 14.3-32 32-32s32 14.3 32 32c0 13.3 10.7 24 24 24s24-10.7 24-24c0-44.2-35.8-80-80-80s-80 35.8-80 80c0 13.3 10.7 24 24 24s24-10.7 24-24z"/>
       </svg>`;
     bookmarkIcon.title = "Play recorded audio";
@@ -939,22 +1343,13 @@ const style = document.createElement("style");
 style.textContent = `
   #listenButton.active, #listen2Button.active,
   .bookmark-icon.active, #bookmark-icon2.active {
-    transform: scale(0.95);
-    transition: transform 0.2s ease;
+    transform: scale(0.9);
+    transition: transform 0.1s;
   }
   #listenButton, #listen2Button,
   .bookmark-icon, #bookmark-icon2 {
-    transition: transform 0.2s ease, opacity 0.2s ease;
+    transition: transform 0.2s, opacity 0.2s;
     cursor: pointer;
-  }
-  .icon-circle {
-    transition: all 0.3s ease;
-  }
-  .icon-circle:hover {
-    transform: scale(1.05);
-  }
-  .icon-circle:active {
-    transform: scale(0.95);
   }
 `;
 document.head.appendChild(style);
@@ -1122,7 +1517,7 @@ function updateSimpleProgress() {
 
   const currentLesson = lessons[currentLessonIndex];
   const totalSentences = currentLesson.sentences.length;
-  const progress = (currentSentenceIndex / totalSentences) * 100;
+  const progress = ((currentSentenceIndex + 1) / totalSentences) * 100;
 
   const simpleProgressFill = document.querySelector(".simple-progress-fill");
   const simpleProgressPercentage = document.querySelector(
@@ -1134,200 +1529,5 @@ function updateSimpleProgress() {
   }
   if (simpleProgressPercentage) {
     simpleProgressPercentage.textContent = `${Math.round(progress)}%`;
-  }
-}
-
-// Function to start audio recording
-async function startAudioRecording() {
-  try {
-    // Request microphone access
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-    // Initialize recording state
-    isRecording = true;
-    audioChunks = [];
-    recordingStartTime = Date.now();
-    speechDetected = false;
-
-    // Show recording indicator
-    document.getElementById("recordingIndicator").style.display = "block";
-
-    // Setup waveform visualization
-    setupWaveformVisualization(stream);
-
-    // Create MediaRecorder instance
-    mediaRecorder = new MediaRecorder(stream);
-
-    // Handle data available event
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-      }
-    };
-
-    // Handle recording stop event
-    mediaRecorder.onstop = async () => {
-      if (isRecordingCancelled) {
-        console.log("Recording was cancelled, not processing audio.");
-        return;
-      }
-
-      // Create audio blob from chunks
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
-
-      // Stop all tracks in the stream
-      stream.getTracks().forEach((track) => track.stop());
-
-      // Process the recorded audio
-      await processRecordedAudio(recordedAudioBlob);
-    };
-
-    // Start recording
-    mediaRecorder.start();
-
-    // Set timeout for no speech detection
-    noSpeechTimeout = setTimeout(() => {
-      if (
-        !speechDetected &&
-        mediaRecorder &&
-        mediaRecorder.state === "recording"
-      ) {
-        console.log("No speech detected, stopping recording");
-        mediaRecorder.stop();
-      }
-    }, NO_SPEECH_TIMEOUT_MS);
-  } catch (error) {
-    console.error("Error starting audio recording:", error);
-    alert(
-      "Error accessing microphone. Please ensure you have granted microphone permissions."
-    );
-    resetUI();
-  }
-}
-
-// Function to process recorded audio
-async function processRecordedAudio(audioBlob) {
-  try {
-    console.log("Starting audio processing...");
-
-    // Validate audio blob
-    if (!audioBlob || audioBlob.size === 0) {
-      throw new Error("Invalid audio data: Empty or missing audio blob");
-    }
-
-    console.log("Audio blob size:", audioBlob.size, "bytes");
-
-    // Create FormData and append audio
-    const formData = new FormData();
-    formData.append("audio", audioBlob, "recording.wav");
-
-    console.log("Uploading audio to AssemblyAI...");
-
-    // Send to AssemblyAI for transcription
-    const response = await fetch("https://api.assemblyai.com/v2/upload", {
-      method: "POST",
-      headers: {
-        Authorization: ASSEMBLYAI_API_KEY,
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AssemblyAI upload error:", errorText);
-      throw new Error(
-        `Failed to upload audio: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const uploadData = await response.json();
-    console.log("Upload successful, URL:", uploadData.upload_url);
-
-    if (!uploadData.upload_url) {
-      throw new Error("No upload URL received from AssemblyAI");
-    }
-
-    console.log("Requesting transcription...");
-
-    // Get transcription
-    const transcriptResponse = await fetch(
-      "https://api.assemblyai.com/v2/transcript",
-      {
-        method: "POST",
-        headers: {
-          Authorization: ASSEMBLYAI_API_KEY,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          audio_url: uploadData.upload_url,
-          language_code: "en",
-        }),
-      }
-    );
-
-    if (!transcriptResponse.ok) {
-      const errorText = await transcriptResponse.text();
-      console.error("AssemblyAI transcription error:", errorText);
-      throw new Error(
-        `Failed to get transcription: ${transcriptResponse.status} ${transcriptResponse.statusText}`
-      );
-    }
-
-    const transcriptData = await transcriptResponse.json();
-    console.log("Transcription response:", transcriptData);
-
-    if (!transcriptData.text) {
-      throw new Error("No transcription text received");
-    }
-
-    // Get current sentence
-    const currentLesson = lessons[currentLessonIndex];
-    if (!currentLesson || !currentLesson.sentences) {
-      throw new Error("Invalid lesson data");
-    }
-
-    const expectedSentence = currentLesson.sentences[currentSentenceIndex];
-    if (!expectedSentence) {
-      throw new Error("Invalid sentence index");
-    }
-
-    console.log("Expected sentence:", expectedSentence);
-    console.log("Transcribed text:", transcriptData.text);
-
-    // Calculate pronunciation score
-    const score = calculatePronunciationScore(
-      transcriptData.text,
-      expectedSentence
-    );
-    console.log("Pronunciation score:", score);
-
-    // Update UI with results
-    updateProgressCircle(score);
-    openDialog();
-
-    // Update statistics
-    totalSentencesSpoken++;
-    totalPronunciationScore += score;
-  } catch (error) {
-    console.error("Error processing audio:", error);
-    console.error("Error details:", {
-      message: error.message,
-      stack: error.stack,
-    });
-
-    // Show user-friendly error message
-    let errorMessage = "Error processing audio. ";
-    if (error.message.includes("Failed to upload")) {
-      errorMessage += "Could not upload audio to server. ";
-    } else if (error.message.includes("Failed to get transcription")) {
-      errorMessage += "Could not get transcription. ";
-    } else if (error.message.includes("Invalid audio data")) {
-      errorMessage += "No audio was recorded. ";
-    } else {
-      errorMessage += "Please try again. ";
-    }
-
-    alert(errorMessage);
-    resetUI();
   }
 }
