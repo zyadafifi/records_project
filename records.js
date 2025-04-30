@@ -792,12 +792,16 @@ function speakSentence() {
 
   currentUtterance.onend = function () {
     isSpeaking = false;
-    updateListenButtonIcons();
+    setTimeout(() => {
+      updateListenButtonIcons(); // This will show the sound icon again
+    }, 100); // Small delay to ensure smooth transition
   };
 
   currentUtterance.onerror = function () {
     isSpeaking = false;
-    updateListenButtonIcons();
+    setTimeout(() => {
+      updateListenButtonIcons(); // This will show the sound icon again
+    }, 100); // Small delay to ensure smooth transition
   };
 
   speechSynthesis.speak(currentUtterance);
