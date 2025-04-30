@@ -1208,9 +1208,20 @@ async function startAudioRecording() {
 // Function to process recorded audio
 async function processRecordedAudio(audioBlob) {
   try {
+    console.log("Starting audio processing...");
+
+    // Validate audio blob
+    if (!audioBlob || audioBlob.size === 0) {
+      throw new Error("Invalid audio data: Empty or missing audio blob");
+    }
+
+    console.log("Audio blob size:", audioBlob.size, "bytes");
+
     // Create FormData and append audio
     const formData = new FormData();
     formData.append("audio", audioBlob, "recording.wav");
+
+    console.log("Uploading audio to AssemblyAI...");
 
     // Send to AssemblyAI for transcription
     const response = await fetch("https://api.assemblyai.com/v2/upload", {
@@ -1222,10 +1233,21 @@ async function processRecordedAudio(audioBlob) {
     });
 
     if (!response.ok) {
-      throw new Error("Failed to upload audio");
+      const errorText = await response.text();
+      console.error("AssemblyAI upload error:", errorText);
+      throw new Error(
+        `Failed to upload audio: ${response.status} ${response.statusText}`
+      );
     }
 
-    const { upload_url } = await response.json();
+    const uploadData = await response.json();
+    console.log("Upload successful, URL:", uploadData.upload_url);
+
+    if (!uploadData.upload_url) {
+      throw new Error("No upload URL received from AssemblyAI");
+    }
+
+    console.log("Requesting transcription...");
 
     // Get transcription
     const transcriptResponse = await fetch(
@@ -1237,24 +1259,47 @@ async function processRecordedAudio(audioBlob) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          audio_url: upload_url,
+          audio_url: uploadData.upload_url,
           language_code: "en",
         }),
       }
     );
 
     if (!transcriptResponse.ok) {
-      throw new Error("Failed to get transcription");
+      const errorText = await transcriptResponse.text();
+      console.error("AssemblyAI transcription error:", errorText);
+      throw new Error(
+        `Failed to get transcription: ${transcriptResponse.status} ${transcriptResponse.statusText}`
+      );
     }
 
-    const { text } = await transcriptResponse.json();
+    const transcriptData = await transcriptResponse.json();
+    console.log("Transcription response:", transcriptData);
+
+    if (!transcriptData.text) {
+      throw new Error("No transcription text received");
+    }
 
     // Get current sentence
     const currentLesson = lessons[currentLessonIndex];
+    if (!currentLesson || !currentLesson.sentences) {
+      throw new Error("Invalid lesson data");
+    }
+
     const expectedSentence = currentLesson.sentences[currentSentenceIndex];
+    if (!expectedSentence) {
+      throw new Error("Invalid sentence index");
+    }
+
+    console.log("Expected sentence:", expectedSentence);
+    console.log("Transcribed text:", transcriptData.text);
 
     // Calculate pronunciation score
-    const score = calculatePronunciationScore(text, expectedSentence);
+    const score = calculatePronunciationScore(
+      transcriptData.text,
+      expectedSentence
+    );
+    console.log("Pronunciation score:", score);
 
     // Update UI with results
     updateProgressCircle(score);
@@ -1265,7 +1310,24 @@ async function processRecordedAudio(audioBlob) {
     totalPronunciationScore += score;
   } catch (error) {
     console.error("Error processing audio:", error);
-    alert("Error processing audio. Please try again.");
+    console.error("Error details:", {
+      message: error.message,
+      stack: error.stack,
+    });
+
+    // Show user-friendly error message
+    let errorMessage = "Error processing audio. ";
+    if (error.message.includes("Failed to upload")) {
+      errorMessage += "Could not upload audio to server. ";
+    } else if (error.message.includes("Failed to get transcription")) {
+      errorMessage += "Could not get transcription. ";
+    } else if (error.message.includes("Invalid audio data")) {
+      errorMessage += "No audio was recorded. ";
+    } else {
+      errorMessage += "Please try again. ";
+    }
+
+    alert(errorMessage);
     resetUI();
   }
 }
