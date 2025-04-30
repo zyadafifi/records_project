@@ -568,16 +568,67 @@ input[type="text"].form-control {
 #waveformCanvas {
   margin: 0 10px;
 }
-.progress-counter {
-  font-family: var(--font-english);
-  font-size: 16px;
-  color: var(--text-dark);
-  font-weight: 500;
+.counter-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin: 10px 0 20px;
+}
+.counter-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
-.progress-counter .current-sentence {
-  color: var(--primary-color);
-  font-weight: bold;
+.counter-display {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, #4b9b94 0%, #2c7873 100%);
+  padding: 8px 24px;
+  border-radius: 50px;
+  box-shadow: 0 4px 12px rgba(75, 155, 148, 0.3);
+  color: white;
+  font-family: 'Poppins', sans-serif;
+}
+
+
+.current-count {
+  font-size: 22px;
+  font-weight: 700;
+  min-width: 26px;
+}
+
+.counter-separator {
+  margin: 0 8px;
+  font-size: 18px;
+  opacity: 0.7;
+}
+
+
+.total-count {
+  font-size: 18px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.counter-label {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4b9b94;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Animation */
+.counter-display {
+  transition: all 0.3s ease;
+}
+
+.counter-display:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(75, 155, 148, 0.4);
 }
 #deleteRecButton {
   width: 30px;
