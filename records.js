@@ -763,8 +763,24 @@ function speakSentence() {
     return;
   }
 
-  if (lessons.length === 0) return;
+  // Check if lessons are loaded and valid
+  if (!lessons || lessons.length === 0 || currentLessonIndex === -1) {
+    console.log("No lessons loaded yet");
+    alert("Please wait for lessons to load.");
+    return;
+  }
+
   const currentLesson = lessons[currentLessonIndex];
+  if (
+    !currentLesson ||
+    !currentLesson.sentences ||
+    !currentLesson.sentences[currentSentenceIndex]
+  ) {
+    console.log("Current lesson or sentence not found");
+    alert("Current sentence not available.");
+    return;
+  }
+
   const sentence = currentLesson.sentences[currentSentenceIndex];
 
   // Update button immediately
@@ -1218,11 +1234,11 @@ function playRecordedAudio() {
 function updateListenButtonIcons() {
   if (isSpeaking) {
     listenButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94, width = "24px", height = "24px">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94; width: 24px; height: 24px">
         <path fill="#4b9b94" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
       </svg>`;
     listen2Button.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94, width = "24px", height = "24px">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="color: #4b9b94; width: 24px; height: 24px">
         <path fill="#4b9b94" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
       </svg>`;
     listenButton.title = "Stop playback";
@@ -1379,6 +1395,7 @@ async function loadLessons() {
     // Update the UI with the first sentence
     updateSentence();
     updateSentenceCounter();
+    updateSimpleProgress();
   } catch (error) {
     console.error("Error loading lessons:", error);
   }
@@ -1430,6 +1447,7 @@ nextButton.addEventListener("click", () => {
     currentSentenceIndex++;
     updateSentence();
     updateSentenceCounter();
+    updateSimpleProgress();
     // Reset recording state and re-enable listen/bookmark buttons
     isRecording = false;
     toggleListenButtons(false);
@@ -1484,3 +1502,32 @@ continueButton.addEventListener("click", () => {
     micButton.style.animation = "pulse 2s infinite, glow 2s infinite alternate";
   }
 });
+
+function updateProgressBar(percentage) {
+  const progressFill = document.querySelector(".progress-fill");
+  const progressPercentage = document.querySelector(".progress-percentage");
+
+  progressFill.style.width = `${percentage}%`;
+  progressPercentage.textContent = `${percentage}%`;
+}
+
+// Add simple progress bar update function
+function updateSimpleProgress() {
+  if (lessons.length === 0 || currentLessonIndex === -1) return;
+
+  const currentLesson = lessons[currentLessonIndex];
+  const totalSentences = currentLesson.sentences.length;
+  const progress = ((currentSentenceIndex + 1) / totalSentences) * 100;
+
+  const simpleProgressFill = document.querySelector(".simple-progress-fill");
+  const simpleProgressPercentage = document.querySelector(
+    ".simple-progress-percentage"
+  );
+
+  if (simpleProgressFill) {
+    simpleProgressFill.style.width = `${progress}%`;
+  }
+  if (simpleProgressPercentage) {
+    simpleProgressPercentage.textContent = `${Math.round(progress)}%`;
+  }
+}
