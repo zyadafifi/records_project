@@ -1058,6 +1058,7 @@ async function startAudioRecording() {
           );
           pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
           updateProgressCircle(pronunciationScore);
+          totalPronunciationScore += pronunciationScore; // Add score to total
           console.log("Score calculated and totals updated.");
 
           // Update progress bar immediately after score calculation
