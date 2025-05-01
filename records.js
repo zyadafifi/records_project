@@ -206,6 +206,10 @@ function setupWaveformVisualization(stream) {
     controlsContainer.appendChild(stopRecButton);
     waveformContainer.appendChild(controlsContainer);
 
+    // Add event listeners for the buttons
+    deleteRecButton.addEventListener("click", handleDeleteRecording);
+    stopRecButton.addEventListener("click", handleStopRecording);
+
     // Create a separate container for the timer
     const timerContainer = document.createElement("div");
     timerContainer.style.width = "100%";
