@@ -63,7 +63,6 @@ let currentAudio = null;
 let lessons = []; // Stores loaded lessons
 let currentLessonIndex = 0; // Tracks the current lesson
 let currentSentenceIndex = 0; // Tracks the current sentence in the lesson
-let totalSentencesSpoken = 0; // Tracks total sentences spoken
 let totalPronunciationScore = 0; // Tracks total pronunciation score
 let mediaRecorder;
 let audioChunks = [];
@@ -1053,15 +1052,12 @@ async function startAudioRecording() {
         const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
         if (transcription !== null) {
           console.log("Transcription received:", transcription);
-          const currentLesson = lessons[currentLessonIndex];
           const pronunciationScore = calculatePronunciationScore(
             transcription,
-            currentLesson.sentences[currentSentenceIndex]
+            lessons[currentLessonIndex].sentences[currentSentenceIndex]
           );
           pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
           updateProgressCircle(pronunciationScore);
-          totalSentencesSpoken++;
-          totalPronunciationScore += pronunciationScore;
           console.log("Score calculated and totals updated.");
 
           // Update progress bar immediately after score calculation
@@ -1501,9 +1497,8 @@ nextButton.addEventListener("click", () => {
     );
 
     // Update the modal content
-    sentencesSpokenDiv.textContent = totalSentencesSpoken;
     overallScoreDiv.textContent = `${Math.round(
-      totalPronunciationScore / totalSentencesSpoken
+      totalPronunciationScore / (currentSentenceIndex + 1)
     )}%`;
 
     congratulationModal.show(); // Show the congratulation modal
@@ -1558,8 +1553,8 @@ function updateSimpleProgress() {
 
   // Calculate progress based on total pronunciation score
   const progress =
-    totalSentencesSpoken > 0
-      ? (totalPronunciationScore / (totalSentencesSpoken * 100)) * 100
+    totalPronunciationScore > 0
+      ? (totalPronunciationScore / ((currentSentenceIndex + 1) * 100)) * 100
       : 0;
 
   const simpleProgressFill = document.querySelector(".simple-progress-fill");
