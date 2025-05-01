@@ -436,7 +436,7 @@ body {
 }
 .tip-2 {
   position: absolute;
-  top: 145px; /* تعديل الموضع حسب الحاجة */
+  top: 130px; /* تعديل الموضع حسب الحاجة */
   left: 50%;
   transform: translateX(-50%);
   background-color: white;
