@@ -115,7 +115,6 @@ function setupWaveformVisualization(stream) {
   }
 
   // Create container if it doesn't exist
-  // Create container if it doesn't exist
   if (!waveformContainer) {
     waveformContainer = document.createElement("div");
     waveformContainer.id = "waveformContainer";
@@ -125,32 +124,28 @@ function setupWaveformVisualization(stream) {
     waveformContainer.style.alignItems = "center";
     waveformContainer.style.width = "100%";
     waveformContainer.style.marginTop = "10px";
-    waveformContainer.style.padding = "5px 15px"; // Reduced padding
-    waveformContainer.style.backgroundColor = "#4b9b94";
+    waveformContainer.style.padding = "5px 15px";
+    waveformContainer.style.background =
+      "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
     waveformContainer.style.borderRadius = "30px";
     waveformContainer.style.display = "none";
     waveformContainer.style.height = "40px";
+    waveformContainer.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.1)";
+    waveformContainer.style.transition = "all 0.3s ease";
+    waveformContainer.style.position = "relative";
+    waveformContainer.style.overflow = "hidden";
+
     // Create inner container for buttons and waveform
     const controlsContainer = document.createElement("div");
     controlsContainer.style.display = "flex";
     controlsContainer.style.alignItems = "center";
     controlsContainer.style.width = "100%";
-    controlsContainer.style.height = "30px"; // Reduced height
+    controlsContainer.style.height = "30px";
     controlsContainer.style.justifyContent = "space-between";
-    controlsContainer.style.marginTop = "0"; // Removed margin
+    controlsContainer.style.marginTop = "0";
     controlsContainer.style.marginBottom = "0";
     controlsContainer.style.padding = "0 15px";
     controlsContainer.style.gap = "10px";
-
-    // Create timer element
-    const timerElement = document.createElement("div");
-    timerElement.id = "recordingTimer";
-    timerElement.style.color = "#908c8c";
-    timerElement.style.fontSize = "12px"; // Smaller font
-    timerElement.style.fontWeight = "bold";
-    timerElement.style.textShadow = "0 1px 2px rgba(0,0,0,0.3)";
-    timerElement.style.marginTop = "11px"; // Reduced margin
-    timerElement.textContent = "0:00";
 
     // Create and style buttons
     deleteRecButton = document.createElement("button");
@@ -160,23 +155,38 @@ function setupWaveformVisualization(stream) {
     deleteRecButton.style.background = "none";
     deleteRecButton.style.border = "none";
     deleteRecButton.style.color = "#f0f0f0";
-    deleteRecButton.style.fontSize = "1em"; // Smaller icon
+    deleteRecButton.style.fontSize = "1em";
     deleteRecButton.style.cursor = "pointer";
     deleteRecButton.style.padding = "0 8px";
+    deleteRecButton.style.transition = "all 0.3s ease";
 
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
     stopRecButton.innerHTML = '<i class="fas fa-paper-plane"></i>';
     stopRecButton.title = "Send Recording";
+    stopRecButton.style.background = "white";
+    stopRecButton.style.border = "none";
+    stopRecButton.style.borderRadius = "50%";
+    stopRecButton.style.width = "30px";
+    stopRecButton.style.height = "30px";
+    stopRecButton.style.display = "flex";
+    stopRecButton.style.alignItems = "center";
+    stopRecButton.style.justifyContent = "center";
+    stopRecButton.style.cursor = "pointer";
+    stopRecButton.style.color = "#4b9b94";
+    stopRecButton.style.transition = "all 0.3s ease";
 
     // Create waveform canvas
     waveformCanvas = document.createElement("canvas");
     waveformCanvas.id = "waveformCanvas";
     waveformCanvas.style.width = "100%";
-    waveformCanvas.style.height = "25px"; // Reduced height
-    waveformCanvas.style.borderRadius = "30px";
+    waveformCanvas.style.height = "25px";
     waveformCanvas.style.flexGrow = "1";
     waveformCanvas.style.margin = "0";
+    waveformCanvas.style.background = "transparent";
+    waveformCanvas.style.transition = "all 0.3s ease";
+    waveformCanvas.style.position = "relative";
+    waveformCanvas.style.zIndex = "1";
 
     // Build the structure
     controlsContainer.appendChild(deleteRecButton);
@@ -186,9 +196,21 @@ function setupWaveformVisualization(stream) {
     stopRecButton.addEventListener("click", handleStopRecording);
 
     waveformContainer.appendChild(controlsContainer);
-    waveformContainer.appendChild(timerElement);
 
-    // Insert into DOM
+    // Add hover effects
+    waveformContainer.addEventListener("mouseenter", () => {
+      waveformContainer.style.background =
+        "linear-gradient(135deg, #2c7873 0%, #4b9b94 100%)";
+      waveformContainer.style.boxShadow = "0 4px 12px rgba(75, 155, 148, 0.3)";
+    });
+
+    waveformContainer.addEventListener("mouseleave", () => {
+      waveformContainer.style.background =
+        "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
+      waveformContainer.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.1)";
+    });
+
+    // Insert container into DOM
     const micButtonContainer = micButton.parentElement;
     if (micButtonContainer && micButtonContainer.parentNode) {
       micButtonContainer.parentNode.insertBefore(
@@ -197,20 +219,6 @@ function setupWaveformVisualization(stream) {
       );
     } else {
       document.body.appendChild(waveformContainer);
-    }
-
-    // Insert container into DOM (adjust placement as needed)
-    if (micButtonContainer && micButtonContainer.parentNode) {
-      micButtonContainer.parentNode.insertBefore(
-        waveformContainer,
-        micButtonContainer.nextSibling
-      );
-      console.log("Waveform container with buttons added to DOM.");
-    } else {
-      console.error(
-        "Could not find suitable parent to insert waveform container."
-      );
-      document.body.appendChild(waveformContainer); // Fallback
     }
   }
 
@@ -251,29 +259,32 @@ function drawWhatsAppWaveform() {
   analyser.getByteFrequencyData(dataArray);
 
   // Clear canvas
-  canvasCtx.fillStyle = "#4b9b94";
-  canvasCtx.fillRect(0, 0, waveformCanvas.width, waveformCanvas.height);
+  canvasCtx.clearRect(0, 0, waveformCanvas.width, waveformCanvas.height);
 
   // Draw bars
   const barCount = 20;
-  const barWidth = 6;
+  const barWidth = 3;
   const barSpacing = 3;
   const totalBarAreaWidth = barCount * (barWidth + barSpacing) - barSpacing;
   const startX = (waveformCanvas.width - totalBarAreaWidth) / 2;
   const maxBarHeight = waveformCanvas.height * 0.8;
 
-  canvasCtx.fillStyle = "#f0f0f0";
+  canvasCtx.fillStyle = "#ffffff";
 
   for (let i = 0; i < barCount; i++) {
     const dataIndex = Math.floor((i * dataArray.length) / barCount);
     const value = dataArray[dataIndex];
-    const barHeight = Math.max(2, (value / 255) * maxBarHeight);
+    const barHeight = Math.max(3, (value / 255) * maxBarHeight);
     const x = startX + i * (barWidth + barSpacing);
     const y = (waveformCanvas.height - barHeight) / 2;
-    canvasCtx.fillRect(x, y, barWidth, barHeight);
+
+    // Draw rounded bars
+    canvasCtx.beginPath();
+    canvasCtx.roundRect(x, y, barWidth, barHeight, barWidth / 2);
+    canvasCtx.fill();
   }
 
-  // Update the external timer element
+  // Update the timer
   if (recordingStartTime) {
     const recordingTime = Math.floor((Date.now() - recordingStartTime) / 1000);
     const minutes = Math.floor(recordingTime / 60);
