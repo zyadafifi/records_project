@@ -147,6 +147,18 @@ function setupWaveformVisualization(stream) {
     controlsContainer.style.padding = "0 15px";
     controlsContainer.style.gap = "10px";
 
+    // Create timer element
+    const timerElement = document.createElement("div");
+    timerElement.id = "recordingTimer";
+    timerElement.style.color = "#908c8c";
+    timerElement.style.fontSize = "12px";
+    timerElement.style.fontWeight = "bold";
+    timerElement.style.position = "relative";
+    timerElement.style.marginTop = "11px";
+    timerElement.style.textAlign = "center";
+    timerElement.style.width = "100%";
+    timerElement.textContent = "0:00";
+
     // Create and style buttons
     deleteRecButton = document.createElement("button");
     deleteRecButton.id = "deleteRecButton";
@@ -192,10 +204,32 @@ function setupWaveformVisualization(stream) {
     controlsContainer.appendChild(deleteRecButton);
     controlsContainer.appendChild(waveformCanvas);
     controlsContainer.appendChild(stopRecButton);
-    deleteRecButton.addEventListener("click", handleDeleteRecording);
-    stopRecButton.addEventListener("click", handleStopRecording);
-
     waveformContainer.appendChild(controlsContainer);
+
+    // Create a separate container for the timer
+    const timerContainer = document.createElement("div");
+    timerContainer.style.width = "100%";
+    timerContainer.style.display = "flex";
+    timerContainer.style.justifyContent = "center";
+    timerContainer.style.marginTop = "5px";
+    timerContainer.appendChild(timerElement);
+
+    // Get the parent container once
+    const micButtonContainer = micButton.parentElement;
+    if (micButtonContainer && micButtonContainer.parentNode) {
+      // Insert both containers
+      micButtonContainer.parentNode.insertBefore(
+        waveformContainer,
+        micButtonContainer.nextSibling
+      );
+      micButtonContainer.parentNode.insertBefore(
+        timerContainer,
+        waveformContainer.nextSibling
+      );
+    } else {
+      document.body.appendChild(waveformContainer);
+      document.body.appendChild(timerContainer);
+    }
 
     // Add hover effects
     waveformContainer.addEventListener("mouseenter", () => {
@@ -209,17 +243,6 @@ function setupWaveformVisualization(stream) {
         "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
       waveformContainer.style.boxShadow = "0 2px 5px rgba(0, 0, 0, 0.1)";
     });
-
-    // Insert container into DOM
-    const micButtonContainer = micButton.parentElement;
-    if (micButtonContainer && micButtonContainer.parentNode) {
-      micButtonContainer.parentNode.insertBefore(
-        waveformContainer,
-        micButtonContainer.nextSibling
-      );
-    } else {
-      document.body.appendChild(waveformContainer);
-    }
   }
 
   // Get canvas context
