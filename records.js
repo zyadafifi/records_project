@@ -17,43 +17,6 @@ const bookmarkIcon = document.querySelector(".bookmark-icon");
 const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
 const currentSentenceElement = document.querySelector(".current-count");
 const totalSentencesElement = document.querySelector(".total-count");
-let noSpeechTimeout;
-const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
-
-// AssemblyAI API Key
-const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
-
-// Create a backdrop for the dialog
-const dialogBackdrop = document.createElement("div");
-dialogBackdrop.classList.add("dialog-backdrop");
-document.body.appendChild(dialogBackdrop);
-
-// Hide the dialog backdrop initially
-dialogBackdrop.style.display = "none";
-
-// Function to open the dialog
-function openDialog() {
-  dialogContainer.style.display = "block";
-  dialogBackdrop.style.display = "block";
-}
-
-// Function to close the dialog
-function closeDialog() {
-  dialogContainer.style.display = "none";
-  dialogBackdrop.style.display = "none";
-}
-// JavaScript for mobile support
-function addButtonActiveClass(e) {
-  e.currentTarget.classList.add("button-active");
-  setTimeout(() => e.currentTarget.classList.remove("button-active"), 200);
-}
-
-micButton.addEventListener("touchstart", addButtonActiveClass);
-listenButton.addEventListener("touchstart", addButtonActiveClass);
-// ... and so on for other buttons
-// Event listeners for closing the dialog
-document.querySelector(".close-icon").addEventListener("click", closeDialog);
-dialogBackdrop.addEventListener("click", closeDialog);
 
 // Global variables
 let isSpeaking = false;
@@ -69,7 +32,8 @@ let audioChunks = [];
 let recordedAudioBlob; // Stores the recorded audio blob
 let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
-retryButton.style.display = "none"; // Hide retry button initially
+let noSpeechTimeout;
+const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
 // AudioContext for sound effects and waveform
 let audioContext;
@@ -86,9 +50,13 @@ let stopRecButton; // Stop button
 let deleteRecButton; // Delete button
 let isRecordingCancelled = false; // Flag for cancellation
 
-// Add this after the global variables section
-let sentenceScores = []; // Array to store individual sentence scores
-let completedSentences = new Set(); // Track completed sentences
+// Create a backdrop for the dialog
+const dialogBackdrop = document.createElement("div");
+dialogBackdrop.classList.add("dialog-backdrop");
+document.body.appendChild(dialogBackdrop);
+
+// Hide the dialog backdrop initially
+dialogBackdrop.style.display = "none";
 
 // Function to initialize AudioContext
 function initializeAudioContext() {
@@ -109,6 +77,78 @@ async function resumeAudioContext() {
     }
   }
 }
+
+// Toggle bookmark buttons state
+function toggleBookmarkButtons(disabled) {
+  bookmarkIcon.disabled = disabled;
+  bookmarkIcon2.disabled = disabled;
+
+  // Visual feedback on disabled buttons
+  if (disabled) {
+    bookmarkIcon.style.opacity = "0.5";
+    bookmarkIcon2.style.opacity = "0.5";
+    bookmarkIcon.title = "Cannot play audio while recording";
+    bookmarkIcon2.title = "Cannot play audio while recording";
+  } else {
+    bookmarkIcon.style.opacity = "1";
+    bookmarkIcon2.style.opacity = "1";
+    updateBookmarkIcons();
+  }
+}
+
+// Toggle listen buttons state
+function toggleListenButtons(disabled) {
+  listenButton.disabled = disabled;
+  listen2Button.disabled = disabled;
+
+  // Visual feedback on disabled buttons
+  if (disabled) {
+    listenButton.style.opacity = "0.5";
+    listen2Button.style.opacity = "0.5";
+    listenButton.title = "Cannot listen while recording";
+    listen2Button.title = "Cannot listen while recording";
+  } else {
+    listenButton.style.opacity = "1";
+    listen2Button.style.opacity = "1";
+    updateListenButtonIcons();
+  }
+}
+
+// Function to open the dialog
+function openDialog() {
+  dialogContainer.style.display = "block";
+  dialogBackdrop.style.display = "block";
+}
+
+// Function to close the dialog
+function closeDialog() {
+  dialogContainer.style.display = "none";
+  dialogBackdrop.style.display = "none";
+}
+
+// JavaScript for mobile support
+function addButtonActiveClass(e) {
+  e.currentTarget.classList.add("button-active");
+  setTimeout(() => e.currentTarget.classList.remove("button-active"), 200);
+}
+
+micButton.addEventListener("touchstart", addButtonActiveClass);
+listenButton.addEventListener("touchstart", addButtonActiveClass);
+// ... and so on for other buttons
+// Event listeners for closing the dialog
+document.querySelector(".close-icon").addEventListener("click", closeDialog);
+dialogBackdrop.addEventListener("click", closeDialog);
+
+// Add this after the global variables section
+let sentenceScores = []; // Array to store individual sentence scores
+let completedSentences = new Set(); // Track completed sentences
+
+// Constants for recording
+const RECORDING_DURATION = 5000; // 5 seconds recording time
+let recordingTimeout;
+
+// AssemblyAI API Key
+const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
 
 // Function to create and setup waveform visualization
 function setupWaveformVisualization(stream) {
@@ -394,6 +434,7 @@ function stopWaveformVisualization() {
   }
   dataArray = null;
 }
+
 // Function to reset UI without changing the sentence
 function resetUI() {
   // Reset UI elements
@@ -441,6 +482,7 @@ function resetUI() {
 
   console.log("UI Reset completed.");
 }
+
 function updateSentenceCounter() {
   if (lessons.length === 0 || currentLessonIndex === -1) return;
 
@@ -448,6 +490,7 @@ function updateSentenceCounter() {
   currentSentenceElement.textContent = currentSentenceIndex + 1;
   totalSentencesElement.textContent = currentLesson.sentences.length;
 }
+
 // Update the displayed sentence and reset UI
 function updateSentence() {
   if (lessons.length === 0) return;
@@ -943,57 +986,147 @@ function playRecordedAudio() {
     updateBookmarkIcons();
   };
 }
-function updateListenButtonIcons() {
+
+function updateListenButtonIcon() {
   if (isSpeaking) {
-    listenButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" style="width: 24px; height: 24px">
-        <path fill="white" d="M533.6 32.5C598.5 85.3 640 165.8 640 256s-41.5 170.8-106.4 223.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C557.5 398.2 592 331.2 592 256s-34.5-142.2-88.7-186.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM473.1 107c43.2 35.2 70.9 88.9 70.9 149s-27.7 113.8-70.9 149c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C475.3 341.3 496 301.1 496 256s-20.7-85.3-53.2-111.8c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zm-60.5 74.5C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM301.1 34.8C312.6 40 320 51.4 320 64V448c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64V224c0-35.3 28.7-64 64-64h67.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3z"/>
-      </svg>`;
-    listen2Button.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" style="width: 24px; height: 24px">
-        <path fill="white" d="M533.6 32.5C598.5 85.3 640 165.8 640 256s-41.5 170.8-106.4 223.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C557.5 398.2 592 331.2 592 256s-34.5-142.2-88.7-186.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM473.1 107c43.2 35.2 70.9 88.9 70.9 149s-27.7 113.8-70.9 149c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C475.3 341.3 496 301.1 496 256s-20.7-85.3-53.2-111.8c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zm-60.5 74.5C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM301.1 34.8C312.6 40 320 51.4 320 64V448c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64V224c0-35.3 28.7-64 64-64h67.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3z"/>
-      </svg>`;
+    listenButton.innerHTML = '<i class="fas fa-pause"></i>';
+    listen2Button.innerHTML = '<i class="fas fa-pause"></i>';
     listenButton.title = "Stop playback";
     listen2Button.title = "Stop playback";
   } else {
-    listenButton.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" style="width: 24px; height: 24px">
-        <path fill="white" d="M533.6 32.5C598.5 85.3 640 165.8 640 256s-41.5 170.8-106.4 223.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C557.5 398.2 592 331.2 592 256s-34.5-142.2-88.7-186.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM473.1 107c43.2 35.2 70.9 88.9 70.9 149s-27.7 113.8-70.9 149c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C475.3 341.3 496 301.1 496 256s-20.7-85.3-53.2-111.8c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zm-60.5 74.5C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM301.1 34.8C312.6 40 320 51.4 320 64V448c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64V224c0-35.3 28.7-64 64-64h67.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3z"/>
-      </svg>`;
-    listen2Button.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" style="width: 24px; height: 24px">
-        <path fill="white" d="M533.6 32.5C598.5 85.3 640 165.8 640 256s-41.5 170.8-106.4 223.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C557.5 398.2 592 331.2 592 256s-34.5-142.2-88.7-186.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM473.1 107c43.2 35.2 70.9 88.9 70.9 149s-27.7 113.8-70.9 149c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C475.3 341.3 496 301.1 496 256s-20.7-85.3-53.2-111.8c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zm-60.5 74.5C434.1 199.1 448 225.9 448 256s-13.9 56.9-35.4 74.5c-10.3 8.4-25.4 6.8-33.8-3.5s-6.8-25.4 3.5-33.8C393.1 284.4 400 271 400 256s-6.9-28.4-17.7-37.3c-10.3-8.4-11.8-23.5-3.5-33.8s23.5-11.8 33.8-3.5zM301.1 34.8C312.6 40 320 51.4 320 64V448c0 12.6-7.4 24-18.9 29.2s-25 3.1-34.4-5.3L131.8 352H64c-35.3 0-64-28.7-64-64V224c0-35.3 28.7-64 64-64h67.8L266.7 40.1c9.4-8.4 22.9-10.4 34.4-5.3z"/>
-      </svg>`;
+    listenButton.innerHTML = '<i class="fa-solid fa-play"></i>';
+    listen2Button.innerHTML = '<i class="fa-solid fa-play">';
     listenButton.title = "Listen to example";
     listen2Button.title = "Listen to example";
   }
 }
 
+// Function to update listen button icons
+function updateListenButtonIcons() {
+  if (isSpeaking) {
+    listenButton.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="width: 24px; height: 24px; background: transparent;">
+        <defs>
+          <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#4b9b94;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#2c7873;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#gradient1)" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
+      </svg>`;
+    listen2Button.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="width: 24px; height: 24px; background: transparent;">
+        <defs>
+          <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#4b9b94;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#2c7873;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#gradient2)" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
+      </svg>`;
+    listenButton.title = "Stop playback";
+    listen2Button.title = "Stop playback";
+  } else {
+    listenButton.innerHTML = `<svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke-width="1.5"
+      stroke="currentColor"
+      class="sound-icon"
+      style="width: 24px; height: 24px; background: transparent;"
+    >
+      <defs>
+        <linearGradient id="gradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#4b9b94;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#2c7873;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <path
+        fill="url(#gradient3)"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+      ></path>
+    </svg>`;
+    listen2Button.innerHTML = `<svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke-width="1.5"
+      stroke="currentColor"
+      class="sound-icon"
+      style="width: 24px; height: 24px; background: transparent;"
+    >
+      <defs>
+        <linearGradient id="gradient4" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#4b9b94;stop-opacity:1" />
+          <stop offset="100%" style="stop-color:#2c7873;stop-opacity:1" />
+        </linearGradient>
+      </defs>
+      <path
+        fill="url(#gradient4)"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+      ></path>
+    </svg>`;
+    listenButton.title = "Listen to example";
+    listen2Button.title = "Listen to example";
+  }
+}
+
+//Function to update bookmark icons
 function updateBookmarkIcons() {
   if (isPlaying) {
     bookmarkIcon.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="background: transparent;">
-        <path fill="white" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
+        <defs>
+          <linearGradient id="gradient5" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#4b9b94;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#2c7873;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#gradient5)" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
       </svg>`;
     bookmarkIcon2.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" style="background: transparent;">
-        <path fill="white" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
+        <defs>
+          <linearGradient id="gradient6" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#4b9b94;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#2c7873;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#gradient6)" d="M48 64C21.5 64 0 85.5 0 112V400c0 26.5 21.5 48 48 48H80c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H48zm192 0c-26.5 0-48 21.5-48 48V400c0 26.5 21.5 48 48 48h32c26.5 0 48-21.5 48-48V112c0-26.5-21.5-48-48-48H240z"/>
       </svg>`;
     bookmarkIcon.title = "Stop playback";
     bookmarkIcon2.title = "Stop playback";
   } else {
     bookmarkIcon.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="background: transparent;">
-        <path fill="white" d="M398.3 3.4c-15.8-7.9-35-1.5-42.9 14.3c-7.9 15.8-1.5 34.9 14.2 42.9l.4 .2c.4 .2 1.1 .6 2.1 1.2c2 1.2 5 3 8.7 5.6c7.5 5.2 17.6 13.2 27.7 24.2C428.5 113.4 448 146 448 192c0 17.7 14.3 32 32 32s32-14.3 32-32c0-66-28.5-113.4-56.5-143.7C441.6 33.2 427.7 22.2 417.3 15c-5.3-3.7-9.7-6.4-13-8.3c-1.6-1-3-1.7-4-2.2c-.5-.3-.9-.5-1.2-.7l-.4-.2-.2-.1c0 0 0 0-.1 0c0 0 0 0 0 0L384 32 398.3 3.4zM128.7 227.5c6.2-56 53.7-99.5 111.3-99.5c61.9 0 112 50.1 112 112c0 29.3-11.2 55.9-29.6 75.9c-17 18.4-34.4 45.1-34.4 78l0 6.1c0 26.5-21.5 48-48 48c-17.7 0-32 14.3-32 32s14.3 32 32 32c61.9 0 112-50.1 112-112l0-6.1c0-9.8 5.4-21.7 17.4-34.7C398.3 327.9 416 286 416 240c0-97.2-78.8-176-176-176C149.4 64 74.8 132.5 65.1 220.5c-1.9 17.6 10.7 33.4 28.3 35.3s33.4-10.7 35.3-28.3zM32 512a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM192 352a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3l64 64c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-64-64c-12.5-12.5-32.8-12.5-45.3 0zM208 240c0-17.7 14.3-32 32-32s32 14.3 32 32c0 13.3 10.7 24 24 24s24-10.7 24-24c0-44.2-35.8-80-80-80s-80 35.8-80 80c0 13.3 10.7 24 24 24s24-10.7 24-24z"/>
+        <defs>
+          <linearGradient id="gradient7" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#4b9b94;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#2c7873;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#gradient7)" d="M398.3 3.4c-15.8-7.9-35-1.5-42.9 14.3c-7.9 15.8-1.5 34.9 14.2 42.9l.4 .2c.4 .2 1.1 .6 2.1 1.2c2 1.2 5 3 8.7 5.6c7.5 5.2 17.6 13.2 27.7 24.2C428.5 113.4 448 146 448 192c0 17.7 14.3 32 32 32s32-14.3 32-32c0-66-28.5-113.4-56.5-143.7C441.6 33.2 427.7 22.2 417.3 15c-5.3-3.7-9.7-6.4-13-8.3c-1.6-1-3-1.7-4-2.2c-.5-.3-.9-.5-1.2-.7l-.4-.2-.2-.1c0 0 0 0-.1 0c0 0 0 0 0 0L384 32 398.3 3.4zM128.7 227.5c6.2-56 53.7-99.5 111.3-99.5c61.9 0 112 50.1 112 112c0 29.3-11.2 55.9-29.6 75.9c-17 18.4-34.4 45.1-34.4 78l0 6.1c0 26.5-21.5 48-48 48c-17.7 0-32 14.3-32 32s14.3 32 32 32c61.9 0 112-50.1 112-112l0-6.1c0-9.8 5.4-21.7 17.4-34.7C398.3 327.9 416 286 416 240c0-97.2-78.8-176-176-176C149.4 64 74.8 132.5 65.1 220.5c-1.9 17.6 10.7 33.4 28.3 35.3s33.4-10.7 35.3-28.3zM32 512a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM192 352a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3l64 64c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-64-64c-12.5-12.5-32.8-12.5-45.3 0zM208 240c0-17.7 14.3-32 32-32s32 14.3 32 32c0 13.3 10.7 24 24 24s24-10.7 24-24c0-44.2-35.8-80-80-80s-80 35.8-80 80c0 13.3 10.7 24 24 24s24-10.7 24-24z"/>
       </svg>`;
     bookmarkIcon2.innerHTML = `
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="background: transparent;">
-        <path fill="white" d="M398.3 3.4c-15.8-7.9-35-1.5-42.9 14.3c-7.9 15.8-1.5 34.9 14.2 42.9l.4 .2c.4 .2 1.1 .6 2.1 1.2c2 1.2 5 3 8.7 5.6c7.5 5.2 17.6 13.2 27.7 24.2C428.5 113.4 448 146 448 192c0 17.7 14.3 32 32 32s32-14.3 32-32c0-66-28.5-113.4-56.5-143.7C441.6 33.2 427.7 22.2 417.3 15c-5.3-3.7-9.7-6.4-13-8.3c-1.6-1-3-1.7-4-2.2c-.5-.3-.9-.5-1.2-.7l-.4-.2-.2-.1c0 0 0 0-.1 0c0 0 0 0 0 0L384 32 398.3 3.4zM128.7 227.5c6.2-56 53.7-99.5 111.3-99.5c61.9 0 112 50.1 112 112c0 29.3-11.2 55.9-29.6 75.9c-17 18.4-34.4 45.1-34.4 78l0 6.1c0 26.5-21.5 48-48 48c-17.7 0-32 14.3-32 32s14.3 32 32 32c61.9 0 112-50.1 112-112l0-6.1c0-9.8 5.4-21.7 17.4-34.7C398.3 327.9 416 286 416 240c0-97.2-78.8-176-176-176C149.4 64 74.8 132.5 65.1 220.5c-1.9 17.6 10.7 33.4 28.3 35.3s33.4-10.7 35.3-28.3zM32 512a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM192 352a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3l64 64c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-64-64c-12.5-12.5-32.8-12.5-45.3 0zM208 240c0-17.7 14.3-32 32-32s32 14.3 32 32c0 13.3 10.7 24 24 24s24-10.7 24-24c0-44.2-35.8-80-80-80s-80 35.8-80 80c0 13.3 10.7 24 24 24s24-10.7 24-24z"/>
+        <defs>
+          <linearGradient id="gradient8" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#4b9b94;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#2c7873;stop-opacity:1" />
+          </linearGradient>
+        </defs>
+        <path fill="url(#gradient8)" d="M398.3 3.4c-15.8-7.9-35-1.5-42.9 14.3c-7.9 15.8-1.5 34.9 14.2 42.9l.4 .2c.4 .2 1.1 .6 2.1 1.2c2 1.2 5 3 8.7 5.6c7.5 5.2 17.6 13.2 27.7 24.2C428.5 113.4 448 146 448 192c0 17.7 14.3 32 32 32s32-14.3 32-32c0-66-28.5-113.4-56.5-143.7C441.6 33.2 427.7 22.2 417.3 15c-5.3-3.7-9.7-6.4-13-8.3c-1.6-1-3-1.7-4-2.2c-.5-.3-.9-.5-1.2-.7l-.4-.2-.2-.1c0 0 0 0-.1 0c0 0 0 0 0 0L384 32 398.3 3.4zM128.7 227.5c6.2-56 53.7-99.5 111.3-99.5c61.9 0 112 50.1 112 112c0 29.3-11.2 55.9-29.6 75.9c-17 18.4-34.4 45.1-34.4 78l0 6.1c0 26.5-21.5 48-48 48c-17.7 0-32 14.3-32 32s14.3 32 32 32c61.9 0 112-50.1 112-112l0-6.1c0-9.8 5.4-21.7 17.4-34.7C398.3 327.9 416 286 416 240c0-97.2-78.8-176-176-176C149.4 64 74.8 132.5 65.1 220.5c-1.9 17.6 10.7 33.4 28.3 35.3s33.4-10.7 35.3-28.3zM32 512a32 32 0 1 0 0-64 32 32 0 1 0 0 64zM192 352a32 32 0 1 0 -64 0 32 32 0 1 0 64 0zM41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3l64 64c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-64-64c-12.5-12.5-32.8-12.5-45.3 0zM208 240c0-17.7 14.3-32 32-32s32 14.3 32 32c0 13.3 10.7 24 24 24s24-10.7 24-24c0-44.2-35.8-80-80-80s-80 35.8-80 80c0 13.3 10.7 24 24 24s24-10.7 24-24z"/>
       </svg>`;
     bookmarkIcon.title = "Play recorded audio";
     bookmarkIcon2.title = "Play recorded audio";
   }
 }
+
 // Event listeners
 listenButton.addEventListener("click", function () {
   speakSentence();
@@ -1209,5 +1342,292 @@ function updateSimpleProgress() {
   }
   if (simpleProgressPercentage) {
     simpleProgressPercentage.textContent = `${Math.round(progress)}%`;
+  }
+}
+
+// Start audio recording with automatic stop
+async function startAudioRecording() {
+  console.log("startAudioRecording called");
+  // Ensure AudioContext is ready (important for iOS/Safari)
+  initializeAudioContext();
+  await resumeAudioContext();
+
+  if (!audioContext) {
+    alert("AudioContext could not be initialized. Cannot record.");
+    return;
+  }
+
+  try {
+    console.log("Requesting microphone access...");
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log("Microphone access granted.");
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    console.log("MediaRecorder created.");
+
+    // Set recording flag, start time, toggle buttons
+    isRecording = true;
+    recordingStartTime = Date.now();
+    toggleListenButtons(true);
+    toggleBookmarkButtons(true);
+    isRecordingCancelled = false; // Ensure flag is reset
+
+    // Setup and start waveform visualization (this now shows the container)
+    setupWaveformVisualization(stream);
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0 && !isRecordingCancelled) {
+        // Don't collect if cancelled
+        audioChunks.push(event.data);
+      }
+    };
+
+    // Assign the NORMAL onstop handler HERE
+    mediaRecorder.onstop = async () => {
+      console.log("mediaRecorder.onstop triggered.");
+
+      // ***** Check Cancellation Flag *****
+      if (isRecordingCancelled) {
+        console.log("onstop: Recording was cancelled, skipping processing.");
+        // UI reset should have already happened in handleDeleteRecording
+        isRecordingCancelled = false; // Reset flag just in case
+        return;
+      }
+
+      // Stop the waveform visual (should be quick)
+      stopWaveformVisualization();
+
+      // --- Normal stop processing ---
+      if (audioChunks.length === 0) {
+        console.warn(
+          "No audio chunks recorded. Recording might have been too short or silent."
+        );
+        resetUI();
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/mp4" });
+      console.log(
+        "Recorded audio blob created, size:",
+        recordedAudioBlob?.size
+      );
+      audioChunks = []; // Clear chunks
+
+      // UI Updates after stopping normally
+      micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+      micButton.style.backgroundColor = "";
+      micButton.disabled = false;
+      micButton.style.color = "#fff";
+      micButton.style.display = "inline-block";
+      micButton.style.opacity = "1";
+      micButton.classList.remove("recording");
+      micButton.style.animation =
+        "pulse 2s infinite, glow 2s infinite alternate";
+
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      document.getElementById("recordingIndicator").style.display = "none";
+
+      // Set recording flag false AFTER UI updates
+      isRecording = false;
+      recordingStartTime = null;
+      toggleListenButtons(false);
+      toggleBookmarkButtons(false);
+      console.log("UI updated after normal recording stop.");
+
+      // Stop tracks
+      console.log("Stopping media stream tracks normally...");
+      stream.getTracks().forEach((track) => track.stop());
+      console.log("Media stream tracks stopped normally.");
+
+      // Upload for transcription
+      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
+        console.log("Uploading audio for transcription...");
+        recognizedTextDiv.innerHTML =
+          '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
+        pronunciationScoreDiv.textContent = "...";
+        micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        micButton.style.color = "#fff";
+        micButton.style.backgroundColor = "#4b9b94";
+        micButton.style.animation = "glow 2s infinite alternate";
+        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+        if (transcription !== null) {
+          console.log("Transcription received:", transcription);
+          const pronunciationScore = calculatePronunciationScore(
+            transcription,
+            lessons[currentLessonIndex].sentences[currentSentenceIndex]
+          );
+          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+          updateProgressCircle(pronunciationScore);
+          totalPronunciationScore += pronunciationScore; // Add score to total
+          console.log("Score calculated and totals updated.");
+
+          // Update progress bar immediately after score calculation
+          updateSimpleProgress();
+
+          // Restore mic icon after transcription is complete
+          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+          micButton.style.color = "#fff";
+          micButton.style.backgroundColor = "";
+          micButton.style.display = "inline-block";
+          micButton.style.opacity = "1";
+          micButton.classList.remove("recording");
+          micButton.style.animation =
+            "pulse 2s infinite, glow 2s infinite alternate";
+
+          openDialog();
+          console.log("Dialog opened.");
+        } else {
+          console.log(
+            "Transcription was null, likely an error during processing."
+          );
+          recognizedTextDiv.textContent = "(Transcription failed)";
+          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+          micButton.style.color = "#fff";
+          micButton.style.backgroundColor = "";
+          micButton.style.display = "inline-block";
+          micButton.style.opacity = "1";
+          micButton.classList.remove("recording");
+          micButton.style.animation =
+            "pulse 2s infinite, glow 2s infinite alternate";
+        }
+      } else {
+        console.warn(
+          "Recorded audio blob is empty or very small, skipping transcription."
+        );
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+      }
+    };
+
+    mediaRecorder.onerror = (event) => {
+      console.error("MediaRecorder error:", event.error);
+      alert(`Recording error: ${event.error.name} - ${event.error.message}`);
+      // Reset UI on error
+      resetUI(); // resetUI already calls stopWaveformVisualization
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop()); // Stop stream on error
+      }
+    };
+
+    // Start recording
+    mediaRecorder.start(100);
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#ff0000";
+    micButton.disabled = true;
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
+    console.log("UI updated for recording start.");
+
+    // Set timeout to automatically stop recording after RECORDING_DURATION
+    clearTimeout(recordingTimeout); // Clear any previous timeout
+    recordingTimeout = setTimeout(() => {
+      console.log("Recording duration timeout reached.");
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        console.log("Stopping recorder due to timeout...");
+        mediaRecorder.stop();
+      }
+    }, RECORDING_DURATION);
+    console.log(`Recording timeout set for ${RECORDING_DURATION}ms`);
+  } catch (error) {
+    console.error("Error in startAudioRecording:", error);
+    alert(
+      `Could not start recording: ${error.message}. Please check microphone permissions.`
+    );
+
+    // Ensure recording flag is reset and buttons are re-enabled in case of error
+    isRecording = false;
+    recordingStartTime = null;
+    toggleListenButtons(false);
+    toggleBookmarkButtons(false);
+    // Make sure waveform is stopped and hidden on error
+    stopWaveformVisualization();
+  }
+}
+
+// Upload audio to AssemblyAI and get transcription
+async function uploadAudioToAssemblyAI(audioBlob) {
+  try {
+    // Step 1: Upload the audio file to AssemblyAI
+    const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
+      method: "POST",
+      headers: {
+        authorization: ASSEMBLYAI_API_KEY,
+        "content-type": "application/octet-stream",
+      },
+      body: audioBlob,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error(`Failed to upload audio: ${uploadResponse.statusText}`);
+    }
+
+    const uploadData = await uploadResponse.json();
+    const audioUrl = uploadData.upload_url;
+
+    // Step 2: Submit the transcription request
+    const transcriptionResponse = await fetch(
+      "https://api.assemblyai.com/v2/transcript",
+      {
+        method: "POST",
+        headers: {
+          authorization: ASSEMBLYAI_API_KEY,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          audio_url: audioUrl,
+        }),
+      }
+    );
+
+    if (!transcriptionResponse.ok) {
+      throw new Error(
+        `Failed to submit transcription request: ${transcriptionResponse.statusText}`
+      );
+    }
+
+    const transcriptionData = await transcriptionResponse.json();
+    const transcriptId = transcriptionData.id;
+
+    // Step 3: Poll for the transcription result
+    let transcriptionResult;
+    while (true) {
+      const statusResponse = await fetch(
+        `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
+        {
+          headers: {
+            authorization: ASSEMBLYAI_API_KEY,
+          },
+        }
+      );
+
+      if (!statusResponse.ok) {
+        throw new Error(
+          `Failed to get transcription status: ${statusResponse.statusText}`
+        );
+      }
+
+      const statusData = await statusResponse.json();
+      if (statusData.status === "completed") {
+        transcriptionResult = statusData.text;
+        break;
+      } else if (statusData.status === "error") {
+        throw new Error("Transcription failed");
+      }
+
+      // Wait for 1 second before polling again
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+
+    return transcriptionResult;
+  } catch (error) {
+    console.error("Error in AssemblyAI transcription:", error);
+    alert("Failed to transcribe audio. Please try again.");
+    return null;
   }
 }
