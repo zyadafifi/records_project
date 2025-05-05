@@ -86,6 +86,10 @@ let stopRecButton; // Stop button
 let deleteRecButton; // Delete button
 let isRecordingCancelled = false; // Flag for cancellation
 
+// Add this after the global variables section
+let sentenceScores = []; // Array to store individual sentence scores
+let completedSentences = new Set(); // Track completed sentences
+
 // Function to initialize AudioContext
 function initializeAudioContext() {
   if (!audioContext) {
@@ -421,6 +425,20 @@ function resetUI() {
   // Clear the timeouts
   clearTimeout(noSpeechTimeout);
   clearTimeout(recordingTimeout);
+
+  // Reset the score for the current sentence
+  if (sentenceScores[currentSentenceIndex] !== undefined) {
+    totalPronunciationScore -= sentenceScores[currentSentenceIndex];
+    sentenceScores[currentSentenceIndex] = 0;
+    updateSimpleProgress();
+  }
+
+  // Remove current sentence from completed sentences when retrying
+  completedSentences.delete(currentSentenceIndex);
+
+  // Update progress to previous state
+  updateSimpleProgress();
+
   console.log("UI Reset completed.");
 }
 function updateSentenceCounter() {
@@ -432,7 +450,7 @@ function updateSentenceCounter() {
 }
 // Update the displayed sentence and reset UI
 function updateSentence() {
-  if (lessons.length === 0) return; // Ensure lessons are loaded
+  if (lessons.length === 0) return;
   const currentLesson = lessons[currentLessonIndex];
 
   // Update the sentence
@@ -456,6 +474,9 @@ function updateSentence() {
 
   // Enable bookmark buttons in case they were disabled
   toggleBookmarkButtons(false);
+
+  // Update progress
+  updateSimpleProgress();
 }
 
 // Normalize text (remove punctuation and convert to lowercase)
@@ -770,6 +791,20 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
   // Calculate pronunciation score with fractional correctness
   const pronunciationScore = (correctWords / sentenceWords.length) * 100;
+
+  // Only add to completed sentences if score is good enough
+  if (pronunciationScore >= 50) {
+    completedSentences.add(currentSentenceIndex);
+  }
+
+  // Update the sentence score in our tracking array
+  sentenceScores[currentSentenceIndex] = pronunciationScore;
+
+  // Recalculate total score based on all sentence scores
+  totalPronunciationScore = sentenceScores.reduce(
+    (sum, score) => sum + score,
+    0
+  );
 
   // Update the "Continue" button color based on the score
   if (pronunciationScore < 50) {
@@ -1520,10 +1555,10 @@ nextButton.addEventListener("click", () => {
       document.getElementById("congratulationModal")
     );
 
-    // Update the modal content
-    overallScoreDiv.textContent = `${Math.round(
-      totalPronunciationScore / (currentSentenceIndex + 1)
-    )}%`;
+    // Update the modal content with percentage of completed sentences
+    const completionPercentage =
+      (completedSentences.size / currentLesson.sentences.length) * 100;
+    overallScoreDiv.textContent = `${Math.round(completionPercentage)}%`;
 
     congratulationModal.show(); // Show the congratulation modal
   }
@@ -1575,11 +1610,8 @@ function updateSimpleProgress() {
   const currentLesson = lessons[currentLessonIndex];
   const totalSentences = currentLesson.sentences.length;
 
-  // Calculate progress based on total pronunciation score
-  const progress =
-    totalPronunciationScore > 0
-      ? (totalPronunciationScore / ((currentSentenceIndex + 1) * 100)) * 100
-      : 0;
+  // Calculate progress based on number of completed sentences
+  const progress = (completedSentences.size / totalSentences) * 100;
 
   const simpleProgressFill = document.querySelector(".simple-progress-fill");
   const simpleProgressPercentage = document.querySelector(
