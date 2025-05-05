@@ -110,7 +110,7 @@ function toggleListenButtons(disabled) {
   } else {
     listenButton.style.opacity = "1";
     listen2Button.style.opacity = "1";
-    updateListenButtonIcons();
+    updateListenButtonIcon();
   }
 }
 
