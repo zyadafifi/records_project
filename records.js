@@ -1001,16 +1001,16 @@ function updateListenButtonIcon() {
   });
   if (isSpeaking) {
     listenButton.innerHTML =
-      '<i class="fas fa-pause" style="color:white;font-size:24px;"></i>';
+      '<i class="fas fa-pause" style="color:white;font-size:24px;width:24px;height:24px;display:inline-block;"></i>';
     listen2Button.innerHTML =
-      '<i class="fas fa-pause" style="color:white;font-size:24px;"></i>';
+      '<i class="fas fa-pause" style="color:white;font-size:24px;width:24px;height:24px;display:inline-block;"></i>';
     listenButton.title = "Stop playback";
     listen2Button.title = "Stop playback";
   } else {
     listenButton.innerHTML =
-      '<i class="fa-solid fa-volume-up" style="color:white;font-size:24px;"></i>';
+      '<i class="fa-solid fa-volume-up" style="color:white;font-size:24px;width:24px;height:24px;display:inline-block;"></i>';
     listen2Button.innerHTML =
-      '<i class="fa-solid fa-volume-up" style="color:white;font-size:24px;"></i>';
+      '<i class="fa-solid fa-volume-up" style="color:white;font-size:24px;width:24px;height:24px;display:inline-block;"></i>';
     listenButton.title = "Listen to example";
     listen2Button.title = "Listen to example";
   }
