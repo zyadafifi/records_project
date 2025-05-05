@@ -1050,6 +1050,20 @@ function updateListenButtonIcons() {
     listenButton.title = "Listen to example";
     listen2Button.title = "Listen to example";
   }
+
+  // Add background color to the buttons
+  listenButton.style.backgroundColor = "#4b9b94";
+  listen2Button.style.backgroundColor = "#4b9b94";
+  listenButton.style.borderRadius = "50%";
+  listen2Button.style.borderRadius = "50%";
+  listenButton.style.padding = "8px";
+  listen2Button.style.padding = "8px";
+  listenButton.style.display = "flex";
+  listen2Button.style.display = "flex";
+  listenButton.style.alignItems = "center";
+  listen2Button.style.alignItems = "center";
+  listenButton.style.justifyContent = "center";
+  listen2Button.style.justifyContent = "center";
 }
 
 //Function to update bookmark icons
