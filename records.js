@@ -1575,3 +1575,17 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     return null;
   }
 }
+
+// Apply listen button design to ear icon buttons (bookmarkIcon, bookmarkIcon2) on page load
+window.addEventListener("DOMContentLoaded", function () {
+  [bookmarkIcon, bookmarkIcon2].forEach((btn) => {
+    btn.style.background = "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
+    btn.style.borderRadius = "50%";
+    btn.style.padding = "8px";
+    btn.style.display = "flex";
+    btn.style.alignItems = "center";
+    btn.style.justifyContent = "center";
+    btn.style.boxShadow = "0 4px 12px rgba(75, 155, 148, 0.3)";
+    btn.style.border = "none";
+  });
+});
