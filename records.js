@@ -1110,6 +1110,17 @@ style.textContent = `
 `;
 document.head.appendChild(style);
 
+// Force the ear icon SVG path to always be white
+const forceEarIconWhiteStyle = document.createElement("style");
+forceEarIconWhiteStyle.textContent = `
+  .bookmark-icon svg path,
+  #bookmark-icon2 svg path {
+    fill: white !important;
+    stroke: white !important;
+  }
+`;
+document.head.appendChild(forceEarIconWhiteStyle);
+
 // Load lessons from the JSON file
 async function loadLessons() {
   try {
