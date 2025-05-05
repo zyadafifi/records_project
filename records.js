@@ -843,7 +843,7 @@ function speakSentence() {
   speechSynthesis.speak(currentUtterance);
 }
 
-// Modified playRecordedAudio function with toggle functionality
+// Modified playRecordedAudio function with iOS compatibility
 function playRecordedAudio() {
   if (!recordedAudioBlob) {
     alert("No recorded audio available.");
@@ -868,21 +868,42 @@ function playRecordedAudio() {
     return;
   }
 
+  // Initialize AudioContext if not already initialized
+  initializeAudioContext();
+
   const audioURL = URL.createObjectURL(recordedAudioBlob);
   currentAudio = new Audio(audioURL);
+
+  // Add iOS-specific error handling
+  currentAudio.addEventListener("error", function (e) {
+    console.error("Audio playback error:", e);
+    alert("Error playing audio. Please try again.");
+    isPlaying = false;
+    updateBookmarkIcons();
+  });
 
   // Update button immediately
   isPlaying = true;
   updateBookmarkIcons();
 
-  currentAudio.play();
+  // Use Promise-based play for better error handling
+  const playPromise = currentAudio.play();
+
+  if (playPromise !== undefined) {
+    playPromise
+      .then((_) => {
+        // Playback started successfully
+        console.log("Playback started successfully");
+      })
+      .catch((error) => {
+        console.error("Playback failed:", error);
+        isPlaying = false;
+        updateBookmarkIcons();
+        alert("Could not play audio. Please try again.");
+      });
+  }
 
   currentAudio.onended = function () {
-    isPlaying = false;
-    updateBookmarkIcons();
-  };
-
-  currentAudio.onerror = function () {
     isPlaying = false;
     updateBookmarkIcons();
   };
@@ -1005,7 +1026,7 @@ async function startAudioRecording() {
         return;
       }
 
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/mp4" });
       console.log(
         "Recorded audio blob created, size:",
         recordedAudioBlob?.size
@@ -1227,50 +1248,6 @@ async function uploadAudioToAssemblyAI(audioBlob) {
   }
 }
 
-// Play the recorded audio
-function playRecordedAudio() {
-  if (!recordedAudioBlob) {
-    alert("No recorded audio available.");
-    return;
-  }
-
-  // Prevent playing recorded audio during recording
-  if (isRecording) {
-    console.log("Cannot play audio while recording");
-    alert("Cannot play audio while recording. Please finish recording first.");
-    return;
-  }
-
-  if (isPlaying) {
-    // If already playing, stop the audio
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio.currentTime = 0;
-    }
-    isPlaying = false;
-    updateBookmarkIcons();
-    return;
-  }
-
-  const audioURL = URL.createObjectURL(recordedAudioBlob);
-  currentAudio = new Audio(audioURL);
-
-  // Update button immediately
-  isPlaying = true;
-  updateBookmarkIcons();
-
-  currentAudio.play();
-
-  currentAudio.onended = function () {
-    isPlaying = false;
-    updateBookmarkIcons();
-  };
-
-  currentAudio.onerror = function () {
-    isPlaying = false;
-    updateBookmarkIcons();
-  };
-}
 // Function to update listen button icons
 function updateListenButtonIcons() {
   if (isSpeaking) {
