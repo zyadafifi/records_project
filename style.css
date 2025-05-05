@@ -971,3 +971,20 @@ input[type="text"].form-control {
   min-width: 45px;
   text-align: right;
 }
+
+.startButton {
+  background: linear-gradient(135deg, #4b9b94 0%, #2c7873 100%);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 4px 12px rgba(75, 155, 148, 0.3);
+  transition: all 0.3s ease;
+}
+
+.startButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(75, 155, 148, 0.4);
+}
+
+.startButton:active {
+  transform: scale(0.95);
+}
