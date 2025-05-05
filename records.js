@@ -13,8 +13,8 @@ const progressCircle = document.getElementById("progress");
 const sentencesSpokenDiv = document.getElementById("sentencesSpoken");
 const overallScoreDiv = document.getElementById("overallScore");
 const continueButton = document.querySelector(".continue-to-next-lesson");
-const bookmarkIcon = document.querySelector(".bookmark-icon");
-const bookmarkIcon2 = document.querySelector("#bookmark-icon2");
+const bookmarkIcon = document.getElementById("bookmarkIcon");
+const bookmarkIcon2 = document.getElementById("bookmark-icon2");
 const currentSentenceElement = document.querySelector(".current-count");
 const totalSentencesElement = document.querySelector(".total-count");
 
