@@ -1293,10 +1293,68 @@ function updateSimpleProgress() {
   );
 
   if (simpleProgressFill) {
-    simpleProgressFill.style.width = `${progress}%`;
+    // Get current width
+    const currentWidth = parseFloat(simpleProgressFill.style.width) || 0;
+    const targetWidth = progress;
+
+    // Animate the width change
+    const startTime = performance.now();
+    const duration = 500; // 500ms animation duration
+
+    function animate(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Use cubic-bezier easing
+      const easedProgress =
+        progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+      const currentWidth =
+        currentWidth + (targetWidth - currentWidth) * easedProgress;
+
+      simpleProgressFill.style.width = `${currentWidth}%`;
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    }
+
+    requestAnimationFrame(animate);
   }
+
   if (simpleProgressPercentage) {
-    simpleProgressPercentage.textContent = `${Math.round(progress)}%`;
+    // Animate the percentage text
+    const currentPercentage =
+      parseInt(simpleProgressPercentage.textContent) || 0;
+    const targetPercentage = Math.round(progress);
+
+    const startTime = performance.now();
+    const duration = 500; // 500ms animation duration
+
+    function animatePercentage(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Use cubic-bezier easing
+      const easedProgress =
+        progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+      const currentValue = Math.round(
+        currentPercentage +
+          (targetPercentage - currentPercentage) * easedProgress
+      );
+      simpleProgressPercentage.textContent = `${currentValue}%`;
+
+      if (progress < 1) {
+        requestAnimationFrame(animatePercentage);
+      }
+    }
+
+    requestAnimationFrame(animatePercentage);
   }
 }
 
