@@ -214,6 +214,7 @@ function setupWaveformVisualization(stream) {
     deleteRecButton.style.cursor = "pointer";
     deleteRecButton.style.padding = "0 8px";
     deleteRecButton.style.transition = "all 0.3s ease";
+    deleteRecButton.style.webkitTapHighlightColor = "transparent"; // Remove tap highlight on iOS
 
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
@@ -222,14 +223,16 @@ function setupWaveformVisualization(stream) {
     stopRecButton.style.background = "white";
     stopRecButton.style.border = "none";
     stopRecButton.style.borderRadius = "50%";
-    stopRecButton.style.width = "30px";
-    stopRecButton.style.height = "30px";
+    stopRecButton.style.width = "40px"; // Increased size for better touch target
+    stopRecButton.style.height = "40px"; // Increased size for better touch target
     stopRecButton.style.display = "flex";
     stopRecButton.style.alignItems = "center";
     stopRecButton.style.justifyContent = "center";
     stopRecButton.style.cursor = "pointer";
     stopRecButton.style.color = "#4b9b94";
     stopRecButton.style.transition = "all 0.3s ease";
+    stopRecButton.style.webkitTapHighlightColor = "transparent"; // Remove tap highlight on iOS
+    stopRecButton.style.touchAction = "manipulation"; // Optimize touch handling
 
     // Create waveform canvas
     waveformCanvas = document.createElement("canvas");
@@ -251,12 +254,21 @@ function setupWaveformVisualization(stream) {
 
     // Add event listeners for the buttons
     deleteRecButton.addEventListener("click", handleDeleteRecording);
+    deleteRecButton.addEventListener("touchend", function (e) {
+      e.preventDefault(); // Prevent default touch behavior
+      handleDeleteRecording();
+    });
+
     stopRecButton.addEventListener("click", handleStopRecording);
+    stopRecButton.addEventListener("touchend", function (e) {
+      e.preventDefault(); // Prevent default touch behavior
+      handleStopRecording();
+    });
 
     // Create a separate container for the timer
     const timerContainer = document.createElement("div");
     timerContainer.style.width = "100%";
-    timerContainer.style.display = "flex";
+    style.display = "flex";
     timerContainer.style.justifyContent = "center";
     timerContainer.style.marginTop = "5px";
     timerContainer.appendChild(timerElement);
@@ -371,12 +383,28 @@ function drawWhatsAppWaveform() {
 // --- Button Click Handlers ---
 
 function handleStopRecording() {
-  console.log("Stop button clicked.");
+  console.log("Stop button clicked/touched.");
   if (mediaRecorder && mediaRecorder.state === "recording") {
     console.log("Calling mediaRecorder.stop() via button.");
     stopRecButton.disabled = true; // Prevent double clicks
     deleteRecButton.disabled = true;
-    mediaRecorder.stop();
+
+    // Add visual feedback
+    stopRecButton.style.transform = "scale(0.95)";
+    setTimeout(() => {
+      stopRecButton.style.transform = "scale(1)";
+    }, 100);
+
+    try {
+      mediaRecorder.stop();
+    } catch (error) {
+      console.error("Error stopping MediaRecorder:", error);
+      // Fallback handling
+      if (mediaRecorder.stream) {
+        mediaRecorder.stream.getTracks().forEach((track) => track.stop());
+      }
+      resetUI();
+    }
   }
 }
 
