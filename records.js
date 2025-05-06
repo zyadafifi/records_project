@@ -223,8 +223,8 @@ function setupWaveformVisualization(stream) {
     stopRecButton.style.background = "white";
     stopRecButton.style.border = "none";
     stopRecButton.style.borderRadius = "50%";
-    stopRecButton.style.width = "40px"; // Increased size for better touch target
-    stopRecButton.style.height = "40px"; // Increased size for better touch target
+    stopRecButton.style.width = "30px"; // Reverted back to original size
+    stopRecButton.style.height = "30px"; // Reverted back to original size
     stopRecButton.style.display = "flex";
     stopRecButton.style.alignItems = "center";
     stopRecButton.style.justifyContent = "center";
