@@ -223,16 +223,14 @@ function setupWaveformVisualization(stream) {
     stopRecButton.style.background = "white";
     stopRecButton.style.border = "none";
     stopRecButton.style.borderRadius = "50%";
-    stopRecButton.style.width = "30px"; // Reverted back to original size
-    stopRecButton.style.height = "30px"; // Reverted back to original size
+    stopRecButton.style.width = "30px";
+    stopRecButton.style.height = "30px";
     stopRecButton.style.display = "flex";
     stopRecButton.style.alignItems = "center";
     stopRecButton.style.justifyContent = "center";
     stopRecButton.style.cursor = "pointer";
     stopRecButton.style.color = "#4b9b94";
-    stopRecButton.style.transition = "all 0.3s ease";
-    stopRecButton.style.webkitTapHighlightColor = "transparent"; // Remove tap highlight on iOS
-    stopRecButton.style.touchAction = "manipulation"; // Optimize touch handling
+    stopRecButton.style.webkitTapHighlightColor = "transparent"; // Keep only this iOS compatibility improvement
 
     // Create waveform canvas
     waveformCanvas = document.createElement("canvas");
