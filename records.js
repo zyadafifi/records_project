@@ -1294,7 +1294,7 @@ function updateSimpleProgress() {
 
   if (simpleProgressFill) {
     // Get current width
-    const currentWidth = parseFloat(simpleProgressFill.style.width) || 0;
+    const startWidth = parseFloat(simpleProgressFill.style.width) || 0;
     const targetWidth = progress;
 
     // Animate the width change
@@ -1312,7 +1312,7 @@ function updateSimpleProgress() {
           : 1 - Math.pow(-2 * progress + 2, 3) / 2;
 
       const currentWidth =
-        currentWidth + (targetWidth - currentWidth) * easedProgress;
+        startWidth + (targetWidth - startWidth) * easedProgress;
 
       simpleProgressFill.style.width = `${currentWidth}%`;
 
@@ -1326,8 +1326,7 @@ function updateSimpleProgress() {
 
   if (simpleProgressPercentage) {
     // Animate the percentage text
-    const currentPercentage =
-      parseInt(simpleProgressPercentage.textContent) || 0;
+    const startPercentage = parseInt(simpleProgressPercentage.textContent) || 0;
     const targetPercentage = Math.round(progress);
 
     const startTime = performance.now();
@@ -1344,8 +1343,7 @@ function updateSimpleProgress() {
           : 1 - Math.pow(-2 * progress + 2, 3) / 2;
 
       const currentValue = Math.round(
-        currentPercentage +
-          (targetPercentage - currentPercentage) * easedProgress
+        startPercentage + (targetPercentage - startPercentage) * easedProgress
       );
       simpleProgressPercentage.textContent = `${currentValue}%`;
 
