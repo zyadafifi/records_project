@@ -1288,24 +1288,32 @@ function updateSimpleProgress() {
   const progress = (completedSentences.size / totalSentences) * 100;
 
   const simpleProgressFill = document.querySelector(".simple-progress-fill");
+  const simpleProgressBar = document.querySelector(".simple-progress-bar");
   const simpleProgressPercentage = document.querySelector(
     ".simple-progress-percentage"
   );
 
-  if (simpleProgressFill) {
+  if (simpleProgressFill && simpleProgressBar) {
     // Get current width
     const startWidth = parseFloat(simpleProgressFill.style.width) || 0;
     const targetWidth = progress;
 
+    // Update tooltip position
+    simpleProgressBar.style.setProperty(
+      "--progress-position",
+      `${targetWidth}%`
+    );
+    simpleProgressBar.setAttribute("data-progress", `${Math.round(progress)}%`);
+
     // Animate the width change
     const startTime = performance.now();
-    const duration = 500; // 500ms animation duration
+    const duration = 800; // Slightly longer duration for smoother animation
 
     function animate(currentTime) {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
 
-      // Use cubic-bezier easing
+      // Use cubic-bezier easing for smoother animation
       const easedProgress =
         progress < 0.5
           ? 4 * progress * progress * progress
@@ -1313,8 +1321,13 @@ function updateSimpleProgress() {
 
       const currentWidth =
         startWidth + (targetWidth - startWidth) * easedProgress;
-
       simpleProgressFill.style.width = `${currentWidth}%`;
+
+      // Update tooltip position during animation
+      simpleProgressBar.style.setProperty(
+        "--progress-position",
+        `${currentWidth}%`
+      );
 
       if (progress < 1) {
         requestAnimationFrame(animate);
@@ -1330,7 +1343,7 @@ function updateSimpleProgress() {
     const targetPercentage = Math.round(progress);
 
     const startTime = performance.now();
-    const duration = 500; // 500ms animation duration
+    const duration = 800; // Match the fill animation duration
 
     function animatePercentage(currentTime) {
       const elapsed = currentTime - startTime;
@@ -1347,8 +1360,15 @@ function updateSimpleProgress() {
       );
       simpleProgressPercentage.textContent = `${currentValue}%`;
 
+      // Add a subtle scale effect during animation
+      const scale = 1 + easedProgress * 0.1;
+      simpleProgressPercentage.style.transform = `scale(${scale})`;
+
       if (progress < 1) {
         requestAnimationFrame(animatePercentage);
+      } else {
+        // Reset transform after animation
+        simpleProgressPercentage.style.transform = "scale(1)";
       }
     }
 
