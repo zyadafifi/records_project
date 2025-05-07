@@ -1230,15 +1230,13 @@ if (sentenceElement && sentenceElement.parentElement) {
 }
 
 // Event listeners for buttons
-micButton.addEventListener("click", async () => {
-  // Initialize and resume AudioContext on user gesture
-  initializeAudioContext();
-  await resumeAudioContext();
-
-  micButton.style.display = "none";
-  retryButton.style.display = "inline-block";
-  retryButton.disabled = false;
-  startAudioRecording();
+micButton.addEventListener("click", () => {
+  const wpRecordBtn = document.querySelector(".aer-record-btn");
+  if (wpRecordBtn) {
+    wpRecordBtn.click();
+  } else {
+    alert("Audio recorder not found. Please use the recorder below.");
+  }
 });
 
 // Update the retry button handler to clear the timeout
