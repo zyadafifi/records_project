@@ -1737,7 +1737,8 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
     nextButton.style.background =
       "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)";
   } else {
-    nextButton.style.backgroundColor = "#4b9b94";
+    nextButton.style.background =
+      "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
   }
 
   // Add event for close button
@@ -1749,11 +1750,7 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   dialogClone.getElementById("retryButton").onclick = function (e) {
     e.preventDefault();
     document.querySelector(".dialog-container").remove();
-    // Reset continue button color if score is >= 50
-    if (score >= 50) {
-      nextButton.style.backgroundColor = "#4b9b94";
-    }
-    // Call showDialog again with the new score after recording
+    // Start a new recording; after scoring, showDialog will be called with the new score
     startAudioRecording();
   };
 
