@@ -1749,6 +1749,10 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   dialogClone.getElementById("retryButton").onclick = function (e) {
     e.preventDefault();
     document.querySelector(".dialog-container").remove();
+    // Reset continue button color if score is >= 50
+    if (score >= 50) {
+      nextButton.style.backgroundColor = "#4b9b94";
+    }
     // Add your retry logic here
   };
 
