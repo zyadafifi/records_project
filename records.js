@@ -1702,3 +1702,53 @@ window.addEventListener("DOMContentLoaded", function () {
     btn.style.border = "none";
   });
 });
+
+function showDialog({ score = 0, feedback = "", missingWords = "" }) {
+  // Remove any existing dialog
+  const oldDialog = document.querySelector(".dialog-container");
+  if (oldDialog) oldDialog.remove();
+
+  // Clone the template
+  const template = document.getElementById("dialog-template");
+  const dialogClone = template.content.cloneNode(true);
+
+  // Update dynamic content
+  const scoreText = dialogClone.getElementById("pronunciationScore");
+  const progressCircle = dialogClone.getElementById("progress");
+  const dialogSentenceText = dialogClone.getElementById("dialogSentenceText");
+  const missingWordDiv = dialogClone.getElementById("missingWordDiv");
+
+  // Set score
+  scoreText.textContent = `${score}%`;
+  // Animate progress
+  const radius = 48;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+  progressCircle.style.strokeDashoffset = offset;
+
+  // Set feedback
+  if (feedback) dialogSentenceText.innerHTML = feedback;
+  if (missingWords) missingWordDiv.textContent = missingWords;
+
+  // Add event for close button
+  dialogClone.querySelector(".close-icon").onclick = function () {
+    document.querySelector(".dialog-container").remove();
+  };
+
+  // Add event for retry button
+  dialogClone.getElementById("retryButton").onclick = function (e) {
+    e.preventDefault();
+    document.querySelector(".dialog-container").remove();
+    // Add your retry logic here
+  };
+
+  // Add event for next button
+  dialogClone.getElementById("nextButton").onclick = function (e) {
+    e.preventDefault();
+    document.querySelector(".dialog-container").remove();
+    // Add your continue logic here
+  };
+
+  // Append to body (or your preferred parent)
+  document.body.appendChild(dialogClone);
+}
