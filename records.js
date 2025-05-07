@@ -1213,21 +1213,6 @@ if (micButton) {
 if (retryButton) {
   retryButton.style.display = "none";
 }
-const wpRecorderMsg = document.createElement("div");
-wpRecorderMsg.style.background = "#e6f4f3";
-wpRecorderMsg.style.color = "#2c3e50";
-wpRecorderMsg.style.padding = "16px";
-wpRecorderMsg.style.borderRadius = "8px";
-wpRecorderMsg.style.margin = "20px 0";
-wpRecorderMsg.style.textAlign = "center";
-wpRecorderMsg.style.fontWeight = "bold";
-wpRecorderMsg.innerText =
-  "Audio recording is now handled by the built-in WordPress audio recorder below. Please use it to record and submit your pronunciation.";
-
-// Insert the message at the top of the main content or where the mic button was
-if (sentenceElement && sentenceElement.parentElement) {
-  sentenceElement.parentElement.insertBefore(wpRecorderMsg, sentenceElement);
-}
 
 // Event listeners for buttons
 micButton.addEventListener("click", () => {
