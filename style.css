@@ -473,6 +473,13 @@ body {
   .sentence-text-2 {
     font-size: 18px;
   }
+
+  .tip-2 {
+    top: 80px; /* Move it up for mobile, adjust as needed */
+    min-width: 180px;
+    padding: 6px 20px;
+    font-size: 12px;
+  }
 }
 
 /* .tip {
