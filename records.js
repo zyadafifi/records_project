@@ -1203,25 +1203,16 @@ function getQuizIdFromURL() {
 // Load lessons when the page loads
 loadLessons();
 
-// === Pronunciation Recording Disabled ===
-// The recording feature is now handled by the WordPress plugin.
-// Hide mic button and show a message to use the WordPress audio recorder.
-
-if (micButton) {
-  micButton.style.display = "none";
-}
-if (retryButton) {
-  retryButton.style.display = "none";
-}
-
 // Event listeners for buttons
-micButton.addEventListener("click", () => {
-  const wpRecordBtn = document.querySelector(".aer-record-btn");
-  if (wpRecordBtn) {
-    wpRecordBtn.click();
-  } else {
-    alert("Audio recorder not found. Please use the recorder below.");
-  }
+micButton.addEventListener("click", async () => {
+  // Initialize and resume AudioContext on user gesture
+  initializeAudioContext();
+  await resumeAudioContext();
+
+  micButton.style.display = "none";
+  retryButton.style.display = "inline-block";
+  retryButton.disabled = false;
+  startAudioRecording();
 });
 
 // Update the retry button handler to clear the timeout
