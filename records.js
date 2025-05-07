@@ -877,9 +877,10 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
   // Update the "Continue" button color based on the score
   if (pronunciationScore < 50) {
-    nextButton.style.backgroundColor = "#ff0000"; // Red for low scores
+    nextButton.style.background =
+      "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)";
   } else {
-    nextButton.style.backgroundColor = "#0aa989"; // Reset to default color
+    nextButton.style.backgroundColor = "#4b9b94";
   }
 
   // Update progress bar immediately after score calculation
@@ -1717,6 +1718,7 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   const progressCircle = dialogClone.getElementById("progress");
   const dialogSentenceText = dialogClone.getElementById("dialogSentenceText");
   const missingWordDiv = dialogClone.getElementById("missingWordDiv");
+  const nextButton = dialogClone.getElementById("nextButton");
 
   // Set score
   scoreText.textContent = `${score}%`;
@@ -1729,6 +1731,14 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   // Set feedback
   if (feedback) dialogSentenceText.innerHTML = feedback;
   if (missingWords) missingWordDiv.textContent = missingWords;
+
+  // Set continue button color based on score
+  if (score < 50) {
+    nextButton.style.background =
+      "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)";
+  } else {
+    nextButton.style.backgroundColor = "#4b9b94";
+  }
 
   // Add event for close button
   dialogClone.querySelector(".close-icon").onclick = function () {
