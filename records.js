@@ -1753,7 +1753,8 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
     if (score >= 50) {
       nextButton.style.backgroundColor = "#4b9b94";
     }
-    // Add your retry logic here
+    // Call showDialog again with the new score after recording
+    startAudioRecording();
   };
 
   // Add event for next button
