@@ -680,7 +680,7 @@ async function initializeSoundEffects() {
 
     // Set volume for all sounds
     [successSound, neutralSound, lowScoreSound].forEach((sound) => {
-      sound.volume = 0.5; // Set volume to 50%
+      sound.volume = 0.4; // Slightly lower volume for gaming sounds
     });
 
     // Load sounds with proper error handling
@@ -699,11 +699,14 @@ async function initializeSoundEffects() {
       }
     };
 
-    // Load each sound
+    // Load each sound - using gaming-style sounds
     await Promise.all([
-      loadSound(successSound, "sounds/success.mp3"),
-      loadSound(neutralSound, "sounds/neutral.mp3"),
-      loadSound(lowScoreSound, "sounds/lowscore.mp3"),
+      // Success sound - Mario-style coin collection
+      loadSound(successSound, "sounds/coin-collect.mp3"),
+      // Neutral sound - Game notification
+      loadSound(neutralSound, "sounds/game-notification.mp3"),
+      // Low score sound - Game alert
+      loadSound(lowScoreSound, "sounds/game-alert.mp3"),
     ]);
 
     soundsInitialized = true;
