@@ -58,6 +58,15 @@ document.body.appendChild(dialogBackdrop);
 // Hide the dialog backdrop initially
 dialogBackdrop.style.display = "none";
 
+// Gesture handling variables
+let touchStartY = 0;
+let touchStartTime = 0;
+let isHolding = false;
+let holdTimeout = null;
+const HOLD_DURATION = 500; // 500ms hold duration
+const SLIDE_THRESHOLD = 50; // 50px slide threshold
+const MIN_HOLD_TIME = 300; // Minimum hold time before recording starts
+
 // Function to initialize AudioContext
 function initializeAudioContext() {
   if (!audioContext) {
@@ -1213,17 +1222,13 @@ function getQuizIdFromURL() {
 // Load lessons when the page loads
 loadLessons();
 
-// Event listeners for buttons
-micButton.addEventListener("click", async () => {
-  // Initialize and resume AudioContext on user gesture
-  initializeAudioContext();
-  await resumeAudioContext();
-
-  micButton.style.display = "none";
-  retryButton.style.display = "inline-block";
-  retryButton.disabled = false;
-  startAudioRecording();
-});
+// Event listeners for the mic button
+micButton.addEventListener("touchstart", handleTouchStart, { passive: false });
+micButton.addEventListener("touchmove", handleTouchMove, { passive: false });
+micButton.addEventListener("touchend", handleTouchEnd, { passive: false });
+micButton.addEventListener("mousedown", handleMouseDown);
+micButton.addEventListener("mousemove", handleMouseMove);
+micButton.addEventListener("mouseup", handleMouseUp);
 
 // Update the retry button handler to clear the timeout
 retryButton.addEventListener("click", () => {
@@ -1772,4 +1777,132 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
 
   // Append to body (or your preferred parent)
   document.body.appendChild(dialogClone);
+}
+
+// Touch event handlers
+function handleTouchStart(e) {
+  e.preventDefault();
+  touchStartY = e.touches[0].clientY;
+  touchStartTime = Date.now();
+  isHolding = true;
+
+  // Add holding class for visual feedback
+  micButton.classList.add("holding");
+
+  // Start hold timer
+  holdTimeout = setTimeout(() => {
+    if (isHolding) {
+      startAudioRecording();
+    }
+  }, MIN_HOLD_TIME);
+}
+
+function handleTouchMove(e) {
+  if (!isHolding) return;
+
+  const touchY = e.touches[0].clientY;
+  const slideDistance = touchStartY - touchY;
+
+  // If sliding up and recording, show cancel state
+  if (slideDistance > SLIDE_THRESHOLD && isRecording) {
+    micButton.classList.add("sliding");
+    isRecordingCancelled = true;
+  } else {
+    micButton.classList.remove("sliding");
+    isRecordingCancelled = false;
+  }
+}
+
+function handleTouchEnd(e) {
+  e.preventDefault();
+  const touchEndY = e.changedTouches[0].clientY;
+  const touchEndTime = Date.now();
+  const touchDuration = touchEndTime - touchStartTime;
+  const slideDistance = touchStartY - touchEndY;
+
+  // Clear hold timeout
+  if (holdTimeout) {
+    clearTimeout(holdTimeout);
+    holdTimeout = null;
+  }
+
+  // Remove holding class
+  micButton.classList.remove("holding");
+  micButton.classList.remove("sliding");
+
+  // If we were recording and didn't slide up to cancel
+  if (isRecording && !isRecordingCancelled && slideDistance < SLIDE_THRESHOLD) {
+    handleStopRecording();
+    // Immediately send the recording
+    if (mediaRecorder && mediaRecorder.state === "inactive") {
+      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      uploadAudioToAssemblyAI(audioBlob);
+    }
+  } else if (isRecordingCancelled) {
+    handleDeleteRecording();
+  }
+
+  // Reset gesture state
+  isHolding = false;
+  isRecordingCancelled = false;
+}
+
+// Mouse event handlers for desktop testing
+function handleMouseDown(e) {
+  e.preventDefault();
+  touchStartY = e.clientY;
+  touchStartTime = Date.now();
+  isHolding = true;
+
+  micButton.classList.add("holding");
+
+  holdTimeout = setTimeout(() => {
+    if (isHolding) {
+      startAudioRecording();
+    }
+  }, MIN_HOLD_TIME);
+}
+
+function handleMouseMove(e) {
+  if (!isHolding) return;
+
+  const mouseY = e.clientY;
+  const slideDistance = touchStartY - mouseY;
+
+  if (slideDistance > SLIDE_THRESHOLD && isRecording) {
+    micButton.classList.add("sliding");
+    isRecordingCancelled = true;
+  } else {
+    micButton.classList.remove("sliding");
+    isRecordingCancelled = false;
+  }
+}
+
+function handleMouseUp(e) {
+  e.preventDefault();
+  const mouseEndY = e.clientY;
+  const mouseEndTime = Date.now();
+  const mouseDuration = mouseEndTime - touchStartTime;
+  const slideDistance = touchStartY - mouseEndY;
+
+  if (holdTimeout) {
+    clearTimeout(holdTimeout);
+    holdTimeout = null;
+  }
+
+  micButton.classList.remove("holding");
+  micButton.classList.remove("sliding");
+
+  if (isRecording && !isRecordingCancelled && slideDistance < SLIDE_THRESHOLD) {
+    handleStopRecording();
+    if (mediaRecorder && mediaRecorder.state === "inactive") {
+      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
+      uploadAudioToAssemblyAI(audioBlob);
+    }
+  } else if (isRecordingCancelled) {
+    handleDeleteRecording();
+  }
+
+  isHolding = false;
+  isRecordingCancelled = false;
 }
