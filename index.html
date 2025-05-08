@@ -92,11 +92,13 @@
             </div>
 
             <!-- Mic Icon in Circle (Center) -->
-            <button
-              class="mic-circle d-flex align-items-center justify-content-center"
-              id="micButton"
-            >
-              <i class="fas fa-microphone mic-icon"></i>
+            <button id="micButton" class="mic-circle">
+              <i class="fas fa-microphone"></i>
+              <span class="slide-text">Slide up to cancel</span>
+              <svg class="hold-progress" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="45" />
+                <circle cx="50" cy="50" r="45" />
+              </svg>
             </button>
 
             <!-- Recording Indicator -->
