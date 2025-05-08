@@ -51,9 +51,6 @@ let deleteRecButton; // Delete button
 let isRecordingCancelled = false; // Flag for cancellation
 
 // Audio elements for sound effects
-let successSound;
-let neutralSound;
-let lowScoreSound;
 let soundsInitialized = false;
 
 // Create a backdrop for the dialog
@@ -68,8 +65,8 @@ dialogBackdrop.style.display = "none";
 function initializeAudioContext() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    console.log("AudioContext initialized.");
   }
+  return audioContext;
 }
 
 // Function to resume AudioContext
@@ -668,101 +665,102 @@ function updateProgressCircle(score) {
   }
 }
 
-// Initialize audio elements
-async function initializeSoundEffects() {
-  if (soundsInitialized) return;
-
-  try {
-    // Create audio elements
-    successSound = new Audio();
-    neutralSound = new Audio();
-    lowScoreSound = new Audio();
-
-    // Set volume for all sounds
-    [successSound, neutralSound, lowScoreSound].forEach((sound) => {
-      sound.volume = 0.4; // Slightly lower volume for gaming sounds
-    });
-
-    // Load sounds with proper error handling
-    const loadSound = async (audioElement, url) => {
-      try {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        audioElement.src = URL.createObjectURL(blob);
-        await new Promise((resolve, reject) => {
-          audioElement.oncanplaythrough = resolve;
-          audioElement.onerror = reject;
-          audioElement.load();
-        });
-      } catch (error) {
-        console.error("Error loading sound:", error);
-      }
-    };
-
-    // Load each sound - using gaming-style sounds
-    await Promise.all([
-      // Success sound - Mario-style coin collection
-      loadSound(successSound, "sounds/coin-collect.mp3"),
-      // Neutral sound - Game notification
-      loadSound(neutralSound, "sounds/game-notification.mp3"),
-      // Low score sound - Game alert
-      loadSound(lowScoreSound, "sounds/game-alert.mp3"),
-    ]);
-
-    soundsInitialized = true;
-  } catch (error) {
-    console.error("Error initializing sounds:", error);
-  }
-}
-
-// Play sound effects using actual audio files
+// Generate game-like sounds using Web Audio API
 function playSoundEffect(score) {
-  if (!soundsInitialized) {
-    console.log("Sounds not initialized yet");
-    return;
-  }
-
   try {
-    // Stop any currently playing sounds
-    [successSound, neutralSound, lowScoreSound].forEach((sound) => {
-      if (sound) {
-        sound.pause();
-        sound.currentTime = 0;
-      }
-    });
+    const ctx = initializeAudioContext();
+    if (!ctx) return;
 
-    // Play appropriate sound based on score
-    let soundToPlay = null;
+    // Create master gain node for volume control
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = 0.3; // Set overall volume
+    masterGain.connect(ctx.destination);
+
+    const now = ctx.currentTime;
+    const duration = 0.3; // 300ms duration
+
     if (score >= 80) {
-      soundToPlay = successSound;
+      // Success sound - Mario-style coin collection
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      // Set up oscillators for a bright, cheerful sound
+      osc1.type = "sine";
+      osc2.type = "sine";
+
+      // Create a rising "coin collection" sound
+      osc1.frequency.setValueAtTime(880, now); // A5
+      osc1.frequency.linearRampToValueAtTime(1760, now + duration); // A6
+
+      osc2.frequency.setValueAtTime(1108.73, now); // C#6
+      osc2.frequency.linearRampToValueAtTime(2217.46, now + duration); // C#7
+
+      // Quick attack, gentle decay
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.3, now + 0.02);
+      gainNode.gain.linearRampToValueAtTime(0, now + duration);
+
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(masterGain);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + duration);
+      osc2.stop(now + duration);
     } else if (score >= 50) {
-      soundToPlay = neutralSound;
+      // Neutral sound - Game notification
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(660, now); // E5
+      osc.frequency.linearRampToValueAtTime(880, now + duration); // A5
+
+      // Gentle attack and decay
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.2, now + 0.02);
+      gainNode.gain.linearRampToValueAtTime(0, now + duration);
+
+      osc.connect(gainNode);
+      gainNode.connect(masterGain);
+
+      osc.start(now);
+      osc.stop(now + duration);
     } else {
-      soundToPlay = lowScoreSound;
+      // Low score sound - Game alert
+      const osc = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(440, now); // A4
+      osc.frequency.linearRampToValueAtTime(330, now + duration); // E4
+
+      // Quick attack, gentle decay
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.15, now + 0.02);
+      gainNode.gain.linearRampToValueAtTime(0, now + duration);
+
+      osc.connect(gainNode);
+      gainNode.connect(masterGain);
+
+      osc.start(now);
+      osc.stop(now + duration);
     }
 
-    if (soundToPlay) {
-      // Create a promise to handle the play attempt
-      const playPromise = soundToPlay.play();
-
-      if (playPromise !== undefined) {
-        playPromise.catch((error) => {
-          // Only log the error if it's not a user interaction error
-          if (error.name !== "NotAllowedError") {
-            console.error("Error playing sound:", error);
-          }
-        });
-      }
-    }
+    // Add a subtle fade out
+    masterGain.gain.setValueAtTime(0.3, now);
+    masterGain.gain.linearRampToValueAtTime(0, now + duration);
   } catch (error) {
-    console.error("Error in playSoundEffect:", error);
+    console.error("Error playing sound effect:", error);
   }
 }
 
-// Initialize sound effects when the user first interacts with the page
+// Initialize audio context when the user first interacts with the page
 function setupSoundInitialization() {
-  const initializeOnInteraction = async () => {
-    await initializeSoundEffects();
+  const initializeOnInteraction = () => {
+    initializeAudioContext();
     // Remove the event listeners after first interaction
     document.removeEventListener("click", initializeOnInteraction);
     document.removeEventListener("touchstart", initializeOnInteraction);
