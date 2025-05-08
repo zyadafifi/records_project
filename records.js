@@ -1321,17 +1321,37 @@ function handleTouchMove(e) {
 }
 
 function handleTouchEnd(e) {
-  if (!isHolding) return;
+  e.preventDefault();
+  const touchEndY = e.changedTouches[0].clientY;
+  const touchEndTime = Date.now();
+  const touchDuration = touchEndTime - touchStartTime;
+  const slideDistance = touchStartY - touchEndY;
 
-  clearInterval(holdTimeout);
-  micButton.classList.remove("holding", "sliding");
-  isHolding = false;
-  updateHoldProgress(0);
+  // Clear hold timeout
+  if (holdTimeout) {
+    clearTimeout(holdTimeout);
+    holdTimeout = null;
+  }
 
-  // If recording was started and we're sliding up, cancel it
-  if (isRecording && micButton.classList.contains("sliding")) {
+  // Remove holding class
+  micButton.classList.remove("holding");
+  micButton.classList.remove("sliding");
+
+  // If we were recording and didn't slide up to cancel
+  if (isRecording && !isRecordingCancelled && slideDistance < SLIDE_THRESHOLD) {
+    handleStopRecording();
+    // Immediately send the recording
+    if (mediaRecorder && mediaRecorder.state === "inactive") {
+      const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      uploadAudioToAssemblyAI(audioBlob);
+    }
+  } else if (isRecordingCancelled) {
     handleDeleteRecording();
   }
+
+  // Reset gesture state
+  isHolding = false;
+  isRecordingCancelled = false;
 }
 
 // Mouse event handlers for desktop testing
@@ -1365,15 +1385,37 @@ function handleMouseMove(e) {
 }
 
 function handleMouseUp(e) {
-  if (!isHolding) return;
+  e.preventDefault();
+  const mouseEndY = e.clientY;
+  const mouseEndTime = Date.now();
+  const mouseDuration = mouseEndTime - touchStartTime;
+  const slideDistance = touchStartY - mouseEndY;
 
-  clearTimeout(holdTimeout);
-  micButton.classList.remove("holding", "sliding");
-  isHolding = false;
+  // Clear hold timeout
+  if (holdTimeout) {
+    clearTimeout(holdTimeout);
+    holdTimeout = null;
+  }
 
-  if (isRecording && micButton.classList.contains("sliding")) {
+  // Remove holding class
+  micButton.classList.remove("holding");
+  micButton.classList.remove("sliding");
+
+  // If we were recording and didn't slide up to cancel
+  if (isRecording && !isRecordingCancelled && slideDistance < SLIDE_THRESHOLD) {
+    handleStopRecording();
+    // Immediately send the recording
+    if (mediaRecorder && mediaRecorder.state === "inactive") {
+      const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
+      uploadAudioToAssemblyAI(audioBlob);
+    }
+  } else if (isRecordingCancelled) {
     handleDeleteRecording();
   }
+
+  // Reset gesture state
+  isHolding = false;
+  isRecordingCancelled = false;
 }
 
 // Modify the existing startAudioRecording function to handle gesture state
