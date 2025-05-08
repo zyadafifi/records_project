@@ -674,39 +674,40 @@ function playSoundEffect(score) {
   try {
     // Create master gain node for volume control
     const masterGain = audioContext.createGain();
-    masterGain.gain.value = 0.2; // Lower volume for more pleasant experience
+    masterGain.gain.value = 0.15; // Lower volume for subtlety
     masterGain.connect(audioContext.destination);
 
     // Create filter for tone shaping
     const filter = audioContext.createBiquadFilter();
-    filter.type = "bandpass";
-    filter.frequency.value = 2000;
-    filter.Q.value = 1;
+    filter.type = "highpass";
+    filter.frequency.value = 1000;
+    filter.Q.value = 0.7;
     filter.connect(masterGain);
 
-    // Shorter duration for more crisp sounds
-    const duration = 0.15; // 150ms duration
+    // Very short duration for modern app feel
+    const duration = 0.12; // 120ms duration
     const now = audioContext.currentTime;
 
     if (score >= 80) {
-      // Success sound - cheerful ascending "ding"
+      // Success sound - modern "success" tone
       const osc1 = audioContext.createOscillator();
       const osc2 = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
-      osc1.type = "sine";
-      osc2.type = "sine";
+      // Square wave for more modern sound
+      osc1.type = "square";
+      osc2.type = "square";
 
-      // Higher frequencies for success
-      osc1.frequency.setValueAtTime(1200, now); // Higher frequency
-      osc1.frequency.linearRampToValueAtTime(1800, now + duration);
+      // Modern app-like frequencies
+      osc1.frequency.setValueAtTime(1000, now);
+      osc1.frequency.linearRampToValueAtTime(1500, now + duration);
 
-      osc2.frequency.setValueAtTime(1800, now);
-      osc2.frequency.linearRampToValueAtTime(2400, now + duration);
+      osc2.frequency.setValueAtTime(1500, now);
+      osc2.frequency.linearRampToValueAtTime(2000, now + duration);
 
-      // Quick attack and decay
+      // Sharp attack, quick decay
       gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.3, now + 0.02);
+      gainNode.gain.linearRampToValueAtTime(0.25, now + 0.01);
       gainNode.gain.linearRampToValueAtTime(0, now + duration);
 
       osc1.connect(gainNode);
@@ -718,17 +719,17 @@ function playSoundEffect(score) {
       osc1.stop(now + duration);
       osc2.stop(now + duration);
     } else if (score >= 50) {
-      // Neutral sound - gentle "pop"
+      // Neutral sound - soft "notification" tone
       const osc = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(800, now);
-      osc.frequency.linearRampToValueAtTime(1000, now + duration);
+      osc.type = "triangle"; // Softer than square
+      osc.frequency.setValueAtTime(900, now);
+      osc.frequency.linearRampToValueAtTime(1100, now + duration);
 
-      // Quick attack and decay
+      // Gentle attack and decay
       gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.2, now + 0.02);
+      gainNode.gain.linearRampToValueAtTime(0.2, now + 0.01);
       gainNode.gain.linearRampToValueAtTime(0, now + duration);
 
       osc.connect(gainNode);
@@ -737,17 +738,17 @@ function playSoundEffect(score) {
       osc.start(now);
       osc.stop(now + duration);
     } else {
-      // Low score sound - soft "bump"
+      // Low score sound - gentle "alert" tone
       const osc = audioContext.createOscillator();
       const gainNode = audioContext.createGain();
 
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(400, now);
-      osc.frequency.linearRampToValueAtTime(300, now + duration);
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(600, now);
+      osc.frequency.linearRampToValueAtTime(400, now + duration);
 
-      // Quick attack and decay
+      // Quick attack, gentle decay
       gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.15, now + 0.02);
+      gainNode.gain.linearRampToValueAtTime(0.15, now + 0.01);
       gainNode.gain.linearRampToValueAtTime(0, now + duration);
 
       osc.connect(gainNode);
@@ -758,7 +759,7 @@ function playSoundEffect(score) {
     }
 
     // Quick fade out
-    masterGain.gain.setValueAtTime(0.2, now);
+    masterGain.gain.setValueAtTime(0.15, now);
     masterGain.gain.linearRampToValueAtTime(0, now + duration);
   } catch (error) {
     console.error("Error playing sound effect:", error);
