@@ -50,6 +50,23 @@ let stopRecButton; // Stop button
 let deleteRecButton; // Delete button
 let isRecordingCancelled = false; // Flag for cancellation
 
+// Gesture handling variables
+let touchStartY = 0;
+let touchStartTime = 0;
+let isHolding = false;
+let holdTimeout = null;
+const HOLD_DURATION = 500; // 500ms hold duration
+const SLIDE_THRESHOLD = 50; // 50px slide threshold
+const MIN_HOLD_TIME = 300; // Minimum hold time before recording starts
+
+// Sound effects
+const startRecordingSound = new Audio(
+  "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU..."
+); // Add your base64 encoded sound
+const stopRecordingSound = new Audio(
+  "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU..."
+); // Add your base64 encoded sound
+
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -389,6 +406,12 @@ function drawWhatsAppWaveform() {
 // --- Button Click Handlers ---
 
 function handleStopRecording() {
+  // Play stop recording sound
+  stopRecordingSound.play().catch((e) => console.log("Sound play failed:", e));
+
+  // Provide haptic feedback
+  vibrateDevice(50);
+
   console.log("Stop button clicked/touched.");
   if (mediaRecorder && mediaRecorder.state === "recording") {
     console.log("Calling mediaRecorder.stop() via button.");
@@ -513,6 +536,11 @@ function resetUI() {
 
   // Update progress to previous state
   updateSimpleProgress();
+
+  // Remove gesture-related classes
+  micButton.classList.remove("holding", "sliding", "recording");
+  isHolding = false;
+  clearTimeout(holdTimeout);
 
   console.log("UI Reset completed.");
 }
@@ -1213,207 +1241,149 @@ function getQuizIdFromURL() {
 // Load lessons when the page loads
 loadLessons();
 
-// Event listeners for buttons
-micButton.addEventListener("click", async () => {
-  // Initialize and resume AudioContext on user gesture
-  initializeAudioContext();
-  await resumeAudioContext();
+// Add gesture event listeners to micButton
+micButton.addEventListener("touchstart", handleTouchStart);
+micButton.addEventListener("touchmove", handleTouchMove);
+micButton.addEventListener("touchend", handleTouchEnd);
+micButton.addEventListener("touchcancel", handleTouchEnd);
 
-  micButton.style.display = "none";
-  retryButton.style.display = "inline-block";
-  retryButton.disabled = false;
-  startAudioRecording();
-});
+// Mouse events for desktop testing
+micButton.addEventListener("mousedown", handleMouseDown);
+micButton.addEventListener("mousemove", handleMouseMove);
+micButton.addEventListener("mouseup", handleMouseUp);
+micButton.addEventListener("mouseleave", handleMouseUp);
 
-// Update the retry button handler to clear the timeout
-retryButton.addEventListener("click", () => {
-  // Clear any existing recording timeout
-  if (recordingTimeout) {
-    clearTimeout(recordingTimeout);
-  }
-
-  // First close the dialog to show the sentence again
-  closeDialog();
-
-  // Reset UI without changing the sentence
-  resetUI();
-
-  // Stop any ongoing recording
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    mediaRecorder.stop();
-  }
-});
-
-nextButton.addEventListener("click", () => {
-  const currentLesson = lessons[currentLessonIndex];
-  if (currentSentenceIndex < currentLesson.sentences.length - 1) {
-    currentSentenceIndex++;
-    updateSentence();
-    updateSentenceCounter();
-    updateSimpleProgress();
-    // Reset recording state and re-enable listen/bookmark buttons
-    isRecording = false;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
-
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-    }
-  } else {
-    // All sentences in the current lesson completed
-    const congratulationModal = new bootstrap.Modal(
-      document.getElementById("congratulationModal")
-    );
-
-    // Update the modal content with percentage of completed sentences
-    const completionPercentage =
-      (completedSentences.size / currentLesson.sentences.length) * 100;
-    overallScoreDiv.textContent = `${Math.round(completionPercentage)}%`;
-
-    congratulationModal.show(); // Show the congratulation modal
-  }
-});
-
-// Continue button logic
-continueButton.addEventListener("click", () => {
-  const congratulationModal = bootstrap.Modal.getInstance(
-    document.getElementById("congratulationModal")
-  );
-  congratulationModal.hide(); // Hide the modal
-
-  // Reset icons container to default state
-  const iconsContainer = document.querySelector(".icons-container");
-  if (iconsContainer) {
-    // Reset mic button
-    micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-    micButton.style.color = "#fff";
-    micButton.style.backgroundColor = "";
-    micButton.style.display = "inline-block";
-    micButton.disabled = false;
-    micButton.style.opacity = "1";
-
-    // Reset listen button
-    listenButton.disabled = false;
-    listenButton.style.opacity = "1";
-
-    // Hide recording indicator
-    document.getElementById("recordingIndicator").style.display = "none";
-
-    // Make sure the mic circle is visible and properly styled
-    micButton.classList.remove("recording");
-    micButton.style.animation = "pulse 2s infinite, glow 2s infinite alternate";
-  }
-});
-
-function updateProgressBar(percentage) {
-  const progressFill = document.querySelector(".progress-fill");
-  const progressPercentage = document.querySelector(".progress-percentage");
-
-  progressFill.style.width = `${percentage}%`;
-  progressPercentage.textContent = `${percentage}%`;
-}
-
-// Add simple progress bar update function
-function updateSimpleProgress() {
-  if (lessons.length === 0 || currentLessonIndex === -1) return;
-
-  const currentLesson = lessons[currentLessonIndex];
-  const totalSentences = currentLesson.sentences.length;
-
-  // Calculate progress based on number of completed sentences
-  const progress = (completedSentences.size / totalSentences) * 100;
-
-  const simpleProgressFill = document.querySelector(".simple-progress-fill");
-  const simpleProgressBar = document.querySelector(".simple-progress-bar");
-  const simpleProgressPercentage = document.querySelector(
-    ".simple-progress-percentage"
-  );
-
-  if (simpleProgressFill && simpleProgressBar) {
-    // Get current width
-    const startWidth = parseFloat(simpleProgressFill.style.width) || 0;
-    const targetWidth = progress;
-
-    // Update tooltip position
-    simpleProgressBar.style.setProperty(
-      "--progress-position",
-      `${targetWidth}%`
-    );
-    simpleProgressBar.setAttribute("data-progress", `${Math.round(progress)}%`);
-
-    // Animate the width change
-    const startTime = performance.now();
-    const duration = 800; // Slightly longer duration for smoother animation
-
-    function animate(currentTime) {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      // Use cubic-bezier easing for smoother animation
-      const easedProgress =
-        progress < 0.5
-          ? 4 * progress * progress * progress
-          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-
-      const currentWidth =
-        startWidth + (targetWidth - startWidth) * easedProgress;
-      simpleProgressFill.style.width = `${currentWidth}%`;
-
-      // Update tooltip position during animation
-      simpleProgressBar.style.setProperty(
-        "--progress-position",
-        `${currentWidth}%`
-      );
-
-      if (progress < 1) {
-        requestAnimationFrame(animate);
-      }
-    }
-
-    requestAnimationFrame(animate);
-  }
-
-  if (simpleProgressPercentage) {
-    // Animate the percentage text
-    const startPercentage = parseInt(simpleProgressPercentage.textContent) || 0;
-    const targetPercentage = Math.round(progress);
-
-    const startTime = performance.now();
-    const duration = 800; // Match the fill animation duration
-
-    function animatePercentage(currentTime) {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-
-      // Use cubic-bezier easing
-      const easedProgress =
-        progress < 0.5
-          ? 4 * progress * progress * progress
-          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
-
-      const currentValue = Math.round(
-        startPercentage + (targetPercentage - startPercentage) * easedProgress
-      );
-      simpleProgressPercentage.textContent = `${currentValue}%`;
-
-      // Add a subtle scale effect during animation
-      const scale = 1 + easedProgress * 0.1;
-      simpleProgressPercentage.style.transform = `scale(${scale})`;
-
-      if (progress < 1) {
-        requestAnimationFrame(animatePercentage);
-      } else {
-        // Reset transform after animation
-        simpleProgressPercentage.style.transform = "scale(1)";
-      }
-    }
-
-    requestAnimationFrame(animatePercentage);
+// Haptic feedback function
+function vibrateDevice(duration = 50) {
+  if ("vibrate" in navigator) {
+    navigator.vibrate(duration);
   }
 }
 
-// Start audio recording with automatic stop
+// Update hold progress
+function updateHoldProgress(progress) {
+  const progressCircle = document.querySelector(
+    ".hold-progress .progress-circle"
+  );
+  if (progressCircle) {
+    const circumference = 2 * Math.PI * 45; // 2πr where r=45
+    const offset = circumference - progress * circumference;
+    progressCircle.style.strokeDashoffset = offset;
+  }
+}
+
+function handleTouchStart(e) {
+  e.preventDefault();
+  touchStartY = e.touches[0].clientY;
+  touchStartTime = Date.now();
+  isHolding = true;
+
+  // Add holding class for visual feedback
+  micButton.classList.add("holding");
+
+  // Start hold progress
+  let holdProgress = 0;
+  const holdInterval = setInterval(() => {
+    if (!isHolding) {
+      clearInterval(holdInterval);
+      return;
+    }
+
+    holdProgress = Math.min(1, (Date.now() - touchStartTime) / HOLD_DURATION);
+    updateHoldProgress(holdProgress);
+
+    if (holdProgress >= 1) {
+      clearInterval(holdInterval);
+      startAudioRecording();
+    }
+  }, 10);
+
+  // Store interval ID for cleanup
+  holdTimeout = holdInterval;
+}
+
+function handleTouchMove(e) {
+  if (!isHolding) return;
+
+  const currentY = e.touches[0].clientY;
+  const deltaY = touchStartY - currentY;
+
+  // If sliding up beyond threshold
+  if (deltaY > SLIDE_THRESHOLD) {
+    micButton.classList.add("sliding");
+    micButton.classList.remove("holding");
+    clearInterval(holdTimeout);
+    isHolding = false;
+
+    // Provide haptic feedback
+    vibrateDevice(100);
+  }
+}
+
+function handleTouchEnd(e) {
+  if (!isHolding) return;
+
+  clearInterval(holdTimeout);
+  micButton.classList.remove("holding", "sliding");
+  isHolding = false;
+  updateHoldProgress(0);
+
+  // If recording was started and we're sliding up, cancel it
+  if (isRecording && micButton.classList.contains("sliding")) {
+    handleDeleteRecording();
+  }
+}
+
+// Mouse event handlers for desktop testing
+function handleMouseDown(e) {
+  e.preventDefault();
+  touchStartY = e.clientY;
+  touchStartTime = Date.now();
+  isHolding = true;
+
+  micButton.classList.add("holding");
+
+  holdTimeout = setTimeout(() => {
+    if (isHolding) {
+      startAudioRecording();
+    }
+  }, HOLD_DURATION);
+}
+
+function handleMouseMove(e) {
+  if (!isHolding) return;
+
+  const currentY = e.clientY;
+  const deltaY = touchStartY - currentY;
+
+  if (deltaY > SLIDE_THRESHOLD) {
+    micButton.classList.add("sliding");
+    micButton.classList.remove("holding");
+    clearTimeout(holdTimeout);
+    isHolding = false;
+  }
+}
+
+function handleMouseUp(e) {
+  if (!isHolding) return;
+
+  clearTimeout(holdTimeout);
+  micButton.classList.remove("holding", "sliding");
+  isHolding = false;
+
+  if (isRecording && micButton.classList.contains("sliding")) {
+    handleDeleteRecording();
+  }
+}
+
+// Modify the existing startAudioRecording function to handle gesture state
 async function startAudioRecording() {
+  // Play start recording sound
+  startRecordingSound.play().catch((e) => console.log("Sound play failed:", e));
+
+  // Provide haptic feedback
+  vibrateDevice(100);
+
   console.log("startAudioRecording called");
   initializeAudioContext();
   await resumeAudioContext();
@@ -1436,6 +1406,10 @@ async function startAudioRecording() {
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
     isRecordingCancelled = false;
+
+    // Remove holding class and add recording class
+    micButton.classList.remove("holding");
+    micButton.classList.add("recording");
 
     setupWaveformVisualization(stream);
 
