@@ -241,39 +241,32 @@ body {
 
 /* Mic Circle */
 .mic-circle {
-  width: 100px;
-  height: 40px;
-  border-radius: 50px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
   background: linear-gradient(135deg, #4b9b94 0%, #2c7873 100%);
   border: none;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 12px rgba(75, 155, 148, 0.3);
-  position: relative;
-  overflow: hidden;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
-.mic-circle::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(255, 255, 255, 0.2),
-    transparent
-  );
-  transition: 0.5s;
+.mic-circle i {
+  color: white;
+  font-size: 24px;
 }
 
-.mic-circle:hover::before {
-  left: 100%;
+.mic-circle.holding {
+  transform: scale(1.1);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mic-circle.sliding {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff4757 100%);
+  transform: translateY(-10px);
 }
 
 .mic-circle:hover {
