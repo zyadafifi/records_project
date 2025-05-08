@@ -1746,16 +1746,4 @@ function updateSimpleProgress() {
     progressBar.setAttribute("data-progress", `${Math.round(progress)}%`);
     progressBar.style.setProperty("--progress-position", `${progress}%`);
   }
-
-  // Update the progress bar color based on progress
-  if (progress >= 80) {
-    progressFill.style.background =
-      "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
-  } else if (progress >= 50) {
-    progressFill.style.background =
-      "linear-gradient(135deg, #ffa500 0%, #ff8c00 100%)";
-  } else {
-    progressFill.style.background =
-      "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)";
-  }
 }
