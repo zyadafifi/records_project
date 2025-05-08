@@ -50,13 +50,6 @@ let stopRecButton; // Stop button
 let deleteRecButton; // Delete button
 let isRecordingCancelled = false; // Flag for cancellation
 
-// Add these variables at the top with other global variables
-let isRecordingLocked = false;
-let touchStartY = 0;
-let isPaused = false;
-let pausedTime = 0;
-let totalPausedTime = 0;
-
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -1422,7 +1415,6 @@ function updateSimpleProgress() {
 // Start audio recording with automatic stop
 async function startAudioRecording() {
   console.log("startAudioRecording called");
-  // Ensure AudioContext is ready (important for iOS/Safari)
   initializeAudioContext();
   await resumeAudioContext();
 
@@ -1440,44 +1432,30 @@ async function startAudioRecording() {
     console.log("MediaRecorder created.");
 
     isRecording = true;
-    isRecordingLocked = false;
-    isPaused = false;
     recordingStartTime = Date.now();
-    totalPausedTime = 0;
+    toggleListenButtons(true);
+    toggleBookmarkButtons(true);
+    isRecordingCancelled = false;
 
-    // Update UI for recording state
-    micButton.innerHTML = '<i class="fas fa-pause"></i>';
-    micButton.style.backgroundColor = "#ff0000";
-
-    // Add pause/resume click handler
-    micButton.addEventListener("click", togglePauseRecording);
-
-    // Setup and start waveform visualization (this now shows the container)
     setupWaveformVisualization(stream);
 
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0 && !isRecordingCancelled) {
-        // Don't collect if cancelled
         audioChunks.push(event.data);
       }
     };
 
-    // Assign the NORMAL onstop handler HERE
     mediaRecorder.onstop = async () => {
       console.log("mediaRecorder.onstop triggered.");
 
-      // ***** Check Cancellation Flag *****
       if (isRecordingCancelled) {
         console.log("onstop: Recording was cancelled, skipping processing.");
-        // UI reset should have already happened in handleDeleteRecording
-        isRecordingCancelled = false; // Reset flag just in case
+        isRecordingCancelled = false;
         return;
       }
 
-      // Stop the waveform visual (should be quick)
       stopWaveformVisualization();
 
-      // --- Normal stop processing ---
       if (audioChunks.length === 0) {
         console.warn(
           "No audio chunks recorded. Recording might have been too short or silent."
@@ -1495,9 +1473,8 @@ async function startAudioRecording() {
         "Recorded audio blob created, size:",
         recordedAudioBlob?.size
       );
-      audioChunks = []; // Clear chunks
+      audioChunks = [];
 
-      // UI Updates after stopping normally
       micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
       micButton.style.backgroundColor = "";
       micButton.disabled = false;
@@ -1512,19 +1489,14 @@ async function startAudioRecording() {
       retryButton.disabled = false;
       document.getElementById("recordingIndicator").style.display = "none";
 
-      // Set recording flag false AFTER UI updates
       isRecording = false;
       recordingStartTime = null;
       toggleListenButtons(false);
       toggleBookmarkButtons(false);
       console.log("UI updated after normal recording stop.");
 
-      // Stop tracks
-      console.log("Stopping media stream tracks normally...");
       stream.getTracks().forEach((track) => track.stop());
-      console.log("Media stream tracks stopped normally.");
 
-      // Upload for transcription
       if (recordedAudioBlob && recordedAudioBlob.size > 100) {
         console.log("Uploading audio for transcription...");
         recognizedTextDiv.innerHTML =
@@ -1543,13 +1515,11 @@ async function startAudioRecording() {
           );
           pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
           updateProgressCircle(pronunciationScore);
-          totalPronunciationScore += pronunciationScore; // Add score to total
+          totalPronunciationScore += pronunciationScore;
           console.log("Score calculated and totals updated.");
 
-          // Update progress bar immediately after score calculation
           updateSimpleProgress();
 
-          // Restore mic icon after transcription is complete
           micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
           micButton.style.color = "#fff";
           micButton.style.backgroundColor = "";
@@ -1588,14 +1558,12 @@ async function startAudioRecording() {
     mediaRecorder.onerror = (event) => {
       console.error("MediaRecorder error:", event.error);
       alert(`Recording error: ${event.error.name} - ${event.error.message}`);
-      // Reset UI on error
-      resetUI(); // resetUI already calls stopWaveformVisualization
+      resetUI();
       if (stream) {
-        stream.getTracks().forEach((track) => track.stop()); // Stop stream on error
+        stream.getTracks().forEach((track) => track.stop());
       }
     };
 
-    // Start recording
     mediaRecorder.start(100);
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
     micButton.style.color = "#ff0000";
@@ -1604,8 +1572,7 @@ async function startAudioRecording() {
       "inline-block";
     console.log("UI updated for recording start.");
 
-    // Set timeout to automatically stop recording after RECORDING_DURATION
-    clearTimeout(recordingTimeout); // Clear any previous timeout
+    clearTimeout(recordingTimeout);
     recordingTimeout = setTimeout(() => {
       console.log("Recording duration timeout reached.");
       if (mediaRecorder && mediaRecorder.state === "recording") {
@@ -1619,14 +1586,7 @@ async function startAudioRecording() {
     alert(
       `Could not start recording: ${error.message}. Please check microphone permissions.`
     );
-
-    // Ensure recording flag is reset and buttons are re-enabled in case of error
-    isRecording = false;
-    recordingStartTime = null;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
-    // Make sure waveform is stopped and hidden on error
-    stopWaveformVisualization();
+    resetUI();
   }
 }
 
@@ -1786,96 +1746,3 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   // Append to body (or your preferred parent)
   document.body.appendChild(dialogClone);
 }
-
-// Add these functions after the existing functions
-function handleTouchStart(e) {
-  if (isRecording) return;
-
-  touchStartY = e.touches[0].clientY;
-  startAudioRecording();
-
-  // Add touch move and end listeners
-  micButton.addEventListener("touchmove", handleTouchMove);
-  micButton.addEventListener("touchend", handleTouchEnd);
-}
-
-function handleTouchMove(e) {
-  if (!isRecording) return;
-
-  const touchY = e.touches[0].clientY;
-  const deltaY = touchStartY - touchY;
-
-  // If user slides up more than 50px, lock the recording
-  if (deltaY > 50 && !isRecordingLocked) {
-    isRecordingLocked = true;
-    micButton.style.transform = "scale(1.1)";
-    micButton.style.backgroundColor = "#4b9b94";
-    showLockIndicator();
-  }
-}
-
-function handleTouchEnd(e) {
-  if (!isRecording) return;
-
-  // Remove touch move and end listeners
-  micButton.removeEventListener("touchmove", handleTouchMove);
-  micButton.removeEventListener("touchend", handleTouchEnd);
-
-  if (!isRecordingLocked) {
-    // If not locked, stop recording
-    stopRecording();
-  }
-}
-
-function showLockIndicator() {
-  const lockIndicator = document.createElement("div");
-  lockIndicator.className = "lock-indicator";
-  lockIndicator.innerHTML = '<i class="fas fa-lock"></i>';
-  document.body.appendChild(lockIndicator);
-
-  // Remove after animation
-  setTimeout(() => {
-    lockIndicator.remove();
-  }, 1000);
-}
-
-function togglePauseRecording() {
-  if (!isRecording) return;
-
-  isPaused = !isPaused;
-
-  if (isPaused) {
-    // Pause recording
-    mediaRecorder.pause();
-    pausedTime = Date.now();
-    micButton.innerHTML = '<i class="fas fa-play"></i>';
-    micButton.style.backgroundColor = "#4b9b94";
-  } else {
-    // Resume recording
-    mediaRecorder.resume();
-    totalPausedTime += Date.now() - pausedTime;
-    micButton.innerHTML = '<i class="fas fa-pause"></i>';
-    micButton.style.backgroundColor = "#ff0000";
-  }
-}
-
-// Modify the existing stopRecording function
-function stopRecording() {
-  if (!isRecording) return;
-
-  isRecording = false;
-  isRecordingLocked = false;
-  isPaused = false;
-
-  // Remove pause/resume click handler
-  micButton.removeEventListener("click", togglePauseRecording);
-
-  if (mediaRecorder && mediaRecorder.state !== "inactive") {
-    mediaRecorder.stop();
-  }
-
-  // ... rest of the existing stop recording code ...
-}
-
-// Add these event listeners after the existing ones
-micButton.addEventListener("touchstart", handleTouchStart);
