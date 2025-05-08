@@ -54,6 +54,7 @@ let isRecordingCancelled = false; // Flag for cancellation
 let successSound;
 let neutralSound;
 let lowScoreSound;
+let soundsInitialized = false;
 
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
@@ -668,59 +669,108 @@ function updateProgressCircle(score) {
 }
 
 // Initialize audio elements
-function initializeSoundEffects() {
-  successSound = new Audio(
-    "https://freesound.org/data/previews/456/456965_5121236-lq.mp3"
-  );
-  neutralSound = new Audio(
-    "https://freesound.org/data/previews/456/456966_5121236-lq.mp3"
-  ); // We'll need to find a suitable neutral sound
-  lowScoreSound = new Audio(
-    "https://freesound.org/data/previews/456/456967_5121236-lq.mp3"
-  ); // We'll need to find a suitable low score sound
+async function initializeSoundEffects() {
+  if (soundsInitialized) return;
 
-  // Preload sounds
-  [successSound, neutralSound, lowScoreSound].forEach((sound) => {
-    sound.load();
-    sound.volume = 0.5; // Set volume to 50%
-  });
+  try {
+    // Create audio elements
+    successSound = new Audio();
+    neutralSound = new Audio();
+    lowScoreSound = new Audio();
+
+    // Set volume for all sounds
+    [successSound, neutralSound, lowScoreSound].forEach((sound) => {
+      sound.volume = 0.5; // Set volume to 50%
+    });
+
+    // Load sounds with proper error handling
+    const loadSound = async (audioElement, url) => {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        audioElement.src = URL.createObjectURL(blob);
+        await new Promise((resolve, reject) => {
+          audioElement.oncanplaythrough = resolve;
+          audioElement.onerror = reject;
+          audioElement.load();
+        });
+      } catch (error) {
+        console.error("Error loading sound:", error);
+      }
+    };
+
+    // Load each sound
+    await Promise.all([
+      loadSound(successSound, "sounds/success.mp3"),
+      loadSound(neutralSound, "sounds/neutral.mp3"),
+      loadSound(lowScoreSound, "sounds/lowscore.mp3"),
+    ]);
+
+    soundsInitialized = true;
+  } catch (error) {
+    console.error("Error initializing sounds:", error);
+  }
 }
 
 // Play sound effects using actual audio files
 function playSoundEffect(score) {
-  try {
-    // Ensure sounds are initialized
-    if (!successSound) {
-      initializeSoundEffects();
-    }
+  if (!soundsInitialized) {
+    console.log("Sounds not initialized yet");
+    return;
+  }
 
+  try {
     // Stop any currently playing sounds
     [successSound, neutralSound, lowScoreSound].forEach((sound) => {
-      sound.pause();
-      sound.currentTime = 0;
+      if (sound) {
+        sound.pause();
+        sound.currentTime = 0;
+      }
     });
 
     // Play appropriate sound based on score
+    let soundToPlay = null;
     if (score >= 80) {
-      successSound.play().catch((error) => {
-        console.error("Error playing success sound:", error);
-      });
+      soundToPlay = successSound;
     } else if (score >= 50) {
-      neutralSound.play().catch((error) => {
-        console.error("Error playing neutral sound:", error);
-      });
+      soundToPlay = neutralSound;
     } else {
-      lowScoreSound.play().catch((error) => {
-        console.error("Error playing low score sound:", error);
-      });
+      soundToPlay = lowScoreSound;
+    }
+
+    if (soundToPlay) {
+      // Create a promise to handle the play attempt
+      const playPromise = soundToPlay.play();
+
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          // Only log the error if it's not a user interaction error
+          if (error.name !== "NotAllowedError") {
+            console.error("Error playing sound:", error);
+          }
+        });
+      }
     }
   } catch (error) {
     console.error("Error in playSoundEffect:", error);
   }
 }
 
-// Initialize sound effects when the page loads
-window.addEventListener("DOMContentLoaded", initializeSoundEffects);
+// Initialize sound effects when the user first interacts with the page
+function setupSoundInitialization() {
+  const initializeOnInteraction = async () => {
+    await initializeSoundEffects();
+    // Remove the event listeners after first interaction
+    document.removeEventListener("click", initializeOnInteraction);
+    document.removeEventListener("touchstart", initializeOnInteraction);
+  };
+
+  document.addEventListener("click", initializeOnInteraction);
+  document.addEventListener("touchstart", initializeOnInteraction);
+}
+
+// Call setup when the page loads
+window.addEventListener("DOMContentLoaded", setupSoundInitialization);
 
 // Calculate pronunciation score and log recognized words to the console
 function calculatePronunciationScore(transcript, expectedSentence) {
