@@ -50,26 +50,6 @@ let stopRecButton; // Stop button
 let deleteRecButton; // Delete button
 let isRecordingCancelled = false; // Flag for cancellation
 
-// Gesture handling variables
-let touchStartY = 0;
-let touchStartTime = 0;
-let isHolding = false;
-let holdTimeout = null;
-const HOLD_DURATION = 500; // 500ms hold duration
-const SLIDE_THRESHOLD = 50; // 50px slide threshold
-const MIN_HOLD_TIME = 300; // Minimum hold time before recording starts
-
-// Constants
-const ASSEMBLY_AI_API_KEY = "bdb00961a07c4184889a80206c52b6f2";
-
-// Sound effects
-const startRecordingSound = new Audio(
-  "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"
-);
-const stopRecordingSound = new Audio(
-  "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"
-);
-
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -174,6 +154,9 @@ let completedSentences = new Set(); // Track completed sentences
 // Constants for recording
 const RECORDING_DURATION = 5000; // 5 seconds recording time
 let recordingTimeout;
+
+// AssemblyAI API Key
+const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
 
 // Function to create and setup waveform visualization
 function setupWaveformVisualization(stream) {
@@ -406,12 +389,6 @@ function drawWhatsAppWaveform() {
 // --- Button Click Handlers ---
 
 function handleStopRecording() {
-  // Play stop recording sound
-  stopRecordingSound.play().catch((e) => console.log("Sound play failed:", e));
-
-  // Provide haptic feedback
-  vibrateDevice(50);
-
   console.log("Stop button clicked/touched.");
   if (mediaRecorder && mediaRecorder.state === "recording") {
     console.log("Calling mediaRecorder.stop() via button.");
@@ -536,11 +513,6 @@ function resetUI() {
 
   // Update progress to previous state
   updateSimpleProgress();
-
-  // Remove gesture-related classes
-  micButton.classList.remove("holding", "sliding", "recording");
-  isHolding = false;
-  clearTimeout(holdTimeout);
 
   console.log("UI Reset completed.");
 }
@@ -1241,405 +1213,489 @@ function getQuizIdFromURL() {
 // Load lessons when the page loads
 loadLessons();
 
-// Add gesture event listeners to micButton
-micButton.addEventListener("touchstart", handleTouchStart);
-micButton.addEventListener("touchmove", handleTouchMove);
-micButton.addEventListener("touchend", handleTouchEnd);
-micButton.addEventListener("touchcancel", handleTouchEnd);
+// Event listeners for buttons
+micButton.addEventListener("click", async () => {
+  // Initialize and resume AudioContext on user gesture
+  initializeAudioContext();
+  await resumeAudioContext();
 
-// Mouse events for desktop testing
-micButton.addEventListener("mousedown", handleMouseDown);
-micButton.addEventListener("mousemove", handleMouseMove);
-micButton.addEventListener("mouseup", handleMouseUp);
-micButton.addEventListener("mouseleave", handleMouseUp);
+  micButton.style.display = "none";
+  retryButton.style.display = "inline-block";
+  retryButton.disabled = false;
+  startAudioRecording();
+});
 
-// Haptic feedback function
-function vibrateDevice(duration = 50) {
-  if ("vibrate" in navigator) {
-    navigator.vibrate(duration);
+// Update the retry button handler to clear the timeout
+retryButton.addEventListener("click", () => {
+  // Clear any existing recording timeout
+  if (recordingTimeout) {
+    clearTimeout(recordingTimeout);
   }
-}
 
-// Update hold progress
-function updateHoldProgress(progress) {
-  const progressCircle = document.querySelector(
-    ".hold-progress .progress-circle"
+  // First close the dialog to show the sentence again
+  closeDialog();
+
+  // Reset UI without changing the sentence
+  resetUI();
+
+  // Stop any ongoing recording
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
+});
+
+nextButton.addEventListener("click", () => {
+  const currentLesson = lessons[currentLessonIndex];
+  if (currentSentenceIndex < currentLesson.sentences.length - 1) {
+    currentSentenceIndex++;
+    updateSentence();
+    updateSentenceCounter();
+    updateSimpleProgress();
+    // Reset recording state and re-enable listen/bookmark buttons
+    isRecording = false;
+    toggleListenButtons(false);
+    toggleBookmarkButtons(false);
+
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
+  } else {
+    // All sentences in the current lesson completed
+    const congratulationModal = new bootstrap.Modal(
+      document.getElementById("congratulationModal")
+    );
+
+    // Update the modal content with percentage of completed sentences
+    const completionPercentage =
+      (completedSentences.size / currentLesson.sentences.length) * 100;
+    overallScoreDiv.textContent = `${Math.round(completionPercentage)}%`;
+
+    congratulationModal.show(); // Show the congratulation modal
+  }
+});
+
+// Continue button logic
+continueButton.addEventListener("click", () => {
+  const congratulationModal = bootstrap.Modal.getInstance(
+    document.getElementById("congratulationModal")
   );
-  if (progressCircle) {
-    const circumference = 2 * Math.PI * 45; // 2πr where r=45
-    const offset = circumference - progress * circumference;
-    progressCircle.style.strokeDashoffset = offset;
+  congratulationModal.hide(); // Hide the modal
+
+  // Reset icons container to default state
+  const iconsContainer = document.querySelector(".icons-container");
+  if (iconsContainer) {
+    // Reset mic button
+    micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+    micButton.style.color = "#fff";
+    micButton.style.backgroundColor = "";
+    micButton.style.display = "inline-block";
+    micButton.disabled = false;
+    micButton.style.opacity = "1";
+
+    // Reset listen button
+    listenButton.disabled = false;
+    listenButton.style.opacity = "1";
+
+    // Hide recording indicator
+    document.getElementById("recordingIndicator").style.display = "none";
+
+    // Make sure the mic circle is visible and properly styled
+    micButton.classList.remove("recording");
+    micButton.style.animation = "pulse 2s infinite, glow 2s infinite alternate";
   }
+});
+
+function updateProgressBar(percentage) {
+  const progressFill = document.querySelector(".progress-fill");
+  const progressPercentage = document.querySelector(".progress-percentage");
+
+  progressFill.style.width = `${percentage}%`;
+  progressPercentage.textContent = `${percentage}%`;
 }
 
-function handleTouchStart(e) {
-  e.preventDefault();
-  touchStartY = e.touches[0].clientY;
-  touchStartTime = Date.now();
-  isHolding = true;
+// Add simple progress bar update function
+function updateSimpleProgress() {
+  if (lessons.length === 0 || currentLessonIndex === -1) return;
 
-  // Add holding class for visual feedback
-  micButton.classList.add("holding");
+  const currentLesson = lessons[currentLessonIndex];
+  const totalSentences = currentLesson.sentences.length;
 
-  // Start hold progress
-  let holdProgress = 0;
-  const holdInterval = setInterval(() => {
-    if (!isHolding) {
-      clearInterval(holdInterval);
-      return;
+  // Calculate progress based on number of completed sentences
+  const progress = (completedSentences.size / totalSentences) * 100;
+
+  const simpleProgressFill = document.querySelector(".simple-progress-fill");
+  const simpleProgressBar = document.querySelector(".simple-progress-bar");
+  const simpleProgressPercentage = document.querySelector(
+    ".simple-progress-percentage"
+  );
+
+  if (simpleProgressFill && simpleProgressBar) {
+    // Get current width
+    const startWidth = parseFloat(simpleProgressFill.style.width) || 0;
+    const targetWidth = progress;
+
+    // Update tooltip position
+    simpleProgressBar.style.setProperty(
+      "--progress-position",
+      `${targetWidth}%`
+    );
+    simpleProgressBar.setAttribute("data-progress", `${Math.round(progress)}%`);
+
+    // Animate the width change
+    const startTime = performance.now();
+    const duration = 800; // Slightly longer duration for smoother animation
+
+    function animate(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Use cubic-bezier easing for smoother animation
+      const easedProgress =
+        progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+      const currentWidth =
+        startWidth + (targetWidth - startWidth) * easedProgress;
+      simpleProgressFill.style.width = `${currentWidth}%`;
+
+      // Update tooltip position during animation
+      simpleProgressBar.style.setProperty(
+        "--progress-position",
+        `${currentWidth}%`
+      );
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
     }
 
-    holdProgress = Math.min(1, (Date.now() - touchStartTime) / HOLD_DURATION);
-    updateHoldProgress(holdProgress);
+    requestAnimationFrame(animate);
+  }
 
-    if (holdProgress >= 1) {
-      clearInterval(holdInterval);
-      startAudioRecording();
+  if (simpleProgressPercentage) {
+    // Animate the percentage text
+    const startPercentage = parseInt(simpleProgressPercentage.textContent) || 0;
+    const targetPercentage = Math.round(progress);
+
+    const startTime = performance.now();
+    const duration = 800; // Match the fill animation duration
+
+    function animatePercentage(currentTime) {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Use cubic-bezier easing
+      const easedProgress =
+        progress < 0.5
+          ? 4 * progress * progress * progress
+          : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+      const currentValue = Math.round(
+        startPercentage + (targetPercentage - startPercentage) * easedProgress
+      );
+      simpleProgressPercentage.textContent = `${currentValue}%`;
+
+      // Add a subtle scale effect during animation
+      const scale = 1 + easedProgress * 0.1;
+      simpleProgressPercentage.style.transform = `scale(${scale})`;
+
+      if (progress < 1) {
+        requestAnimationFrame(animatePercentage);
+      } else {
+        // Reset transform after animation
+        simpleProgressPercentage.style.transform = "scale(1)";
+      }
     }
-  }, 10);
 
-  // Store interval ID for cleanup
-  holdTimeout = holdInterval;
-}
-
-function handleTouchMove(e) {
-  if (!isHolding) return;
-
-  const currentY = e.touches[0].clientY;
-  const deltaY = touchStartY - currentY;
-
-  // If sliding up beyond threshold
-  if (deltaY > SLIDE_THRESHOLD) {
-    micButton.classList.add("sliding");
-    micButton.classList.remove("holding");
-    clearInterval(holdTimeout);
-    isHolding = false;
-
-    // Provide haptic feedback
-    vibrateDevice(100);
+    requestAnimationFrame(animatePercentage);
   }
 }
 
-function handleTouchEnd(e) {
-  e.preventDefault();
-  const touchEndY = e.changedTouches[0].clientY;
-  const touchEndTime = Date.now();
-  const touchDuration = touchEndTime - touchStartTime;
-  const slideDistance = touchStartY - touchEndY;
-
-  // Clear hold timeout
-  if (holdTimeout) {
-    clearTimeout(holdTimeout);
-    holdTimeout = null;
-  }
-
-  // Remove holding class
-  micButton.classList.remove("holding");
-  micButton.classList.remove("sliding");
-
-  // If we were recording and didn't slide up to cancel
-  if (isRecording && !isRecordingCancelled && slideDistance < SLIDE_THRESHOLD) {
-    handleStopRecording();
-    // Immediately send the recording
-    if (mediaRecorder && mediaRecorder.state === "inactive") {
-      const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-      uploadAudioToAssemblyAI(audioBlob);
-    }
-  } else if (isRecordingCancelled) {
-    handleDeleteRecording();
-  }
-
-  // Reset gesture state
-  isHolding = false;
-  isRecordingCancelled = false;
-}
-
-// Mouse event handlers for desktop testing
-function handleMouseDown(e) {
-  e.preventDefault();
-  touchStartY = e.clientY;
-  touchStartTime = Date.now();
-  isHolding = true;
-
-  micButton.classList.add("holding");
-
-  holdTimeout = setTimeout(() => {
-    if (isHolding) {
-      startAudioRecording();
-    }
-  }, HOLD_DURATION);
-}
-
-function handleMouseMove(e) {
-  if (!isHolding) return;
-
-  const currentY = e.clientY;
-  const deltaY = touchStartY - currentY;
-
-  if (deltaY > SLIDE_THRESHOLD) {
-    micButton.classList.add("sliding");
-    micButton.classList.remove("holding");
-    clearTimeout(holdTimeout);
-    isHolding = false;
-  }
-}
-
-function handleMouseUp(e) {
-  e.preventDefault();
-  const mouseEndY = e.clientY;
-  const mouseEndTime = Date.now();
-  const mouseDuration = mouseEndTime - touchStartTime;
-  const slideDistance = touchStartY - mouseEndY;
-
-  // Clear hold timeout
-  if (holdTimeout) {
-    clearTimeout(holdTimeout);
-    holdTimeout = null;
-  }
-
-  // Remove holding class
-  micButton.classList.remove("holding");
-  micButton.classList.remove("sliding");
-
-  // If we were recording and didn't slide up to cancel
-  if (isRecording && !isRecordingCancelled && slideDistance < SLIDE_THRESHOLD) {
-    handleStopRecording();
-    // Immediately send the recording
-    if (mediaRecorder && mediaRecorder.state === "inactive") {
-      const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
-      uploadAudioToAssemblyAI(audioBlob);
-    }
-  } else if (isRecordingCancelled) {
-    handleDeleteRecording();
-  }
-
-  // Reset gesture state
-  isHolding = false;
-  isRecordingCancelled = false;
-}
-
-// Modify the existing startAudioRecording function to handle gesture state
+// Start audio recording with automatic stop
 async function startAudioRecording() {
+  console.log("startAudioRecording called");
+  // Ensure AudioContext is ready (important for iOS/Safari)
+  initializeAudioContext();
+  await resumeAudioContext();
+
+  if (!audioContext) {
+    alert("AudioContext could not be initialized. Cannot record.");
+    return;
+  }
+
   try {
-    // Request microphone access with specific constraints for mobile
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        sampleRate: 44100,
-        channelCount: 1,
-      },
-    });
-
-    // Initialize audio context if not already done
-    if (!audioContext) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    // Resume audio context (required for mobile)
-    await audioContext.resume();
-
-    // Create media recorder with specific MIME type
-    mediaRecorder = new MediaRecorder(stream, {
-      mimeType: "audio/webm;codecs=opus",
-      audioBitsPerSecond: 128000,
-    });
-
-    // Reset audio chunks
+    console.log("Requesting microphone access...");
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    console.log("Microphone access granted.");
     audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    console.log("MediaRecorder created.");
+
+    // Set recording flag, start time, toggle buttons
     isRecording = true;
-    isRecordingCancelled = false;
-
-    // Update UI
-    micButton.classList.add("recording");
-    recordingIndicator.style.display = "inline-block";
     recordingStartTime = Date.now();
+    toggleListenButtons(true);
+    toggleBookmarkButtons(true);
+    isRecordingCancelled = false; // Ensure flag is reset
 
-    // Setup waveform visualization
+    // Setup and start waveform visualization (this now shows the container)
     setupWaveformVisualization(stream);
 
-    // Handle data available event
     mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
+      if (event.data.size > 0 && !isRecordingCancelled) {
+        // Don't collect if cancelled
         audioChunks.push(event.data);
       }
     };
 
+    // Assign the NORMAL onstop handler HERE
+    mediaRecorder.onstop = async () => {
+      console.log("mediaRecorder.onstop triggered.");
+
+      // ***** Check Cancellation Flag *****
+      if (isRecordingCancelled) {
+        console.log("onstop: Recording was cancelled, skipping processing.");
+        // UI reset should have already happened in handleDeleteRecording
+        isRecordingCancelled = false; // Reset flag just in case
+        return;
+      }
+
+      // Stop the waveform visual (should be quick)
+      stopWaveformVisualization();
+
+      // --- Normal stop processing ---
+      if (audioChunks.length === 0) {
+        console.warn(
+          "No audio chunks recorded. Recording might have been too short or silent."
+        );
+        resetUI();
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
+
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/mp4" });
+      console.log(
+        "Recorded audio blob created, size:",
+        recordedAudioBlob?.size
+      );
+      audioChunks = []; // Clear chunks
+
+      // UI Updates after stopping normally
+      micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+      micButton.style.backgroundColor = "";
+      micButton.disabled = false;
+      micButton.style.color = "#fff";
+      micButton.style.display = "inline-block";
+      micButton.style.opacity = "1";
+      micButton.classList.remove("recording");
+      micButton.style.animation =
+        "pulse 2s infinite, glow 2s infinite alternate";
+
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      document.getElementById("recordingIndicator").style.display = "none";
+
+      // Set recording flag false AFTER UI updates
+      isRecording = false;
+      recordingStartTime = null;
+      toggleListenButtons(false);
+      toggleBookmarkButtons(false);
+      console.log("UI updated after normal recording stop.");
+
+      // Stop tracks
+      console.log("Stopping media stream tracks normally...");
+      stream.getTracks().forEach((track) => track.stop());
+      console.log("Media stream tracks stopped normally.");
+
+      // Upload for transcription
+      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
+        console.log("Uploading audio for transcription...");
+        recognizedTextDiv.innerHTML =
+          '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
+        pronunciationScoreDiv.textContent = "...";
+        micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        micButton.style.color = "#fff";
+        micButton.style.backgroundColor = "#4b9b94";
+        micButton.style.animation = "glow 2s infinite alternate";
+        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
+        if (transcription !== null) {
+          console.log("Transcription received:", transcription);
+          const pronunciationScore = calculatePronunciationScore(
+            transcription,
+            lessons[currentLessonIndex].sentences[currentSentenceIndex]
+          );
+          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
+          updateProgressCircle(pronunciationScore);
+          totalPronunciationScore += pronunciationScore; // Add score to total
+          console.log("Score calculated and totals updated.");
+
+          // Update progress bar immediately after score calculation
+          updateSimpleProgress();
+
+          // Restore mic icon after transcription is complete
+          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+          micButton.style.color = "#fff";
+          micButton.style.backgroundColor = "";
+          micButton.style.display = "inline-block";
+          micButton.style.opacity = "1";
+          micButton.classList.remove("recording");
+          micButton.style.animation =
+            "pulse 2s infinite, glow 2s infinite alternate";
+
+          openDialog();
+          console.log("Dialog opened.");
+        } else {
+          console.log(
+            "Transcription was null, likely an error during processing."
+          );
+          recognizedTextDiv.textContent = "(Transcription failed)";
+          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+          micButton.style.color = "#fff";
+          micButton.style.backgroundColor = "";
+          micButton.style.display = "inline-block";
+          micButton.style.opacity = "1";
+          micButton.classList.remove("recording");
+          micButton.style.animation =
+            "pulse 2s infinite, glow 2s infinite alternate";
+        }
+      } else {
+        console.warn(
+          "Recorded audio blob is empty or very small, skipping transcription."
+        );
+        recognizedTextDiv.textContent = "(Recording too short or silent)";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+      }
+    };
+
+    mediaRecorder.onerror = (event) => {
+      console.error("MediaRecorder error:", event.error);
+      alert(`Recording error: ${event.error.name} - ${event.error.message}`);
+      // Reset UI on error
+      resetUI(); // resetUI already calls stopWaveformVisualization
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop()); // Stop stream on error
+      }
+    };
+
     // Start recording
-    mediaRecorder.start(100); // Collect data every 100ms
+    mediaRecorder.start(100);
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#ff0000";
+    micButton.disabled = true;
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
+    console.log("UI updated for recording start.");
 
-    // Play start sound
-    if (startRecordingSound) {
-      startRecordingSound
-        .play()
-        .catch((e) => console.log("Start sound play failed:", e));
-    }
-
-    // Vibrate for feedback
-    vibrateDevice(50);
+    // Set timeout to automatically stop recording after RECORDING_DURATION
+    clearTimeout(recordingTimeout); // Clear any previous timeout
+    recordingTimeout = setTimeout(() => {
+      console.log("Recording duration timeout reached.");
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        console.log("Stopping recorder due to timeout...");
+        mediaRecorder.stop();
+      }
+    }, RECORDING_DURATION);
+    console.log(`Recording timeout set for ${RECORDING_DURATION}ms`);
   } catch (error) {
-    console.error("Error starting recording:", error);
+    console.error("Error in startAudioRecording:", error);
     alert(
-      "Failed to access microphone. Please ensure you have granted microphone permissions and try again."
+      `Could not start recording: ${error.message}. Please check microphone permissions.`
     );
-    resetUI();
+
+    // Ensure recording flag is reset and buttons are re-enabled in case of error
+    isRecording = false;
+    recordingStartTime = null;
+    toggleListenButtons(false);
+    toggleBookmarkButtons(false);
+    // Make sure waveform is stopped and hidden on error
+    stopWaveformVisualization();
   }
 }
 
+// Upload audio to AssemblyAI and get transcription
 async function uploadAudioToAssemblyAI(audioBlob) {
   try {
-    // Show loading state
-    const loadingIndicator = document.createElement("div");
-    loadingIndicator.className = "loading-indicator";
-    loadingIndicator.textContent = "Processing...";
-    document.body.appendChild(loadingIndicator);
-
-    // Create form data
-    const formData = new FormData();
-    formData.append("audio_file", audioBlob, "recording.webm");
-
-    // Upload to AssemblyAI
-    const response = await fetch("https://api.assemblyai.com/v2/upload", {
+    // Step 1: Upload the audio file to AssemblyAI
+    const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
       method: "POST",
       headers: {
-        Authorization: ASSEMBLY_AI_API_KEY,
+        authorization: ASSEMBLYAI_API_KEY,
+        "content-type": "application/octet-stream",
       },
-      body: formData,
+      body: audioBlob,
     });
 
-    if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
+    if (!uploadResponse.ok) {
+      throw new Error(`Failed to upload audio: ${uploadResponse.statusText}`);
     }
 
-    const uploadData = await response.json();
+    const uploadData = await uploadResponse.json();
+    const audioUrl = uploadData.upload_url;
 
-    // Start transcription
-    const transcriptResponse = await fetch(
+    // Step 2: Submit the transcription request
+    const transcriptionResponse = await fetch(
       "https://api.assemblyai.com/v2/transcript",
       {
         method: "POST",
         headers: {
-          Authorization: ASSEMBLY_AI_API_KEY,
-          "Content-Type": "application/json",
+          authorization: ASSEMBLYAI_API_KEY,
+          "content-type": "application/json",
         },
         body: JSON.stringify({
-          audio_url: uploadData.upload_url,
-          language_code: "en",
+          audio_url: audioUrl,
         }),
       }
     );
 
-    if (!transcriptResponse.ok) {
-      throw new Error(`Transcription failed: ${transcriptResponse.statusText}`);
+    if (!transcriptionResponse.ok) {
+      throw new Error(
+        `Failed to submit transcription request: ${transcriptionResponse.statusText}`
+      );
     }
 
-    const transcriptData = await transcriptResponse.json();
+    const transcriptionData = await transcriptionResponse.json();
+    const transcriptId = transcriptionData.id;
 
-    // Poll for transcription completion
-    const transcriptId = transcriptData.id;
-    let transcript = null;
-
-    while (!transcript) {
+    // Step 3: Poll for the transcription result
+    let transcriptionResult;
+    while (true) {
       const statusResponse = await fetch(
         `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
         {
           headers: {
-            Authorization: ASSEMBLY_AI_API_KEY,
+            authorization: ASSEMBLYAI_API_KEY,
           },
         }
       );
 
-      const statusData = await statusResponse.json();
+      if (!statusResponse.ok) {
+        throw new Error(
+          `Failed to get transcription status: ${statusResponse.statusText}`
+        );
+      }
 
+      const statusData = await statusResponse.json();
       if (statusData.status === "completed") {
-        transcript = statusData.text;
+        transcriptionResult = statusData.text;
+        break;
       } else if (statusData.status === "error") {
         throw new Error("Transcription failed");
-      } else {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
+
+      // Wait for 1 second before polling again
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    // Remove loading indicator
-    loadingIndicator.remove();
-
-    // Process the transcript
-    if (transcript) {
-      const score = calculatePronunciationScore(transcript, currentSentence);
-      showDialog({
-        score: score,
-        feedback: transcript,
-        missingWords: "", // Add missing words logic if needed
-      });
-    } else {
-      throw new Error("No transcript received");
-    }
+    return transcriptionResult;
   } catch (error) {
-    console.error("Error processing audio:", error);
-    alert("Failed to process audio. Please try again.");
-    resetUI();
-  }
-}
-
-// Helper function to convert AudioBuffer to WAV
-function audioBufferToWav(buffer) {
-  const numChannels = buffer.numberOfChannels;
-  const sampleRate = buffer.sampleRate;
-  const format = 1; // PCM
-  const bitDepth = 16;
-
-  const bytesPerSample = bitDepth / 8;
-  const blockAlign = numChannels * bytesPerSample;
-
-  const dataLength = buffer.length * numChannels * bytesPerSample;
-  const bufferLength = 44 + dataLength;
-
-  const arrayBuffer = new ArrayBuffer(bufferLength);
-  const view = new DataView(arrayBuffer);
-
-  // Write WAV header
-  writeString(view, 0, "RIFF");
-  view.setUint32(4, 36 + dataLength, true);
-  writeString(view, 8, "WAVE");
-  writeString(view, 12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, format, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * blockAlign, true);
-  view.setUint16(32, blockAlign, true);
-  view.setUint16(34, bitDepth, true);
-  writeString(view, 36, "data");
-  view.setUint32(40, dataLength, true);
-
-  // Write audio data
-  const offset = 44;
-  const channelData = [];
-  for (let i = 0; i < numChannels; i++) {
-    channelData.push(buffer.getChannelData(i));
-  }
-
-  let pos = 0;
-  while (pos < buffer.length) {
-    for (let i = 0; i < numChannels; i++) {
-      const sample = Math.max(-1, Math.min(1, channelData[i][pos]));
-      const value = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
-      view.setInt16(
-        offset + pos * blockAlign + i * bytesPerSample,
-        value,
-        true
-      );
-    }
-    pos++;
-  }
-
-  return arrayBuffer;
-}
-
-function writeString(view, offset, string) {
-  for (let i = 0; i < string.length; i++) {
-    view.setUint8(offset + i, string.charCodeAt(i));
+    console.error("Error in AssemblyAI transcription:", error);
+    alert("Failed to transcribe audio. Please try again.");
+    return null;
   }
 }
 
@@ -1658,90 +1714,62 @@ window.addEventListener("DOMContentLoaded", function () {
 });
 
 function showDialog({ score = 0, feedback = "", missingWords = "" }) {
-  const dialogContainer = document.querySelector(".dialog-container");
-  const dialogBackdrop = document.querySelector(".dialog-backdrop");
-  const retryButton = document.getElementById("retryButton");
-  const nextButton = document.getElementById("nextButton");
-  const recognizedText = document.getElementById("recognizedText");
-  const missingWordDiv = document.getElementById("missingWordDiv");
+  // Remove any existing dialog
+  const oldDialog = document.querySelector(".dialog-container");
+  if (oldDialog) oldDialog.remove();
 
-  if (!dialogContainer || !dialogBackdrop) return;
+  // Clone the template
+  const template = document.getElementById("dialog-template");
+  const dialogClone = template.content.cloneNode(true);
 
-  // Update the score
-  const scoreElement = document.getElementById("pronunciationScore");
-  if (scoreElement) {
-    scoreElement.textContent = `${Math.round(score)}%`;
+  // Update dynamic content
+  const scoreText = dialogClone.getElementById("pronunciationScore");
+  const progressCircle = dialogClone.getElementById("progress");
+  const dialogSentenceText = dialogClone.getElementById("dialogSentenceText");
+  const missingWordDiv = dialogClone.getElementById("missingWordDiv");
+  const nextButton = dialogClone.getElementById("nextButton");
+
+  // Set score
+  scoreText.textContent = `${score}%`;
+  // Animate progress
+  const radius = 48;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (score / 100) * circumference;
+  progressCircle.style.strokeDashoffset = offset;
+
+  // Set feedback
+  if (feedback) dialogSentenceText.innerHTML = feedback;
+  if (missingWords) missingWordDiv.textContent = missingWords;
+
+  // Set continue button color based on score
+  if (score < 50) {
+    nextButton.style.background =
+      "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)";
+  } else {
+    nextButton.style.background =
+      "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
   }
 
-  // Update the progress circle
-  updateProgressCircle(score);
+  // Add event for close button
+  dialogClone.querySelector(".close-icon").onclick = function () {
+    document.querySelector(".dialog-container").remove();
+  };
 
-  // Update the recognized text
-  if (recognizedText) {
-    recognizedText.innerHTML = `<p class="sentence-text-2">${feedback}</p>`;
-  }
+  // Add event for retry button
+  dialogClone.getElementById("retryButton").onclick = function (e) {
+    e.preventDefault();
+    document.querySelector(".dialog-container").remove();
+    // Start a new recording; after scoring, showDialog will be called with the new score
+    startAudioRecording();
+  };
 
-  // Update missing words if any
-  if (missingWordDiv) {
-    missingWordDiv.innerHTML = missingWords
-      ? `<p class="text-danger">${missingWords}</p>`
-      : "";
-  }
+  // Add event for next button
+  dialogClone.getElementById("nextButton").onclick = function (e) {
+    e.preventDefault();
+    document.querySelector(".dialog-container").remove();
+    // Add your continue logic here
+  };
 
-  // Show the dialog and backdrop
-  dialogContainer.classList.add("active");
-  dialogBackdrop.style.display = "block";
-
-  // Enable and set up retry button
-  if (retryButton) {
-    retryButton.style.pointerEvents = "auto";
-    retryButton.style.opacity = "1";
-    retryButton.onclick = () => {
-      closeDialog();
-      resetUI();
-    };
-  }
-
-  // Enable and set up next button
-  if (nextButton) {
-    nextButton.style.pointerEvents = "auto";
-    nextButton.style.opacity = "1";
-    nextButton.onclick = () => {
-      closeDialog();
-      updateSentence();
-    };
-  }
-
-  // Add close button functionality
-  const closeButton = dialogContainer.querySelector(".close-icon");
-  if (closeButton) {
-    closeButton.onclick = closeDialog;
-  }
-}
-
-// Function to update the simple progress bar
-function updateSimpleProgress() {
-  const progressFill = document.querySelector(".simple-progress-fill");
-  const progressPercentage = document.querySelector(
-    ".simple-progress-percentage"
-  );
-
-  if (!progressFill || !progressPercentage) return;
-
-  // Calculate progress based on completed sentences
-  const totalSentences = lessons[currentLessonIndex]?.sentences.length || 0;
-  const completedCount = completedSentences.size;
-  const progress =
-    totalSentences > 0 ? (completedCount / totalSentences) * 100 : 0;
-
-  // Update the progress bar
-  progressFill.style.width = `${progress}%`;
-  progressPercentage.textContent = `${Math.round(progress)}%`;
-
-  // Update the progress bar's data attribute for the tooltip
-  const progressBar = document.querySelector(".simple-progress-bar");
-  if (progressBar) {
-    progressBar.setAttribute("data-progress", `${Math.round(progress)}%`);
-    progressBar.style.setProperty("--progress-position", `${progress}%`);
-  }
+  // Append to body (or your preferred parent)
+  document.body.appendChild(dialogClone);
 }
