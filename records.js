@@ -1703,64 +1703,65 @@ window.addEventListener("DOMContentLoaded", function () {
 });
 
 function showDialog({ score = 0, feedback = "", missingWords = "" }) {
-  // Remove any existing dialog
-  const oldDialog = document.querySelector(".dialog-container");
-  if (oldDialog) oldDialog.remove();
+  const dialogContainer = document.querySelector(".dialog-container");
+  const dialogBackdrop = document.querySelector(".dialog-backdrop");
+  const retryButton = document.getElementById("retryButton");
+  const nextButton = document.getElementById("nextButton");
+  const recognizedText = document.getElementById("recognizedText");
+  const missingWordDiv = document.getElementById("missingWordDiv");
 
-  // Clone the template
-  const template = document.getElementById("dialog-template");
-  const dialogClone = template.content.cloneNode(true);
+  if (!dialogContainer || !dialogBackdrop) return;
 
-  // Update dynamic content
-  const scoreText = dialogClone.getElementById("pronunciationScore");
-  const progressCircle = dialogClone.getElementById("progress");
-  const dialogSentenceText = dialogClone.getElementById("dialogSentenceText");
-  const missingWordDiv = dialogClone.getElementById("missingWordDiv");
-  const nextButton = dialogClone.getElementById("nextButton");
-
-  // Set score
-  scoreText.textContent = `${score}%`;
-  // Animate progress
-  const radius = 48;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  progressCircle.style.strokeDashoffset = offset;
-
-  // Set feedback
-  if (feedback) dialogSentenceText.innerHTML = feedback;
-  if (missingWords) missingWordDiv.textContent = missingWords;
-
-  // Set continue button color based on score
-  if (score < 50) {
-    nextButton.style.background =
-      "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)";
-  } else {
-    nextButton.style.background =
-      "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
+  // Update the score
+  const scoreElement = document.getElementById("pronunciationScore");
+  if (scoreElement) {
+    scoreElement.textContent = `${Math.round(score)}%`;
   }
 
-  // Add event for close button
-  dialogClone.querySelector(".close-icon").onclick = function () {
-    document.querySelector(".dialog-container").remove();
-  };
+  // Update the progress circle
+  updateProgressCircle(score);
 
-  // Add event for retry button
-  dialogClone.getElementById("retryButton").onclick = function (e) {
-    e.preventDefault();
-    document.querySelector(".dialog-container").remove();
-    // Start a new recording; after scoring, showDialog will be called with the new score
-    startAudioRecording();
-  };
+  // Update the recognized text
+  if (recognizedText) {
+    recognizedText.innerHTML = `<p class="sentence-text-2">${feedback}</p>`;
+  }
 
-  // Add event for next button
-  dialogClone.getElementById("nextButton").onclick = function (e) {
-    e.preventDefault();
-    document.querySelector(".dialog-container").remove();
-    // Add your continue logic here
-  };
+  // Update missing words if any
+  if (missingWordDiv) {
+    missingWordDiv.innerHTML = missingWords
+      ? `<p class="text-danger">${missingWords}</p>`
+      : "";
+  }
 
-  // Append to body (or your preferred parent)
-  document.body.appendChild(dialogClone);
+  // Show the dialog and backdrop
+  dialogContainer.classList.add("active");
+  dialogBackdrop.style.display = "block";
+
+  // Enable and set up retry button
+  if (retryButton) {
+    retryButton.style.pointerEvents = "auto";
+    retryButton.style.opacity = "1";
+    retryButton.onclick = () => {
+      closeDialog();
+      resetUI();
+    };
+  }
+
+  // Enable and set up next button
+  if (nextButton) {
+    nextButton.style.pointerEvents = "auto";
+    nextButton.style.opacity = "1";
+    nextButton.onclick = () => {
+      closeDialog();
+      updateSentence();
+    };
+  }
+
+  // Add close button functionality
+  const closeButton = dialogContainer.querySelector(".close-icon");
+  if (closeButton) {
+    closeButton.onclick = closeDialog;
+  }
 }
 
 // Function to update the simple progress bar
