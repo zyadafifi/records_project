@@ -50,6 +50,11 @@ let stopRecButton; // Stop button
 let deleteRecButton; // Delete button
 let isRecordingCancelled = false; // Flag for cancellation
 
+// Audio elements for sound effects
+let successSound;
+let neutralSound;
+let lowScoreSound;
+
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -662,110 +667,60 @@ function updateProgressCircle(score) {
   }
 }
 
-// Play sound effects using the Web Audio API
+// Initialize audio elements
+function initializeSoundEffects() {
+  successSound = new Audio(
+    "https://freesound.org/data/previews/456/456965_5121236-lq.mp3"
+  );
+  neutralSound = new Audio(
+    "https://freesound.org/data/previews/456/456966_5121236-lq.mp3"
+  ); // We'll need to find a suitable neutral sound
+  lowScoreSound = new Audio(
+    "https://freesound.org/data/previews/456/456967_5121236-lq.mp3"
+  ); // We'll need to find a suitable low score sound
+
+  // Preload sounds
+  [successSound, neutralSound, lowScoreSound].forEach((sound) => {
+    sound.load();
+    sound.volume = 0.5; // Set volume to 50%
+  });
+}
+
+// Play sound effects using actual audio files
 function playSoundEffect(score) {
-  if (!audioContext) {
-    console.error(
-      "AudioContext not initialized. Call initializeAudioContext() first."
-    );
-    return;
-  }
-
   try {
-    // Create master gain node for volume control
-    const masterGain = audioContext.createGain();
-    masterGain.gain.value = 0.15; // Lower volume for subtlety
-    masterGain.connect(audioContext.destination);
-
-    // Create filter for tone shaping
-    const filter = audioContext.createBiquadFilter();
-    filter.type = "highpass";
-    filter.frequency.value = 1000;
-    filter.Q.value = 0.7;
-    filter.connect(masterGain);
-
-    // Very short duration for modern app feel
-    const duration = 0.12; // 120ms duration
-    const now = audioContext.currentTime;
-
-    if (score >= 80) {
-      // Success sound - modern "success" tone
-      const osc1 = audioContext.createOscillator();
-      const osc2 = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      // Square wave for more modern sound
-      osc1.type = "square";
-      osc2.type = "square";
-
-      // Modern app-like frequencies
-      osc1.frequency.setValueAtTime(1000, now);
-      osc1.frequency.linearRampToValueAtTime(1500, now + duration);
-
-      osc2.frequency.setValueAtTime(1500, now);
-      osc2.frequency.linearRampToValueAtTime(2000, now + duration);
-
-      // Sharp attack, quick decay
-      gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.25, now + 0.01);
-      gainNode.gain.linearRampToValueAtTime(0, now + duration);
-
-      osc1.connect(gainNode);
-      osc2.connect(gainNode);
-      gainNode.connect(filter);
-
-      osc1.start(now);
-      osc2.start(now);
-      osc1.stop(now + duration);
-      osc2.stop(now + duration);
-    } else if (score >= 50) {
-      // Neutral sound - soft "notification" tone
-      const osc = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      osc.type = "triangle"; // Softer than square
-      osc.frequency.setValueAtTime(900, now);
-      osc.frequency.linearRampToValueAtTime(1100, now + duration);
-
-      // Gentle attack and decay
-      gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.2, now + 0.01);
-      gainNode.gain.linearRampToValueAtTime(0, now + duration);
-
-      osc.connect(gainNode);
-      gainNode.connect(filter);
-
-      osc.start(now);
-      osc.stop(now + duration);
-    } else {
-      // Low score sound - gentle "alert" tone
-      const osc = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(600, now);
-      osc.frequency.linearRampToValueAtTime(400, now + duration);
-
-      // Quick attack, gentle decay
-      gainNode.gain.setValueAtTime(0, now);
-      gainNode.gain.linearRampToValueAtTime(0.15, now + 0.01);
-      gainNode.gain.linearRampToValueAtTime(0, now + duration);
-
-      osc.connect(gainNode);
-      gainNode.connect(filter);
-
-      osc.start(now);
-      osc.stop(now + duration);
+    // Ensure sounds are initialized
+    if (!successSound) {
+      initializeSoundEffects();
     }
 
-    // Quick fade out
-    masterGain.gain.setValueAtTime(0.15, now);
-    masterGain.gain.linearRampToValueAtTime(0, now + duration);
+    // Stop any currently playing sounds
+    [successSound, neutralSound, lowScoreSound].forEach((sound) => {
+      sound.pause();
+      sound.currentTime = 0;
+    });
+
+    // Play appropriate sound based on score
+    if (score >= 80) {
+      successSound.play().catch((error) => {
+        console.error("Error playing success sound:", error);
+      });
+    } else if (score >= 50) {
+      neutralSound.play().catch((error) => {
+        console.error("Error playing neutral sound:", error);
+      });
+    } else {
+      lowScoreSound.play().catch((error) => {
+        console.error("Error playing low score sound:", error);
+      });
+    }
   } catch (error) {
-    console.error("Error playing sound effect:", error);
-    // Silent fallback - don't show error to user
+    console.error("Error in playSoundEffect:", error);
   }
 }
+
+// Initialize sound effects when the page loads
+window.addEventListener("DOMContentLoaded", initializeSoundEffects);
 
 // Calculate pronunciation score and log recognized words to the console
 function calculatePronunciationScore(transcript, expectedSentence) {
