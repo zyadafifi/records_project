@@ -880,7 +880,8 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     nextButton.style.background =
       "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)";
   } else {
-    nextButton.style.backgroundColor = "#4b9b94";
+    nextButton.style.background =
+      "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
   }
 
   // Update progress bar immediately after score calculation
