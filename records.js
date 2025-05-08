@@ -58,15 +58,6 @@ document.body.appendChild(dialogBackdrop);
 // Hide the dialog backdrop initially
 dialogBackdrop.style.display = "none";
 
-// Gesture handling variables
-let touchStartY = 0;
-let touchStartTime = 0;
-let isHolding = false;
-let holdTimeout = null;
-const HOLD_DURATION = 500; // 500ms hold duration
-const SLIDE_THRESHOLD = 50; // 50px slide threshold
-const MIN_HOLD_TIME = 300; // Minimum hold time before recording starts
-
 // Function to initialize AudioContext
 function initializeAudioContext() {
   if (!audioContext) {
@@ -1222,13 +1213,17 @@ function getQuizIdFromURL() {
 // Load lessons when the page loads
 loadLessons();
 
-// Event listeners for the mic button
-micButton.addEventListener("touchstart", handleTouchStart, { passive: false });
-micButton.addEventListener("touchmove", handleTouchMove, { passive: false });
-micButton.addEventListener("touchend", handleTouchEnd, { passive: false });
-micButton.addEventListener("mousedown", handleMouseDown);
-micButton.addEventListener("mousemove", handleMouseMove);
-micButton.addEventListener("mouseup", handleMouseUp);
+// Event listeners for buttons
+micButton.addEventListener("click", async () => {
+  // Initialize and resume AudioContext on user gesture
+  initializeAudioContext();
+  await resumeAudioContext();
+
+  micButton.style.display = "none";
+  retryButton.style.display = "inline-block";
+  retryButton.disabled = false;
+  startAudioRecording();
+});
 
 // Update the retry button handler to clear the timeout
 retryButton.addEventListener("click", () => {
@@ -1777,102 +1772,4 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
 
   // Append to body (or your preferred parent)
   document.body.appendChild(dialogClone);
-}
-
-// Touch event handlers
-function handleTouchStart(e) {
-  e.preventDefault();
-  touchStartY = e.touches[0].clientY;
-  touchStartTime = Date.now();
-  isHolding = true;
-  micButton.classList.add("holding");
-
-  // Start recording immediately
-  startAudioRecording();
-}
-
-function handleTouchMove(e) {
-  if (!isHolding) return;
-  e.preventDefault();
-
-  const touchY = e.touches[0].clientY;
-  const deltaY = touchStartY - touchY;
-
-  if (deltaY > SLIDE_THRESHOLD) {
-    micButton.classList.add("sliding");
-  } else {
-    micButton.classList.remove("sliding");
-  }
-}
-
-function handleTouchEnd(e) {
-  if (!isHolding) return;
-  e.preventDefault();
-
-  const touchY = e.changedTouches[0].clientY;
-  const deltaY = touchStartY - touchY;
-  const holdTime = Date.now() - touchStartTime;
-
-  isHolding = false;
-  micButton.classList.remove("holding", "sliding");
-
-  if (deltaY > SLIDE_THRESHOLD) {
-    // Cancel recording
-    handleStopRecording();
-  } else {
-    // Stop and upload recording
-    handleStopRecording();
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-    }
-  }
-}
-
-// Mouse event handlers
-function handleMouseDown(e) {
-  e.preventDefault();
-  touchStartY = e.clientY;
-  touchStartTime = Date.now();
-  isHolding = true;
-  micButton.classList.add("holding");
-
-  // Start recording immediately
-  startAudioRecording();
-}
-
-function handleMouseMove(e) {
-  if (!isHolding) return;
-  e.preventDefault();
-
-  const mouseY = e.clientY;
-  const deltaY = touchStartY - mouseY;
-
-  if (deltaY > SLIDE_THRESHOLD) {
-    micButton.classList.add("sliding");
-  } else {
-    micButton.classList.remove("sliding");
-  }
-}
-
-function handleMouseUp(e) {
-  if (!isHolding) return;
-  e.preventDefault();
-
-  const mouseY = e.clientY;
-  const deltaY = touchStartY - mouseY;
-  const holdTime = Date.now() - touchStartTime;
-
-  isHolding = false;
-  micButton.classList.remove("holding", "sliding");
-
-  if (deltaY > SLIDE_THRESHOLD) {
-    // Cancel recording
-    handleStopRecording();
-  } else {
-    // Stop and upload recording
-    handleStopRecording();
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-    }
-  }
 }
