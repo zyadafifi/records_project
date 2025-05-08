@@ -50,6 +50,13 @@ let stopRecButton; // Stop button
 let deleteRecButton; // Delete button
 let isRecordingCancelled = false; // Flag for cancellation
 
+// Add these variables at the top with other global variables
+let isRecordingLocked = false;
+let touchStartY = 0;
+let isPaused = false;
+let pausedTime = 0;
+let totalPausedTime = 0;
+
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
 dialogBackdrop.classList.add("dialog-backdrop");
@@ -1432,12 +1439,18 @@ async function startAudioRecording() {
     mediaRecorder = new MediaRecorder(stream);
     console.log("MediaRecorder created.");
 
-    // Set recording flag, start time, toggle buttons
     isRecording = true;
+    isRecordingLocked = false;
+    isPaused = false;
     recordingStartTime = Date.now();
-    toggleListenButtons(true);
-    toggleBookmarkButtons(true);
-    isRecordingCancelled = false; // Ensure flag is reset
+    totalPausedTime = 0;
+
+    // Update UI for recording state
+    micButton.innerHTML = '<i class="fas fa-pause"></i>';
+    micButton.style.backgroundColor = "#ff0000";
+
+    // Add pause/resume click handler
+    micButton.addEventListener("click", togglePauseRecording);
 
     // Setup and start waveform visualization (this now shows the container)
     setupWaveformVisualization(stream);
@@ -1773,3 +1786,96 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   // Append to body (or your preferred parent)
   document.body.appendChild(dialogClone);
 }
+
+// Add these functions after the existing functions
+function handleTouchStart(e) {
+  if (isRecording) return;
+
+  touchStartY = e.touches[0].clientY;
+  startAudioRecording();
+
+  // Add touch move and end listeners
+  micButton.addEventListener("touchmove", handleTouchMove);
+  micButton.addEventListener("touchend", handleTouchEnd);
+}
+
+function handleTouchMove(e) {
+  if (!isRecording) return;
+
+  const touchY = e.touches[0].clientY;
+  const deltaY = touchStartY - touchY;
+
+  // If user slides up more than 50px, lock the recording
+  if (deltaY > 50 && !isRecordingLocked) {
+    isRecordingLocked = true;
+    micButton.style.transform = "scale(1.1)";
+    micButton.style.backgroundColor = "#4b9b94";
+    showLockIndicator();
+  }
+}
+
+function handleTouchEnd(e) {
+  if (!isRecording) return;
+
+  // Remove touch move and end listeners
+  micButton.removeEventListener("touchmove", handleTouchMove);
+  micButton.removeEventListener("touchend", handleTouchEnd);
+
+  if (!isRecordingLocked) {
+    // If not locked, stop recording
+    stopRecording();
+  }
+}
+
+function showLockIndicator() {
+  const lockIndicator = document.createElement("div");
+  lockIndicator.className = "lock-indicator";
+  lockIndicator.innerHTML = '<i class="fas fa-lock"></i>';
+  document.body.appendChild(lockIndicator);
+
+  // Remove after animation
+  setTimeout(() => {
+    lockIndicator.remove();
+  }, 1000);
+}
+
+function togglePauseRecording() {
+  if (!isRecording) return;
+
+  isPaused = !isPaused;
+
+  if (isPaused) {
+    // Pause recording
+    mediaRecorder.pause();
+    pausedTime = Date.now();
+    micButton.innerHTML = '<i class="fas fa-play"></i>';
+    micButton.style.backgroundColor = "#4b9b94";
+  } else {
+    // Resume recording
+    mediaRecorder.resume();
+    totalPausedTime += Date.now() - pausedTime;
+    micButton.innerHTML = '<i class="fas fa-pause"></i>';
+    micButton.style.backgroundColor = "#ff0000";
+  }
+}
+
+// Modify the existing stopRecording function
+function stopRecording() {
+  if (!isRecording) return;
+
+  isRecording = false;
+  isRecordingLocked = false;
+  isPaused = false;
+
+  // Remove pause/resume click handler
+  micButton.removeEventListener("click", togglePauseRecording);
+
+  if (mediaRecorder && mediaRecorder.state !== "inactive") {
+    mediaRecorder.stop();
+  }
+
+  // ... rest of the existing stop recording code ...
+}
+
+// Add these event listeners after the existing ones
+micButton.addEventListener("touchstart", handleTouchStart);
