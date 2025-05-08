@@ -1420,271 +1420,226 @@ function handleMouseUp(e) {
 
 // Modify the existing startAudioRecording function to handle gesture state
 async function startAudioRecording() {
-  // Play start recording sound
-  startRecordingSound.play().catch((e) => console.log("Sound play failed:", e));
-
-  // Provide haptic feedback
-  vibrateDevice(100);
-
-  console.log("startAudioRecording called");
-  initializeAudioContext();
-  await resumeAudioContext();
-
-  if (!audioContext) {
-    alert("AudioContext could not be initialized. Cannot record.");
-    return;
-  }
-
   try {
-    console.log("Requesting microphone access...");
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    console.log("Microphone access granted.");
-    audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
-    console.log("MediaRecorder created.");
+    // Request microphone access with specific constraints for mobile
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 44100,
+        channelCount: 1,
+      },
+    });
 
+    // Initialize audio context if not already done
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    // Resume audio context (required for mobile)
+    await audioContext.resume();
+
+    // Create media recorder with specific MIME type
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: "audio/webm;codecs=opus",
+      audioBitsPerSecond: 128000,
+    });
+
+    // Reset audio chunks
+    audioChunks = [];
     isRecording = true;
-    recordingStartTime = Date.now();
-    toggleListenButtons(true);
-    toggleBookmarkButtons(true);
     isRecordingCancelled = false;
 
-    // Remove holding class and add recording class
-    micButton.classList.remove("holding");
+    // Update UI
     micButton.classList.add("recording");
+    recordingIndicator.style.display = "inline-block";
+    recordingStartTime = Date.now();
 
+    // Setup waveform visualization
     setupWaveformVisualization(stream);
 
+    // Handle data available event
     mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0 && !isRecordingCancelled) {
+      if (event.data.size > 0) {
         audioChunks.push(event.data);
       }
     };
 
-    mediaRecorder.onstop = async () => {
-      console.log("mediaRecorder.onstop triggered.");
+    // Start recording
+    mediaRecorder.start(100); // Collect data every 100ms
 
-      if (isRecordingCancelled) {
-        console.log("onstop: Recording was cancelled, skipping processing.");
-        isRecordingCancelled = false;
-        return;
-      }
+    // Play start sound
+    if (startRecordingSound) {
+      startRecordingSound
+        .play()
+        .catch((e) => console.log("Start sound play failed:", e));
+    }
 
-      stopWaveformVisualization();
-
-      if (audioChunks.length === 0) {
-        console.warn(
-          "No audio chunks recorded. Recording might have been too short or silent."
-        );
-        resetUI();
-        recognizedTextDiv.textContent = "(Recording too short or silent)";
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/mp4" });
-      console.log(
-        "Recorded audio blob created, size:",
-        recordedAudioBlob?.size
-      );
-      audioChunks = [];
-
-      micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-      micButton.style.backgroundColor = "";
-      micButton.disabled = false;
-      micButton.style.color = "#fff";
-      micButton.style.display = "inline-block";
-      micButton.style.opacity = "1";
-      micButton.classList.remove("recording");
-      micButton.style.animation =
-        "pulse 2s infinite, glow 2s infinite alternate";
-
-      retryButton.style.display = "inline-block";
-      retryButton.disabled = false;
-      document.getElementById("recordingIndicator").style.display = "none";
-
-      isRecording = false;
-      recordingStartTime = null;
-      toggleListenButtons(false);
-      toggleBookmarkButtons(false);
-      console.log("UI updated after normal recording stop.");
-
-      stream.getTracks().forEach((track) => track.stop());
-
-      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
-        console.log("Uploading audio for transcription...");
-        recognizedTextDiv.innerHTML =
-          '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
-        pronunciationScoreDiv.textContent = "...";
-        micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        micButton.style.color = "#fff";
-        micButton.style.backgroundColor = "#4b9b94";
-        micButton.style.animation = "glow 2s infinite alternate";
-        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
-        if (transcription !== null) {
-          console.log("Transcription received:", transcription);
-          const pronunciationScore = calculatePronunciationScore(
-            transcription,
-            lessons[currentLessonIndex].sentences[currentSentenceIndex]
-          );
-          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-          updateProgressCircle(pronunciationScore);
-          totalPronunciationScore += pronunciationScore;
-          console.log("Score calculated and totals updated.");
-
-          updateSimpleProgress();
-
-          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-          micButton.style.color = "#fff";
-          micButton.style.backgroundColor = "";
-          micButton.style.display = "inline-block";
-          micButton.style.opacity = "1";
-          micButton.classList.remove("recording");
-          micButton.style.animation =
-            "pulse 2s infinite, glow 2s infinite alternate";
-
-          openDialog();
-          console.log("Dialog opened.");
-        } else {
-          console.log(
-            "Transcription was null, likely an error during processing."
-          );
-          recognizedTextDiv.textContent = "(Transcription failed)";
-          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-          micButton.style.color = "#fff";
-          micButton.style.backgroundColor = "";
-          micButton.style.display = "inline-block";
-          micButton.style.opacity = "1";
-          micButton.classList.remove("recording");
-          micButton.style.animation =
-            "pulse 2s infinite, glow 2s infinite alternate";
-        }
-      } else {
-        console.warn(
-          "Recorded audio blob is empty or very small, skipping transcription."
-        );
-        recognizedTextDiv.textContent = "(Recording too short or silent)";
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-      }
-    };
-
-    mediaRecorder.onerror = (event) => {
-      console.error("MediaRecorder error:", event.error);
-      alert(`Recording error: ${event.error.name} - ${event.error.message}`);
-      resetUI();
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-
-    mediaRecorder.start(100);
-    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-    micButton.style.color = "#ff0000";
-    micButton.disabled = true;
-    document.getElementById("recordingIndicator").style.display =
-      "inline-block";
-    console.log("UI updated for recording start.");
-
-    clearTimeout(recordingTimeout);
-    recordingTimeout = setTimeout(() => {
-      console.log("Recording duration timeout reached.");
-      if (mediaRecorder && mediaRecorder.state === "recording") {
-        console.log("Stopping recorder due to timeout...");
-        mediaRecorder.stop();
-      }
-    }, RECORDING_DURATION);
-    console.log(`Recording timeout set for ${RECORDING_DURATION}ms`);
+    // Vibrate for feedback
+    vibrateDevice(50);
   } catch (error) {
-    console.error("Error in startAudioRecording:", error);
+    console.error("Error starting recording:", error);
     alert(
-      `Could not start recording: ${error.message}. Please check microphone permissions.`
+      "Failed to access microphone. Please ensure you have granted microphone permissions and try again."
     );
     resetUI();
   }
 }
 
-// Upload audio to AssemblyAI and get transcription
 async function uploadAudioToAssemblyAI(audioBlob) {
   try {
-    // Step 1: Upload the audio file to AssemblyAI
-    const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
+    // Show loading state
+    const loadingIndicator = document.createElement("div");
+    loadingIndicator.className = "loading-indicator";
+    loadingIndicator.textContent = "Processing...";
+    document.body.appendChild(loadingIndicator);
+
+    // Create form data
+    const formData = new FormData();
+    formData.append("audio_file", audioBlob, "recording.webm");
+
+    // Upload to AssemblyAI
+    const response = await fetch("https://api.assemblyai.com/v2/upload", {
       method: "POST",
       headers: {
-        authorization: ASSEMBLYAI_API_KEY,
-        "content-type": "application/octet-stream",
+        Authorization: "YOUR_API_KEY", // Replace with your actual API key
       },
-      body: audioBlob,
+      body: formData,
     });
 
-    if (!uploadResponse.ok) {
-      throw new Error(`Failed to upload audio: ${uploadResponse.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.statusText}`);
     }
 
-    const uploadData = await uploadResponse.json();
-    const audioUrl = uploadData.upload_url;
+    const uploadData = await response.json();
 
-    // Step 2: Submit the transcription request
-    const transcriptionResponse = await fetch(
+    // Start transcription
+    const transcriptResponse = await fetch(
       "https://api.assemblyai.com/v2/transcript",
       {
         method: "POST",
         headers: {
-          authorization: ASSEMBLYAI_API_KEY,
-          "content-type": "application/json",
+          Authorization: "YOUR_API_KEY", // Replace with your actual API key
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          audio_url: audioUrl,
+          audio_url: uploadData.upload_url,
+          language_code: "en",
         }),
       }
     );
 
-    if (!transcriptionResponse.ok) {
-      throw new Error(
-        `Failed to submit transcription request: ${transcriptionResponse.statusText}`
-      );
+    if (!transcriptResponse.ok) {
+      throw new Error(`Transcription failed: ${transcriptResponse.statusText}`);
     }
 
-    const transcriptionData = await transcriptionResponse.json();
-    const transcriptId = transcriptionData.id;
+    const transcriptData = await transcriptResponse.json();
 
-    // Step 3: Poll for the transcription result
-    let transcriptionResult;
-    while (true) {
+    // Poll for transcription completion
+    const transcriptId = transcriptData.id;
+    let transcript = null;
+
+    while (!transcript) {
       const statusResponse = await fetch(
         `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
         {
           headers: {
-            authorization: ASSEMBLYAI_API_KEY,
+            Authorization: "YOUR_API_KEY", // Replace with your actual API key
           },
         }
       );
 
-      if (!statusResponse.ok) {
-        throw new Error(
-          `Failed to get transcription status: ${statusResponse.statusText}`
-        );
-      }
-
       const statusData = await statusResponse.json();
+
       if (statusData.status === "completed") {
-        transcriptionResult = statusData.text;
-        break;
+        transcript = statusData.text;
       } else if (statusData.status === "error") {
         throw new Error("Transcription failed");
+      } else {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
-
-      // Wait for 1 second before polling again
-      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
-    return transcriptionResult;
+    // Remove loading indicator
+    loadingIndicator.remove();
+
+    // Process the transcript
+    if (transcript) {
+      const score = calculatePronunciationScore(transcript, currentSentence);
+      showDialog({
+        score: score,
+        feedback: transcript,
+        missingWords: "", // Add missing words logic if needed
+      });
+    } else {
+      throw new Error("No transcript received");
+    }
   } catch (error) {
-    console.error("Error in AssemblyAI transcription:", error);
-    alert("Failed to transcribe audio. Please try again.");
-    return null;
+    console.error("Error processing audio:", error);
+    alert("Failed to process audio. Please try again.");
+    resetUI();
+  }
+}
+
+// Helper function to convert AudioBuffer to WAV
+function audioBufferToWav(buffer) {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+
+  const dataLength = buffer.length * numChannels * bytesPerSample;
+  const bufferLength = 44 + dataLength;
+
+  const arrayBuffer = new ArrayBuffer(bufferLength);
+  const view = new DataView(arrayBuffer);
+
+  // Write WAV header
+  writeString(view, 0, "RIFF");
+  view.setUint32(4, 36 + dataLength, true);
+  writeString(view, 8, "WAVE");
+  writeString(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitDepth, true);
+  writeString(view, 36, "data");
+  view.setUint32(40, dataLength, true);
+
+  // Write audio data
+  const offset = 44;
+  const channelData = [];
+  for (let i = 0; i < numChannels; i++) {
+    channelData.push(buffer.getChannelData(i));
+  }
+
+  let pos = 0;
+  while (pos < buffer.length) {
+    for (let i = 0; i < numChannels; i++) {
+      const sample = Math.max(-1, Math.min(1, channelData[i][pos]));
+      const value = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+      view.setInt16(
+        offset + pos * blockAlign + i * bytesPerSample,
+        value,
+        true
+      );
+    }
+    pos++;
+  }
+
+  return arrayBuffer;
+}
+
+function writeString(view, offset, string) {
+  for (let i = 0; i < string.length; i++) {
+    view.setUint8(offset + i, string.charCodeAt(i));
   }
 }
 
