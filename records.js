@@ -728,7 +728,7 @@ function playSoundEffect(score) {
 
       osc.start(now);
       osc.stop(now + duration);
-    } else {
+    } else if (score >= 30) {
       // Low score sound - Game alert
       const osc = ctx.createOscillator();
       const gainNode = ctx.createGain();
@@ -747,6 +747,36 @@ function playSoundEffect(score) {
 
       osc.start(now);
       osc.stop(now + duration);
+    } else {
+      // Very low score sound - Warning tone
+      const osc1 = ctx.createOscillator();
+      const osc2 = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      // Create a dissonant warning sound
+      osc1.type = "sawtooth";
+      osc2.type = "sine";
+
+      // Descending frequencies with slight dissonance
+      osc1.frequency.setValueAtTime(440, now); // A4
+      osc1.frequency.linearRampToValueAtTime(220, now + duration); // A3
+
+      osc2.frequency.setValueAtTime(466.16, now); // A#4
+      osc2.frequency.linearRampToValueAtTime(233.08, now + duration); // A#3
+
+      // Sharp attack, quick decay
+      gainNode.gain.setValueAtTime(0, now);
+      gainNode.gain.linearRampToValueAtTime(0.12, now + 0.01); // Faster attack
+      gainNode.gain.linearRampToValueAtTime(0, now + duration);
+
+      osc1.connect(gainNode);
+      osc2.connect(gainNode);
+      gainNode.connect(masterGain);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + duration);
+      osc2.stop(now + duration);
     }
 
     // Add a subtle fade out
