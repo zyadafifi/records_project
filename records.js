@@ -1785,124 +1785,94 @@ function handleTouchStart(e) {
   touchStartY = e.touches[0].clientY;
   touchStartTime = Date.now();
   isHolding = true;
-
-  // Add holding class for visual feedback
   micButton.classList.add("holding");
 
-  // Start hold timer
-  holdTimeout = setTimeout(() => {
-    if (isHolding) {
-      startAudioRecording();
-    }
-  }, MIN_HOLD_TIME);
+  // Start recording immediately
+  startAudioRecording();
 }
 
 function handleTouchMove(e) {
   if (!isHolding) return;
+  e.preventDefault();
 
   const touchY = e.touches[0].clientY;
-  const slideDistance = touchStartY - touchY;
+  const deltaY = touchStartY - touchY;
 
-  // If sliding up and recording, show cancel state
-  if (slideDistance > SLIDE_THRESHOLD && isRecording) {
+  if (deltaY > SLIDE_THRESHOLD) {
     micButton.classList.add("sliding");
-    isRecordingCancelled = true;
   } else {
     micButton.classList.remove("sliding");
-    isRecordingCancelled = false;
   }
 }
 
 function handleTouchEnd(e) {
+  if (!isHolding) return;
   e.preventDefault();
-  const touchEndY = e.changedTouches[0].clientY;
-  const touchEndTime = Date.now();
-  const touchDuration = touchEndTime - touchStartTime;
-  const slideDistance = touchStartY - touchEndY;
 
-  // Clear hold timeout
-  if (holdTimeout) {
-    clearTimeout(holdTimeout);
-    holdTimeout = null;
-  }
+  const touchY = e.changedTouches[0].clientY;
+  const deltaY = touchStartY - touchY;
+  const holdTime = Date.now() - touchStartTime;
 
-  // Remove holding class
-  micButton.classList.remove("holding");
-  micButton.classList.remove("sliding");
-
-  // If we were recording and didn't slide up to cancel
-  if (isRecording && !isRecordingCancelled && slideDistance < SLIDE_THRESHOLD) {
-    handleStopRecording();
-    // Immediately send the recording
-    if (mediaRecorder && mediaRecorder.state === "inactive") {
-      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-      uploadAudioToAssemblyAI(audioBlob);
-    }
-  } else if (isRecordingCancelled) {
-    handleDeleteRecording();
-  }
-
-  // Reset gesture state
   isHolding = false;
-  isRecordingCancelled = false;
+  micButton.classList.remove("holding", "sliding");
+
+  if (deltaY > SLIDE_THRESHOLD) {
+    // Cancel recording
+    handleStopRecording();
+  } else {
+    // Stop and upload recording
+    handleStopRecording();
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
+  }
 }
 
-// Mouse event handlers for desktop testing
+// Mouse event handlers
 function handleMouseDown(e) {
   e.preventDefault();
   touchStartY = e.clientY;
   touchStartTime = Date.now();
   isHolding = true;
-
   micButton.classList.add("holding");
 
-  holdTimeout = setTimeout(() => {
-    if (isHolding) {
-      startAudioRecording();
-    }
-  }, MIN_HOLD_TIME);
+  // Start recording immediately
+  startAudioRecording();
 }
 
 function handleMouseMove(e) {
   if (!isHolding) return;
+  e.preventDefault();
 
   const mouseY = e.clientY;
-  const slideDistance = touchStartY - mouseY;
+  const deltaY = touchStartY - mouseY;
 
-  if (slideDistance > SLIDE_THRESHOLD && isRecording) {
+  if (deltaY > SLIDE_THRESHOLD) {
     micButton.classList.add("sliding");
-    isRecordingCancelled = true;
   } else {
     micButton.classList.remove("sliding");
-    isRecordingCancelled = false;
   }
 }
 
 function handleMouseUp(e) {
+  if (!isHolding) return;
   e.preventDefault();
-  const mouseEndY = e.clientY;
-  const mouseEndTime = Date.now();
-  const mouseDuration = mouseEndTime - touchStartTime;
-  const slideDistance = touchStartY - mouseEndY;
 
-  if (holdTimeout) {
-    clearTimeout(holdTimeout);
-    holdTimeout = null;
-  }
-
-  micButton.classList.remove("holding");
-  micButton.classList.remove("sliding");
-
-  if (isRecording && !isRecordingCancelled && slideDistance < SLIDE_THRESHOLD) {
-    handleStopRecording();
-    if (mediaRecorder && mediaRecorder.state === "inactive") {
-      const audioBlob = new Blob(audioChunks, { type: "audio/webm" });
-      uploadAudioToAssemblyAI(audioBlob);
-    }
-  } else if (isRecordingCancelled) {
-    handleDeleteRecording();
-  }
+  const mouseY = e.clientY;
+  const deltaY = touchStartY - mouseY;
+  const holdTime = Date.now() - touchStartTime;
 
   isHolding = false;
-  isRecordingCancelled = false;
+  micButton.classList.remove("holding", "sliding");
+
+  if (deltaY > SLIDE_THRESHOLD) {
+    // Cancel recording
+    handleStopRecording();
+  } else {
+    // Stop and upload recording
+    handleStopRecording();
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
+  }
 }
