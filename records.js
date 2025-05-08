@@ -118,12 +118,20 @@ function toggleListenButtons(disabled) {
 function openDialog() {
   dialogContainer.style.display = "block";
   dialogBackdrop.style.display = "block";
+  // Add a small delay to ensure display: block is applied before adding active class
+  setTimeout(() => {
+    dialogContainer.classList.add("active");
+  }, 10);
 }
 
 // Function to close the dialog
 function closeDialog() {
-  dialogContainer.style.display = "none";
-  dialogBackdrop.style.display = "none";
+  dialogContainer.classList.remove("active");
+  // Wait for animation to complete before hiding
+  setTimeout(() => {
+    dialogContainer.style.display = "none";
+    dialogBackdrop.style.display = "none";
+  }, 300);
 }
 
 // JavaScript for mobile support
