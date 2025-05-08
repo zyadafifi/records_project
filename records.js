@@ -1720,3 +1720,42 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   // Append to body (or your preferred parent)
   document.body.appendChild(dialogClone);
 }
+
+// Function to update the simple progress bar
+function updateSimpleProgress() {
+  const progressFill = document.querySelector(".simple-progress-fill");
+  const progressPercentage = document.querySelector(
+    ".simple-progress-percentage"
+  );
+
+  if (!progressFill || !progressPercentage) return;
+
+  // Calculate progress based on completed sentences
+  const totalSentences = lessons[currentLessonIndex]?.sentences.length || 0;
+  const completedCount = completedSentences.size;
+  const progress =
+    totalSentences > 0 ? (completedCount / totalSentences) * 100 : 0;
+
+  // Update the progress bar
+  progressFill.style.width = `${progress}%`;
+  progressPercentage.textContent = `${Math.round(progress)}%`;
+
+  // Update the progress bar's data attribute for the tooltip
+  const progressBar = document.querySelector(".simple-progress-bar");
+  if (progressBar) {
+    progressBar.setAttribute("data-progress", `${Math.round(progress)}%`);
+    progressBar.style.setProperty("--progress-position", `${progress}%`);
+  }
+
+  // Update the progress bar color based on progress
+  if (progress >= 80) {
+    progressFill.style.background =
+      "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
+  } else if (progress >= 50) {
+    progressFill.style.background =
+      "linear-gradient(135deg, #ffa500 0%, #ff8c00 100%)";
+  } else {
+    progressFill.style.background =
+      "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)";
+  }
+}
