@@ -652,18 +652,18 @@ function updateProgressCircle(score) {
   // Change circle color based on score
   if (score >= 80) {
     progressCircle.style.stroke = "#0aa989"; // Green for high scores
-    playSoundEffect(800, 200); // High-pitched beep for success
+    playSoundEffect(score);
   } else if (score >= 50) {
     progressCircle.style.stroke = "#ffa500"; // Orange for medium scores
-    playSoundEffect(500, 200); // Medium-pitched beep for neutral
+    playSoundEffect(score);
   } else {
     progressCircle.style.stroke = "#ff0000"; // Red for low scores
-    playSoundEffect(300, 200); // Low-pitched beep for failure
+    playSoundEffect(score);
   }
 }
 
 // Play sound effects using the Web Audio API
-function playSoundEffect(frequency, duration) {
+function playSoundEffect(score) {
   if (!audioContext) {
     console.error(
       "AudioContext not initialized. Call initializeAudioContext() first."
@@ -671,22 +671,80 @@ function playSoundEffect(frequency, duration) {
     return;
   }
 
-  const oscillator = audioContext.createOscillator();
-  const gainNode = audioContext.createGain();
+  try {
+    // Create master gain node for volume control
+    const masterGain = audioContext.createGain();
+    masterGain.gain.value = 0.3; // Set overall volume to 30%
+    masterGain.connect(audioContext.destination);
 
-  oscillator.frequency.value = frequency; // Frequency in Hz
-  oscillator.type = "sine"; // Type of waveform
+    // Create filter for tone shaping
+    const filter = audioContext.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 2000;
+    filter.connect(masterGain);
 
-  oscillator.connect(gainNode);
-  gainNode.connect(audioContext.destination);
+    // Create oscillators based on score
+    const duration = 0.3; // 300ms duration
+    const now = audioContext.currentTime;
 
-  oscillator.start();
-  gainNode.gain.setValueAtTime(1, audioContext.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(
-    0.001,
-    audioContext.currentTime + duration / 1000
-  );
-  oscillator.stop(audioContext.currentTime + duration / 1000);
+    if (score >= 80) {
+      // Success sound - pleasant ascending tone
+      const osc1 = audioContext.createOscillator();
+      const osc2 = audioContext.createOscillator();
+
+      osc1.type = "sine";
+      osc2.type = "sine";
+
+      osc1.frequency.setValueAtTime(440, now); // A4
+      osc1.frequency.linearRampToValueAtTime(880, now + duration); // A5
+
+      osc2.frequency.setValueAtTime(550, now); // C#5
+      osc2.frequency.linearRampToValueAtTime(1100, now + duration); // C#6
+
+      osc1.connect(filter);
+      osc2.connect(filter);
+
+      osc1.start(now);
+      osc2.start(now);
+      osc1.stop(now + duration);
+      osc2.stop(now + duration);
+    } else if (score >= 50) {
+      // Neutral sound - gentle bell-like tone
+      const osc = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(660, now); // E5
+
+      gainNode.gain.setValueAtTime(0.3, now);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + duration);
+
+      osc.connect(gainNode);
+      gainNode.connect(filter);
+
+      osc.start(now);
+      osc.stop(now + duration);
+    } else {
+      // Low score sound - gentle descending tone
+      const osc = audioContext.createOscillator();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(440, now); // A4
+      osc.frequency.linearRampToValueAtTime(220, now + duration); // A3
+
+      osc.connect(filter);
+
+      osc.start(now);
+      osc.stop(now + duration);
+    }
+
+    // Add a subtle fade out
+    masterGain.gain.setValueAtTime(0.3, now);
+    masterGain.gain.linearRampToValueAtTime(0, now + duration);
+  } catch (error) {
+    console.error("Error playing sound effect:", error);
+    // Silent fallback - don't show error to user
+  }
 }
 
 // Calculate pronunciation score and log recognized words to the console
