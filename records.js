@@ -59,13 +59,16 @@ const HOLD_DURATION = 500; // 500ms hold duration
 const SLIDE_THRESHOLD = 50; // 50px slide threshold
 const MIN_HOLD_TIME = 300; // Minimum hold time before recording starts
 
+// Constants
+const ASSEMBLY_AI_API_KEY = "bdb00961a07c4184889a80206c52b6f2";
+
 // Sound effects
 const startRecordingSound = new Audio(
-  "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU..."
-); // Add your base64 encoded sound
+  "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"
+);
 const stopRecordingSound = new Audio(
-  "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU..."
-); // Add your base64 encoded sound
+  "data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU"
+);
 
 // Create a backdrop for the dialog
 const dialogBackdrop = document.createElement("div");
@@ -171,9 +174,6 @@ let completedSentences = new Set(); // Track completed sentences
 // Constants for recording
 const RECORDING_DURATION = 5000; // 5 seconds recording time
 let recordingTimeout;
-
-// AssemblyAI API Key
-const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
 
 // Function to create and setup waveform visualization
 function setupWaveformVisualization(stream) {
@@ -1503,7 +1503,7 @@ async function uploadAudioToAssemblyAI(audioBlob) {
     const response = await fetch("https://api.assemblyai.com/v2/upload", {
       method: "POST",
       headers: {
-        Authorization: "YOUR_API_KEY", // Replace with your actual API key
+        Authorization: ASSEMBLY_AI_API_KEY,
       },
       body: formData,
     });
@@ -1520,7 +1520,7 @@ async function uploadAudioToAssemblyAI(audioBlob) {
       {
         method: "POST",
         headers: {
-          Authorization: "YOUR_API_KEY", // Replace with your actual API key
+          Authorization: ASSEMBLY_AI_API_KEY,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -1545,7 +1545,7 @@ async function uploadAudioToAssemblyAI(audioBlob) {
         `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
         {
           headers: {
-            Authorization: "YOUR_API_KEY", // Replace with your actual API key
+            Authorization: ASSEMBLY_AI_API_KEY,
           },
         }
       );
