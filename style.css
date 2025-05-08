@@ -486,25 +486,6 @@ body {
   }
 }
 
-/* .tip {
-  position: absolute;
-  top: 290px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: white;
-  padding: 0px 10px;
-  border-radius: 10px;
-  border: 1px solid var(--primary-color);
-  font-size: 18px;
-  color: var(--text-dark);
-  white-space: nowrap;
-  height: 23px;
-  width: 150px;
-  text-align: center;
-  font-family: "Tajawal", "Cairo", "Amiri", sans-serif;
-  font-weight: bold;
-  direction: rtl;
-} */
 .dialog-btn {
   width: 200px;
   background-color: #4b9b94;
@@ -544,6 +525,26 @@ body {
   border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   width: 350px; /* Fixed width to match your design */
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dialog-container.active {
+  display: block;
+  opacity: 1;
+  transform: translate(-50%, -60%);
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -60%);
+  }
 }
 
 /* Add these new styles for the recognized text area */
