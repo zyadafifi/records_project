@@ -264,11 +264,25 @@
             </div>
             <br />
             <div class="sentence-container" id="recognizedText">
-              <p class="sentence-text-2">
+              <p class="sentence-text-2" id="dialogSentenceText">
                 Please try again with <br />
                 another response.
               </p>
               <div id="missingWordDiv"></div>
+            </div>
+            <!-- Dialog Translation Button and Container -->
+            <div class="translation-wrapper">
+              <button id="dialogTranslateButton" class="translation-button">
+                <i class="fas fa-language"></i>
+                <span>Translate to Arabic</span>
+              </button>
+              <div
+                id="dialogTranslationContainer"
+                class="translation-container"
+                style="display: none"
+              >
+                <p class="translation-text" id="dialogTranslationText"></p>
+              </div>
             </div>
 
             <!-- Flex container to align elements -->
@@ -491,6 +505,19 @@
               another response.
             </p>
             <div id="missingWordDiv"></div>
+          </div>
+          <div class="translation-wrapper">
+            <button id="dialogTranslateButton" class="translation-button">
+              <i class="fas fa-language"></i>
+              <span>Translate to Arabic</span>
+            </button>
+            <div
+              id="dialogTranslationContainer"
+              class="translation-container"
+              style="display: none"
+            >
+              <p class="translation-text" id="dialogTranslationText"></p>
+            </div>
           </div>
           <div class="d-flex flex-column align-items-center retry-continue">
             <a
