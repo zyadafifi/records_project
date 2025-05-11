@@ -1905,25 +1905,17 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   document.body.appendChild(dialogClone);
 }
 
-// Function to translate text using LibreTranslate (alternative public instance)
+// Function to translate text using MyMemory API (free, CORS-friendly)
 async function translateText(text) {
   try {
     const response = await fetch(
-      "https://translate.argosopentech.com/translate",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          q: text,
-          source: "en",
-          target: "ar",
-          format: "text",
-        }),
-      }
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
+        text
+      )}&langpair=en|ar`
     );
     if (!response.ok) throw new Error("Translation failed");
     const data = await response.json();
-    return data.translatedText;
+    return data.responseData.translatedText;
   } catch (error) {
     console.error("Translation error:", error);
     return null;
