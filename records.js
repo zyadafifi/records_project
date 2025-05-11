@@ -1905,31 +1905,22 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   document.body.appendChild(dialogClone);
 }
 
-// Function to translate text using Google Cloud Translation API
+// Function to translate text using LibreTranslate (no API key required)
 async function translateText(text) {
   try {
-    const response = await fetch(
-      `https://translation.googleapis.com/language/translate/v2?key=${GOOGLE_TRANSLATE_API_KEY}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          q: text,
-          source: "en",
-          target: "ar",
-          format: "text",
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error("Translation failed");
-    }
-
+    const response = await fetch("https://libretranslate.de/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        q: text,
+        source: "en",
+        target: "ar",
+        format: "text",
+      }),
+    });
+    if (!response.ok) throw new Error("Translation failed");
     const data = await response.json();
-    return data.data.translations[0].translatedText;
+    return data.translatedText;
   } catch (error) {
     console.error("Translation error:", error);
     return null;
