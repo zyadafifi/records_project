@@ -35,6 +35,16 @@ let speechDetected = false; // Flag to track if speech was detected
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
+// Translation related variables
+let isTranslated = false;
+let currentTranslation = null;
+const GOOGLE_TRANSLATE_API_KEY = "YOUR_GOOGLE_TRANSLATE_API_KEY"; // Replace with your API key
+
+// DOM Elements for translation
+const translateButton = document.getElementById("translateButton");
+const translationContainer = document.getElementById("translationContainer");
+const translationText = document.querySelector(".translation-text");
+
 // AudioContext for sound effects and waveform
 let audioContext;
 
@@ -536,6 +546,13 @@ function updateSentence() {
   // Update the sentence
   sentenceElement.textContent = currentLesson.sentences[currentSentenceIndex];
   updateSentenceCounter();
+
+  // Reset translation state
+  isTranslated = false;
+  currentTranslation = null;
+  translationContainer.style.display = "none";
+  translateButton.innerHTML =
+    '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
 
   // Reset UI
   recognizedTextDiv.textContent = "";
@@ -1887,3 +1904,73 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   // Append to body (or your preferred parent)
   document.body.appendChild(dialogClone);
 }
+
+// Function to translate text using Google Cloud Translation API
+async function translateText(text) {
+  try {
+    const response = await fetch(
+      `https://translation.googleapis.com/language/translate/v2?key=${GOOGLE_TRANSLATE_API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          q: text,
+          source: "en",
+          target: "ar",
+          format: "text",
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Translation failed");
+    }
+
+    const data = await response.json();
+    return data.data.translations[0].translatedText;
+  } catch (error) {
+    console.error("Translation error:", error);
+    return null;
+  }
+}
+
+// Function to toggle translation
+async function toggleTranslation() {
+  const currentSentence = sentenceElement.textContent;
+
+  if (!isTranslated) {
+    // Show loading state
+    translateButton.innerHTML =
+      '<i class="fas fa-spinner fa-spin"></i> Translating...';
+    translateButton.disabled = true;
+
+    // Get translation
+    const translation = await translateText(currentSentence);
+
+    if (translation) {
+      currentTranslation = translation;
+      translationText.textContent = translation;
+      translationContainer.style.display = "block";
+      translateButton.innerHTML =
+        '<i class="fas fa-language"></i> <span>Show Original</span>';
+      isTranslated = true;
+    } else {
+      alert("Failed to translate. Please try again.");
+      translateButton.innerHTML =
+        '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
+    }
+  } else {
+    // Toggle back to original
+    translationContainer.style.display = "none";
+    translateButton.innerHTML =
+      '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
+    isTranslated = false;
+  }
+
+  translateButton.disabled = false;
+}
+
+// Add event listener for translation button
+translateButton.addEventListener("click", toggleTranslation);
