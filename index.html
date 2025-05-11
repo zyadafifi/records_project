@@ -71,6 +71,21 @@
             <p class="sentence-text">Sentence will appear here</p>
           </div>
 
+          <!-- Translation Button and Container -->
+          <div class="translation-wrapper">
+            <button id="translateButton" class="translation-button">
+              <i class="fas fa-language"></i>
+              <span>Translate to Arabic</span>
+            </button>
+            <div
+              id="translationContainer"
+              class="translation-container"
+              style="display: none"
+            >
+              <p class="translation-text"></p>
+            </div>
+          </div>
+
           <!-- Sentence to Read with Mic Icon -->
           <div
             class="icons-container d-flex align-items-center justify-content-between"
@@ -278,7 +293,7 @@
               <div class="d-flex flex-column align-items-center retry-continue">
                 <a
                   id="retryButton"
-                  class="btn secondary text-white border dialog-btn mb-2"
+                  class="btn secondary text-black border dialog-btn mb-2"
                 >
                   <i class="fas fa-redo"></i> Retry
                 </a>
