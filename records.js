@@ -1901,20 +1901,25 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
     // Add your continue logic here
   };
 
+  // Append to body (or your preferred parent)
+  document.body.appendChild(dialogClone);
+
   // --- Dialog Translation Button Logic ---
-  const dialogTranslateButton = dialogClone.getElementById(
+  // Get elements after the dialog is added to the DOM
+  const dialogTranslateButton = document.getElementById(
     "dialogTranslateButton"
   );
-  const dialogTranslationContainer = dialogClone.getElementById(
+  const dialogTranslationContainer = document.getElementById(
     "dialogTranslationContainer"
   );
-  const dialogTranslationText = dialogClone.getElementById(
+  const dialogTranslationText = document.getElementById(
     "dialogTranslationText"
   );
   let dialogIsTranslated = false;
   let dialogCurrentTranslation = null;
 
-  dialogTranslateButton.addEventListener("click", async function () {
+  // Set up translation button click handler
+  dialogTranslateButton.onclick = async function () {
     const sentence = dialogSentenceText.textContent;
     if (!dialogIsTranslated) {
       dialogTranslateButton.innerHTML =
@@ -1940,10 +1945,7 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
         '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
       dialogIsTranslated = false;
     }
-  });
-
-  // Append to body (or your preferred parent)
-  document.body.appendChild(dialogClone);
+  };
 }
 
 // Function to translate text using MyMemory API (free, CORS-friendly)
