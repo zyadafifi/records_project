@@ -900,13 +900,14 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     }
   }
 
-  // Generate the highlighted text based on the matching results
+  // Generate the highlighted text for the original sentence
+  let originalSentenceText = "";
   for (let i = 0; i < sentenceWords.length; i++) {
     const expectedWord = sentenceWords[i];
 
     if (matchedSentenceIndices[i]) {
       // Word was matched correctly or closely
-      highlightedText += `<span style="color: green;">${expectedWord}</span> `;
+      originalSentenceText += `<span style="color: green;">${expectedWord}</span> `;
     } else {
       // Find most similar word that wasn't matched yet
       let mostSimilarWord = "";
@@ -948,7 +949,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
           }
         }
 
-        highlightedText += `<span style="color: red;">${highlightedWord}</span> `;
+        originalSentenceText += `<span style="color: red;">${highlightedWord}</span> `;
         incorrectWords.push({
           expected: expectedWord,
           got: mostSimilarWord,
@@ -956,41 +957,48 @@ function calculatePronunciationScore(transcript, expectedSentence) {
         matchedTranscriptIndices[mostSimilarIndex] = true;
       } else {
         // Word was completely missed
-        highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
+        originalSentenceText += `<span style="color: grey;">${expectedWord}</span> `;
         missingWords.push(expectedWord);
       }
     }
   }
 
-  // Check for extra words that were spoken but not matched
+  // Generate the highlighted text for the spoken sentence
+  let spokenSentenceText = "";
   for (let j = 0; j < transcriptWords.length; j++) {
     if (!matchedTranscriptIndices[j]) {
-      // This is an extra word, check if it's similar to any expected word
-      let mostSimilarWord = "";
-      let highestSimilarity = 0;
-
+      // This is an extra word
+      spokenSentenceText += `<span style="color: red;">${transcriptWords[j]}</span> `;
+    } else {
+      // Find the corresponding word in the original sentence
+      let found = false;
       for (let i = 0; i < sentenceWords.length; i++) {
-        const similarity = calculateSimilarity(
-          transcriptWords[j],
-          sentenceWords[i]
-        );
-        if (similarity > highestSimilarity) {
-          highestSimilarity = similarity;
-          mostSimilarWord = sentenceWords[i];
+        if (
+          matchedSentenceIndices[i] &&
+          calculateSimilarity(transcriptWords[j], sentenceWords[i]) >= 0.85
+        ) {
+          spokenSentenceText += `<span style="color: green;">${transcriptWords[j]}</span> `;
+          found = true;
+          break;
         }
       }
-
-      // Very strict threshold for considering a word as "incorrect" vs "extra"
-      if (highestSimilarity >= 0.5) {
-        highlightedText += `<span style="color: red;">[Incorrect: ${transcriptWords[j]}]</span> `;
-      } else {
-        highlightedText += `<span style="color: red;">[Extra: ${transcriptWords[j]}]</span> `;
+      if (!found) {
+        spokenSentenceText += `<span style="color: red;">${transcriptWords[j]}</span> `;
       }
     }
   }
 
-  // Display the result
-  recognizedTextDiv.innerHTML = highlightedText.trim();
+  // Display both sentences
+  recognizedTextDiv.innerHTML = `
+    <div style="margin-bottom: 10px;">
+      <strong>Original:</strong><br>
+      ${originalSentenceText.trim()}
+    </div>
+    <div>
+      <strong>You said:</strong><br>
+      ${spokenSentenceText.trim()}
+    </div>
+  `;
 
   // Show missing words
   if (missingWords.length > 0) {
