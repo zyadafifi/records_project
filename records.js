@@ -1901,6 +1901,47 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
     // Add your continue logic here
   };
 
+  // --- Dialog Translation Button Logic ---
+  const dialogTranslateButton = dialogClone.getElementById(
+    "dialogTranslateButton"
+  );
+  const dialogTranslationContainer = dialogClone.getElementById(
+    "dialogTranslationContainer"
+  );
+  const dialogTranslationText = dialogClone.getElementById(
+    "dialogTranslationText"
+  );
+  let dialogIsTranslated = false;
+  let dialogCurrentTranslation = null;
+
+  dialogTranslateButton.addEventListener("click", async function () {
+    const sentence = dialogSentenceText.textContent;
+    if (!dialogIsTranslated) {
+      dialogTranslateButton.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Translating...';
+      dialogTranslateButton.disabled = true;
+      const translation = await translateText(sentence);
+      if (translation) {
+        dialogCurrentTranslation = translation;
+        dialogTranslationText.textContent = translation;
+        dialogTranslationContainer.style.display = "block";
+        dialogTranslateButton.innerHTML =
+          '<i class="fas fa-language"></i> <span>Show Original</span>';
+        dialogIsTranslated = true;
+      } else {
+        alert("Failed to translate. Please try again.");
+        dialogTranslateButton.innerHTML =
+          '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
+      }
+      dialogTranslateButton.disabled = false;
+    } else {
+      dialogTranslationContainer.style.display = "none";
+      dialogTranslateButton.innerHTML =
+        '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
+      dialogIsTranslated = false;
+    }
+  });
+
   // Append to body (or your preferred parent)
   document.body.appendChild(dialogClone);
 }
