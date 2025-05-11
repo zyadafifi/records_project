@@ -1905,19 +1905,22 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   document.body.appendChild(dialogClone);
 }
 
-// Function to translate text using LibreTranslate (no API key required)
+// Function to translate text using LibreTranslate (alternative public instance)
 async function translateText(text) {
   try {
-    const response = await fetch("https://libretranslate.de/translate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        q: text,
-        source: "en",
-        target: "ar",
-        format: "text",
-      }),
-    });
+    const response = await fetch(
+      "https://translate.argosopentech.com/translate",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          q: text,
+          source: "en",
+          target: "ar",
+          format: "text",
+        }),
+      }
+    );
     if (!response.ok) throw new Error("Translation failed");
     const data = await response.json();
     return data.translatedText;
