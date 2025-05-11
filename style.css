@@ -1241,6 +1241,9 @@ input[type="text"].form-control {
   width: 285px;
   text-align: center;
   transition: all 0.3s ease;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: fadeIn 0.5s ease forwards;
 }
 
 .translation-text {
@@ -1254,6 +1257,25 @@ input[type="text"].form-control {
   animation: fadeIn 0.5s ease forwards;
 }
 
+/* Dialog-specific translation styles */
+.dialog-container .translation-container {
+  width: 100%;
+  max-width: 285px;
+  margin: 15px auto;
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 1px solid rgba(75, 155, 148, 0.2);
+  box-shadow: 0 4px 12px rgba(75, 155, 148, 0.15);
+}
+
+.dialog-container .translation-text {
+  font-family: var(--font-arabic);
+  font-size: 18px;
+  color: #2c3e50;
+  line-height: 1.6;
+  margin: 0;
+  padding: 10px;
+}
+
 /* Mobile-specific adjustments */
 @media screen and (max-width: 768px) {
   .translation-container {
@@ -1264,5 +1286,10 @@ input[type="text"].form-control {
 
   .translation-text {
     font-size: 18px;
+  }
+
+  .dialog-container .translation-container {
+    width: 90%;
+    margin: 10px auto;
   }
 }
