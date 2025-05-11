@@ -1903,49 +1903,6 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
 
   // Append to body (or your preferred parent)
   document.body.appendChild(dialogClone);
-
-  // --- Dialog Translation Button Logic ---
-  // Get elements after the dialog is added to the DOM
-  const dialogTranslateButton = document.getElementById(
-    "dialogTranslateButton"
-  );
-  const dialogTranslationContainer = document.getElementById(
-    "dialogTranslationContainer"
-  );
-  const dialogTranslationText = document.getElementById(
-    "dialogTranslationText"
-  );
-  let dialogIsTranslated = false;
-  let dialogCurrentTranslation = null;
-
-  // Set up translation button click handler
-  dialogTranslateButton.onclick = async function () {
-    const sentence = dialogSentenceText.textContent;
-    if (!dialogIsTranslated) {
-      dialogTranslateButton.innerHTML =
-        '<i class="fas fa-spinner fa-spin"></i> Translating...';
-      dialogTranslateButton.disabled = true;
-      const translation = await translateText(sentence);
-      if (translation) {
-        dialogCurrentTranslation = translation;
-        dialogTranslationText.textContent = translation;
-        dialogTranslationContainer.style.display = "block";
-        dialogTranslateButton.innerHTML =
-          '<i class="fas fa-language"></i> <span>Show Original</span>';
-        dialogIsTranslated = true;
-      } else {
-        alert("Failed to translate. Please try again.");
-        dialogTranslateButton.innerHTML =
-          '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
-      }
-      dialogTranslateButton.disabled = false;
-    } else {
-      dialogTranslationContainer.style.display = "none";
-      dialogTranslateButton.innerHTML =
-        '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
-      dialogIsTranslated = false;
-    }
-  };
 }
 
 // Function to translate text using MyMemory API (free, CORS-friendly)
