@@ -1951,16 +1951,38 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
 // Function to translate text using MyMemory API (free, CORS-friendly)
 async function translateText(text) {
   try {
+    // Add timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
     const response = await fetch(
       `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
         text
-      )}&langpair=en|ar`
+      )}&langpair=en|ar`,
+      {
+        signal: controller.signal,
+      }
     );
-    if (!response.ok) throw new Error("Translation failed");
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Translation failed: ${response.statusText}`);
+    }
+
     const data = await response.json();
+
+    if (!data.responseData || !data.responseData.translatedText) {
+      throw new Error("Invalid translation response");
+    }
+
     return data.responseData.translatedText;
   } catch (error) {
     console.error("Translation error:", error);
+    if (error.name === "AbortError") {
+      console.error("Translation request timed out");
+      return null;
+    }
     return null;
   }
 }
@@ -1970,25 +1992,32 @@ async function toggleTranslation() {
   const currentSentence = sentenceElement.textContent;
 
   if (!isTranslated) {
-    // Show loading state
-    translateButton.innerHTML =
-      '<i class="fas fa-spinner fa-spin"></i> Translating...';
-    translateButton.disabled = true;
-
-    // Get translation
-    const translation = await translateText(currentSentence);
-
-    if (translation) {
-      currentTranslation = translation;
-      translationText.textContent = translation;
-      translationContainer.style.display = "block";
+    try {
+      // Show loading state
       translateButton.innerHTML =
-        '<i class="fas fa-language"></i> <span>Show Original</span>';
-      isTranslated = true;
-    } else {
+        '<i class="fas fa-spinner fa-spin"></i> Translating...';
+      translateButton.disabled = true;
+
+      // Get translation
+      const translation = await translateText(currentSentence);
+
+      if (translation) {
+        currentTranslation = translation;
+        translationText.textContent = translation;
+        translationContainer.style.display = "block";
+        translateButton.innerHTML =
+          '<i class="fas fa-language"></i> <span>Show Original</span>';
+        isTranslated = true;
+      } else {
+        throw new Error("Translation failed");
+      }
+    } catch (error) {
+      console.error("Translation error:", error);
       alert("Failed to translate. Please try again.");
       translateButton.innerHTML =
         '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
+    } finally {
+      translateButton.disabled = false;
     }
   } else {
     // Toggle back to original
@@ -1997,8 +2026,6 @@ async function toggleTranslation() {
       '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
     isTranslated = false;
   }
-
-  translateButton.disabled = false;
 }
 
 // Add event listener for translation button
