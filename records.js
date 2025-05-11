@@ -859,14 +859,13 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   }
 
   // Second pass: find close matches for unmatched words
-  // Use an array to store all potential matches with similarity scores
   let potentialMatches = [];
 
   for (let i = 0; i < sentenceWords.length; i++) {
-    if (matchedSentenceIndices[i]) continue; // Skip already matched words
+    if (matchedSentenceIndices[i]) continue;
 
     for (let j = 0; j < transcriptWords.length; j++) {
-      if (matchedTranscriptIndices[j]) continue; // Skip already matched words
+      if (matchedTranscriptIndices[j]) continue;
 
       const similarity = calculateSimilarity(
         transcriptWords[j],
@@ -877,6 +876,8 @@ function calculatePronunciationScore(transcript, expectedSentence) {
           sentenceIndex: i,
           transcriptIndex: j,
           similarity: similarity,
+          transcriptWord: transcriptWords[j],
+          expectedWord: sentenceWords[i],
         });
       }
     }
@@ -891,12 +892,9 @@ function calculatePronunciationScore(transcript, expectedSentence) {
       !matchedSentenceIndices[match.sentenceIndex] &&
       !matchedTranscriptIndices[match.transcriptIndex]
     ) {
-      // Apply match only if it exceeds our high similarity threshold
       if (match.similarity >= 0.85) {
         matchedSentenceIndices[match.sentenceIndex] = true;
         matchedTranscriptIndices[match.transcriptIndex] = true;
-
-        // Award partial credit for close matches
         correctWords += match.similarity;
       }
     }
@@ -909,7 +907,6 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     if (matchedSentenceIndices[i]) {
       // Word was matched correctly or closely
       highlightedText += `<span style="color: green;">${expectedWord}</span> `;
-      console.log(`Correct: "${expectedWord}"`);
     } else {
       // Find most similar word that wasn't matched yet
       let mostSimilarWord = "";
@@ -932,22 +929,35 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
       if (highestSimilarity >= 0.5 && highestSimilarity < 0.85) {
         // Word was attempted but not close enough
-        highlightedText += `<span style="color: red;">${expectedWord}</span> `;
+        // Highlight the incorrect parts in red
+        const incorrectParts = [];
+        const minLength = Math.min(expectedWord.length, mostSimilarWord.length);
+
+        for (let k = 0; k < minLength; k++) {
+          if (expectedWord[k] !== mostSimilarWord[k]) {
+            incorrectParts.push(k);
+          }
+        }
+
+        let highlightedWord = "";
+        for (let k = 0; k < expectedWord.length; k++) {
+          if (incorrectParts.includes(k)) {
+            highlightedWord += `<span style="color: red;">${expectedWord[k]}</span>`;
+          } else {
+            highlightedWord += expectedWord[k];
+          }
+        }
+
+        highlightedText += `<span style="color: red;">${highlightedWord}</span> `;
         incorrectWords.push({
           expected: expectedWord,
           got: mostSimilarWord,
         });
-        console.log(
-          `Incorrect: Expected "${expectedWord}", got "${mostSimilarWord}" (similarity: ${highestSimilarity.toFixed(
-            2
-          )})`
-        );
         matchedTranscriptIndices[mostSimilarIndex] = true;
       } else {
         // Word was completely missed
         highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
         missingWords.push(expectedWord);
-        console.log(`Missing: "${expectedWord}"`);
       }
     }
   }
@@ -973,16 +983,8 @@ function calculatePronunciationScore(transcript, expectedSentence) {
       // Very strict threshold for considering a word as "incorrect" vs "extra"
       if (highestSimilarity >= 0.5) {
         highlightedText += `<span style="color: red;">[Incorrect: ${transcriptWords[j]}]</span> `;
-        console.log(
-          `Incorrect: "${
-            transcriptWords[j]
-          }" (similar to "${mostSimilarWord}", score: ${highestSimilarity.toFixed(
-            2
-          )})`
-        );
       } else {
         highlightedText += `<span style="color: red;">[Extra: ${transcriptWords[j]}]</span> `;
-        console.log(`Extra: "${transcriptWords[j]}"`);
       }
     }
   }
