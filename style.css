@@ -22,7 +22,9 @@ body {
 .arabic-text {
   line-height: 1.8; /* Arabic generally needs more line spacing */
 }
-
+#sentence {
+  font-weight: bold;
+}
 .sentence-text {
   line-height: 1.6; /* Slightly less for English */
 }
