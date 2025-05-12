@@ -936,11 +936,11 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   recognizedTextDiv.innerHTML = `
     <div style="margin-bottom: 10px;">
       <strong>Original:</strong><br>
-      <p class="sentence-text" style="font-size: 20px;">${originalSentenceText.trim()}</p>
+      <p class="sentence-text-2">${originalSentenceText.trim()}</p>
     </div>
     <div>
       <strong>You said:</strong><br>
-      <p class="sentence-text" style="font-size: 20px;">${spokenSentenceText.trim()}</p>
+      <p class="sentence-text-2">${spokenSentenceText.trim()}</p>
     </div>
   `;
 
