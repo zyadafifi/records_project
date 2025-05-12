@@ -35,6 +35,104 @@ let speechDetected = false; // Flag to track if speech was detected
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 
+// Sound effect variables
+let soundEffects = {
+  success: null,
+  failure: null,
+  progress: null,
+};
+
+// Function to create and load sound effects
+async function initializeSoundEffects() {
+  try {
+    // Create audio context if not exists
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    // Create oscillator for success sound (high pitch, short duration)
+    const successOsc = audioContext.createOscillator();
+    const successGain = audioContext.createGain();
+    successOsc.type = "sine";
+    successOsc.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
+    successGain.gain.setValueAtTime(0.3, audioContext.currentTime);
+    successOsc.connect(successGain);
+    successGain.connect(audioContext.destination);
+    soundEffects.success = { osc: successOsc, gain: successGain };
+
+    // Create oscillator for failure sound (low pitch, short duration)
+    const failureOsc = audioContext.createOscillator();
+    const failureGain = audioContext.createGain();
+    failureOsc.type = "sine";
+    failureOsc.frequency.setValueAtTime(220, audioContext.currentTime); // A3 note
+    failureGain.gain.setValueAtTime(0.3, audioContext.currentTime);
+    failureOsc.connect(failureGain);
+    failureGain.connect(audioContext.destination);
+    soundEffects.failure = { osc: failureOsc, gain: failureGain };
+
+    // Create oscillator for progress sound (medium pitch, very short duration)
+    const progressOsc = audioContext.createOscillator();
+    const progressGain = audioContext.createGain();
+    progressOsc.type = "sine";
+    progressOsc.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
+    progressGain.gain.setValueAtTime(0.2, audioContext.currentTime);
+    progressOsc.connect(progressGain);
+    progressGain.connect(audioContext.destination);
+    soundEffects.progress = { osc: progressOsc, gain: progressGain };
+  } catch (error) {
+    console.error("Error initializing sound effects:", error);
+  }
+}
+
+// Function to play sound effects
+function playSoundEffect(type) {
+  if (!audioContext || !soundEffects[type]) return;
+
+  try {
+    const { osc, gain } = soundEffects[type];
+
+    // Stop any existing sound
+    osc.stop();
+
+    // Create new oscillator and gain node
+    const newOsc = audioContext.createOscillator();
+    const newGain = audioContext.createGain();
+
+    // Set up the sound
+    newOsc.type = osc.type;
+    newOsc.frequency.setValueAtTime(
+      osc.frequency.value,
+      audioContext.currentTime
+    );
+    newGain.gain.setValueAtTime(gain.gain.value, audioContext.currentTime);
+
+    // Connect nodes
+    newOsc.connect(newGain);
+    newGain.connect(audioContext.destination);
+
+    // Play the sound
+    newOsc.start();
+
+    // Set duration based on type
+    let duration = 0.1; // Default duration
+    if (type === "success") duration = 0.2;
+    else if (type === "failure") duration = 0.3;
+
+    // Fade out and stop
+    newGain.gain.setValueAtTime(newGain.gain.value, audioContext.currentTime);
+    newGain.gain.linearRampToValueAtTime(
+      0,
+      audioContext.currentTime + duration
+    );
+    newOsc.stop(audioContext.currentTime + duration);
+  } catch (error) {
+    console.error("Error playing sound effect:", error);
+  }
+}
+
+// Initialize sound effects when the page loads
+window.addEventListener("DOMContentLoaded", initializeSoundEffects);
+
 // Translation related variables
 let isTranslated = false;
 let currentTranslation = null;
@@ -676,13 +774,16 @@ function updateProgressCircle(score) {
   const offset = circumference - (circumference * score) / 100;
   progressCircle.style.strokeDashoffset = offset;
 
-  // Change circle color based on score
+  // Change circle color based on score and play appropriate sound
   if (score >= 80) {
     progressCircle.style.stroke = "#0aa989"; // Green for high scores
+    playSoundEffect("success");
   } else if (score >= 50) {
     progressCircle.style.stroke = "#ffa500"; // Orange for medium scores
+    playSoundEffect("progress");
   } else {
     progressCircle.style.stroke = "#ff0000"; // Red for low scores
+    playSoundEffect("failure");
   }
 }
 
@@ -835,6 +936,15 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
   // Calculate pronunciation score with fractional correctness
   const pronunciationScore = (correctWords / sentenceWords.length) * 100;
+
+  // Play sound effect based on score
+  if (pronunciationScore >= 80) {
+    playSoundEffect("success");
+  } else if (pronunciationScore >= 50) {
+    playSoundEffect("progress");
+  } else {
+    playSoundEffect("failure");
+  }
 
   // Only add to completed sentences if score is good enough
   if (pronunciationScore >= 50) {
