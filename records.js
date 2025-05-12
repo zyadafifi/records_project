@@ -904,63 +904,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   let originalSentenceText = "";
   for (let i = 0; i < sentenceWords.length; i++) {
     const expectedWord = sentenceWords[i];
-
-    if (matchedSentenceIndices[i]) {
-      // Word was matched correctly or closely
-      originalSentenceText += `<span style="color: green;">${expectedWord}</span> `;
-    } else {
-      // Find most similar word that wasn't matched yet
-      let mostSimilarWord = "";
-      let highestSimilarity = 0;
-      let mostSimilarIndex = -1;
-
-      for (let j = 0; j < transcriptWords.length; j++) {
-        if (!matchedTranscriptIndices[j]) {
-          const similarity = calculateSimilarity(
-            transcriptWords[j],
-            expectedWord
-          );
-          if (similarity > highestSimilarity) {
-            highestSimilarity = similarity;
-            mostSimilarWord = transcriptWords[j];
-            mostSimilarIndex = j;
-          }
-        }
-      }
-
-      if (highestSimilarity >= 0.5 && highestSimilarity < 0.85) {
-        // Word was attempted but not close enough
-        // Highlight the incorrect parts in red
-        const incorrectParts = [];
-        const minLength = Math.min(expectedWord.length, mostSimilarWord.length);
-
-        for (let k = 0; k < minLength; k++) {
-          if (expectedWord[k] !== mostSimilarWord[k]) {
-            incorrectParts.push(k);
-          }
-        }
-
-        let highlightedWord = "";
-        for (let k = 0; k < expectedWord.length; k++) {
-          if (incorrectParts.includes(k)) {
-            highlightedWord += `<span style="color: red;">${expectedWord[k]}</span>`;
-          } else {
-            highlightedWord += expectedWord[k];
-          }
-        }
-
-        originalSentenceText += `<span style="color: red;">${highlightedWord}</span> `;
-        incorrectWords.push({
-          expected: expectedWord,
-          got: mostSimilarWord,
-        });
-        matchedTranscriptIndices[mostSimilarIndex] = true;
-      } else {
-        // Word was completely missed
-        originalSentenceText += `<span style="color: grey;">${expectedWord}</span> `;
-        missingWords.push(expectedWord);
-      }
-    }
+    originalSentenceText += `${expectedWord} `;
   }
 
   // Generate the highlighted text for the spoken sentence
