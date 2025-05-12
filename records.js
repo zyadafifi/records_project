@@ -451,6 +451,13 @@ function handleDeleteRecording() {
 
   // Optionally provide feedback
   recognizedTextDiv.textContent = "(Recording cancelled)";
+  micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+  micButton.style.color = "#fff";
+  micButton.style.backgroundColor = "";
+  micButton.style.display = "inline-block";
+  micButton.style.opacity = "1";
+  micButton.classList.remove("recording");
+  micButton.style.animation = "pulse 2s infinite, glow 2s infinite alternate";
 }
 
 // Function to stop waveform visualization and clean up
