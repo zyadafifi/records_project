@@ -779,7 +779,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   let originalSentenceText = "";
   for (let i = 0; i < sentenceWords.length; i++) {
     const expectedWord = sentenceWords[i];
-    originalSentenceText += `<span style="color: black;">${expectedWord}</span> `;
+    originalSentenceText += `<span style="color: #333333;">${expectedWord}</span> `;
   }
 
   // Generate the highlighted text for the spoken sentence
