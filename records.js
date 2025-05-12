@@ -807,6 +807,13 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     }
   }
 
+  // Add missed words in grey at the end
+  for (let i = 0; i < sentenceWords.length; i++) {
+    if (!matchedSentenceIndices[i]) {
+      spokenSentenceText += `<span style="color: grey;">${sentenceWords[i]}</span> `;
+    }
+  }
+
   // Display both sentences
   recognizedTextDiv.innerHTML = `
     <div style="margin-bottom: 10px;">
