@@ -89,22 +89,20 @@ function playSoundEffect(type) {
   if (!audioContext || !soundEffects[type]) return;
 
   try {
-    const { osc, gain } = soundEffects[type];
-
-    // Stop any existing sound
-    osc.stop();
-
     // Create new oscillator and gain node
     const newOsc = audioContext.createOscillator();
     const newGain = audioContext.createGain();
 
     // Set up the sound
-    newOsc.type = osc.type;
+    newOsc.type = soundEffects[type].osc.type;
     newOsc.frequency.setValueAtTime(
-      osc.frequency.value,
+      soundEffects[type].osc.frequency.value,
       audioContext.currentTime
     );
-    newGain.gain.setValueAtTime(gain.gain.value, audioContext.currentTime);
+    newGain.gain.setValueAtTime(
+      soundEffects[type].gain.gain.value,
+      audioContext.currentTime
+    );
 
     // Connect nodes
     newOsc.connect(newGain);
@@ -124,7 +122,17 @@ function playSoundEffect(type) {
       0,
       audioContext.currentTime + duration
     );
-    newOsc.stop(audioContext.currentTime + duration);
+
+    // Schedule the stop
+    setTimeout(() => {
+      try {
+        newOsc.stop();
+        newOsc.disconnect();
+        newGain.disconnect();
+      } catch (error) {
+        console.error("Error cleaning up sound effect:", error);
+      }
+    }, duration * 1000);
   } catch (error) {
     console.error("Error playing sound effect:", error);
   }
