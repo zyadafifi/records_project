@@ -474,7 +474,7 @@ function drawWhatsAppWaveform() {
   const barSpacing = 3;
   const totalBarAreaWidth = barCount * (barWidth + barSpacing) - barSpacing;
   const startX = (waveformCanvas.width - totalBarAreaWidth) / 2;
-  const maxBarHeight = waveformCanvas.height * 0.8;
+  const maxBarHeight = waveformCanvas.height * 1.2; // Increased from 0.8 to 1.2 to make bars taller
 
   canvasCtx.fillStyle = "#ffffff";
 
