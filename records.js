@@ -782,16 +782,13 @@ function updateProgressCircle(score) {
   const offset = circumference - (circumference * score) / 100;
   progressCircle.style.strokeDashoffset = offset;
 
-  // Change circle color based on score and play appropriate sound
+  // Change circle color based on score
   if (score >= 80) {
     progressCircle.style.stroke = "#0aa989"; // Green for high scores
-    playSoundEffect("success");
   } else if (score >= 50) {
     progressCircle.style.stroke = "#ffa500"; // Orange for medium scores
-    playSoundEffect("progress");
   } else {
     progressCircle.style.stroke = "#ff0000"; // Red for low scores
-    playSoundEffect("failure");
   }
 }
 
