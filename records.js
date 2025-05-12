@@ -888,29 +888,6 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     }
   }
 
-  // Split the original sentence into words while preserving punctuation and spacing
-  const originalWords = expectedSentence.match(/\S+|\s+/g) || [];
-
-  // Generate the highlighted text for the original sentence
-  let originalSentenceText = "";
-  let wordIndex = 0;
-
-  for (let i = 0; i < originalWords.length; i++) {
-    const word = originalWords[i];
-    if (word.trim() === "") {
-      // Preserve spaces
-      originalSentenceText += word;
-    } else {
-      // This is a word, check if it was matched
-      if (matchedSentenceIndices[wordIndex]) {
-        originalSentenceText += `<span style="color: #333333;">${word}</span>`;
-      } else {
-        originalSentenceText += `<span style="color: red;">${word}</span>`;
-      }
-      wordIndex++;
-    }
-  }
-
   // Generate the highlighted text for the spoken sentence
   let spokenSentenceText = "";
   for (let j = 0; j < transcriptWords.length; j++) {
@@ -940,7 +917,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   recognizedTextDiv.innerHTML = `
     <div style="margin-bottom: 10px;">
       <strong>Original:</strong><br>
-      ${originalSentenceText}
+      ${expectedSentence}
     </div>
     <div>
       <strong>You said:</strong><br>
