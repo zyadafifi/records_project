@@ -934,13 +934,13 @@ function calculatePronunciationScore(transcript, expectedSentence) {
 
   // Display both sentences
   recognizedTextDiv.innerHTML = `
-    <div style="margin-bottom: 15px; padding: 10px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border-radius: 12px; box-shadow: 0 2px 8px rgba(75, 155, 148, 0.1);">
-      <strong style="display: block; color: #4b9b94; font-size: 14px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">Original:</strong>
-      <p class="sentence-text" style="margin: 0; font-size: 20px;">${originalSentenceText}</p>
+    <div style="margin-bottom: 10px; padding: 8px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(75, 155, 148, 0.1);">
+      <strong style="display: block; color: black; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Original:</strong>
+      <p class="sentence-text" style="margin: 0; font-size: 18px;">${originalSentenceText}</p>
     </div>
-    <div style="padding: 10px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border-radius: 12px; box-shadow: 0 2px 8px rgba(75, 155, 148, 0.1);">
-      <strong style="display: block; color: #4b9b94; font-size: 14px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">You said:</strong>
-      <p class="sentence-text-2" style="margin: 0;">${spokenSentenceText.trim()}</p>
+    <div style="padding: 8px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(75, 155, 148, 0.1);">
+      <strong style="display: block; color: black; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">You said:</strong>
+      <p class="sentence-text-2" style="margin: 0; font-size: 18px;">${spokenSentenceText.trim()}</p>
     </div>
   `;
 
