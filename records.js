@@ -900,49 +900,97 @@ function calculatePronunciationScore(transcript, expectedSentence) {
     }
   }
 
-  // Generate the highlighted text for the original sentence
-  let originalSentenceText = "";
+  // Generate the highlighted text based on the matching results
   for (let i = 0; i < sentenceWords.length; i++) {
     const expectedWord = sentenceWords[i];
-    originalSentenceText += `${expectedWord} `;
-  }
 
-  // Generate the highlighted text for the spoken sentence
-  let spokenSentenceText = "";
-  for (let j = 0; j < transcriptWords.length; j++) {
-    if (!matchedTranscriptIndices[j]) {
-      // This is an extra word
-      spokenSentenceText += `<span style="color: red;">${transcriptWords[j]}</span> `;
+    if (matchedSentenceIndices[i]) {
+      // Word was matched correctly or closely
+      highlightedText += `<span style="color: green;">${expectedWord}</span> `;
     } else {
-      // Find the corresponding word in the original sentence
-      let found = false;
-      for (let i = 0; i < sentenceWords.length; i++) {
-        if (
-          matchedSentenceIndices[i] &&
-          calculateSimilarity(transcriptWords[j], sentenceWords[i]) >= 0.85
-        ) {
-          spokenSentenceText += `<span style="color: green;">${transcriptWords[j]}</span> `;
-          found = true;
-          break;
+      // Find most similar word that wasn't matched yet
+      let mostSimilarWord = "";
+      let highestSimilarity = 0;
+      let mostSimilarIndex = -1;
+
+      for (let j = 0; j < transcriptWords.length; j++) {
+        if (!matchedTranscriptIndices[j]) {
+          const similarity = calculateSimilarity(
+            transcriptWords[j],
+            expectedWord
+          );
+          if (similarity > highestSimilarity) {
+            highestSimilarity = similarity;
+            mostSimilarWord = transcriptWords[j];
+            mostSimilarIndex = j;
+          }
         }
       }
-      if (!found) {
-        spokenSentenceText += `<span style="color: red;">${transcriptWords[j]}</span> `;
+
+      if (highestSimilarity >= 0.5 && highestSimilarity < 0.85) {
+        // Word was attempted but not close enough
+        // Highlight the incorrect parts in red
+        const incorrectParts = [];
+        const minLength = Math.min(expectedWord.length, mostSimilarWord.length);
+
+        for (let k = 0; k < minLength; k++) {
+          if (expectedWord[k] !== mostSimilarWord[k]) {
+            incorrectParts.push(k);
+          }
+        }
+
+        let highlightedWord = "";
+        for (let k = 0; k < expectedWord.length; k++) {
+          if (incorrectParts.includes(k)) {
+            highlightedWord += `<span style="color: red;">${expectedWord[k]}</span>`;
+          } else {
+            highlightedWord += expectedWord[k];
+          }
+        }
+
+        highlightedText += `<span style="color: red;">${highlightedWord}</span> `;
+        incorrectWords.push({
+          expected: expectedWord,
+          got: mostSimilarWord,
+        });
+        matchedTranscriptIndices[mostSimilarIndex] = true;
+      } else {
+        // Word was completely missed
+        highlightedText += `<span style="color: grey;">${expectedWord}</span> `;
+        missingWords.push(expectedWord);
       }
     }
   }
 
-  // Display both sentences
-  recognizedTextDiv.innerHTML = `
-    <div style="margin-bottom: 10px; padding: 8px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(75, 155, 148, 0.1);">
-      <strong style="display: block; color: black; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Original:</strong>
-      <p class="sentence-text" style="margin: 0; font-size: 18px;">${originalSentenceText}</p>
-    </div>
-    <div style="padding: 8px; background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%); border-radius: 8px; box-shadow: 0 2px 8px rgba(75, 155, 148, 0.1);">
-      <strong style="display: block; color: black; font-size: 12px; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">You said:</strong>
-      <p class="sentence-text-2" style="margin: 0; font-size: 18px;">${spokenSentenceText.trim()}</p>
-    </div>
-  `;
+  // Check for extra words that were spoken but not matched
+  for (let j = 0; j < transcriptWords.length; j++) {
+    if (!matchedTranscriptIndices[j]) {
+      // This is an extra word, check if it's similar to any expected word
+      let mostSimilarWord = "";
+      let highestSimilarity = 0;
+
+      for (let i = 0; i < sentenceWords.length; i++) {
+        const similarity = calculateSimilarity(
+          transcriptWords[j],
+          sentenceWords[i]
+        );
+        if (similarity > highestSimilarity) {
+          highestSimilarity = similarity;
+          mostSimilarWord = sentenceWords[i];
+        }
+      }
+
+      // Very strict threshold for considering a word as "incorrect" vs "extra"
+      if (highestSimilarity >= 0.5) {
+        highlightedText += `<span style="color: red;">[Incorrect: ${transcriptWords[j]}]</span> `;
+      } else {
+        highlightedText += `<span style="color: red;">[Extra: ${transcriptWords[j]}]</span> `;
+      }
+    }
+  }
+
+  // Display the result
+  recognizedTextDiv.innerHTML = highlightedText.trim();
 
   // Show missing words
   if (missingWords.length > 0) {
