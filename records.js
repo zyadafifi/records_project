@@ -1120,7 +1120,127 @@ function updateBookmarkIcons() {
 }
 
 // Event listeners
-micButton.addEventListener("mousedown", async () => {
+listenButton.addEventListener("click", function () {
+  if (isSpeaking) {
+    // If already speaking, stop the speech
+    speechSynthesis.cancel();
+    isSpeaking = false;
+    updateListenButtonIcon();
+  } else {
+    // Start speaking
+    speakSentence();
+  }
+});
+
+listen2Button.addEventListener("click", function () {
+  if (isSpeaking) {
+    speechSynthesis.cancel();
+    isSpeaking = false;
+    updateListenButtonIcon();
+  } else {
+    speakSentence();
+  }
+});
+
+bookmarkIcon.addEventListener("click", function () {
+  // Add visual feedback
+  this.classList.add("active");
+  setTimeout(() => this.classList.remove("active"), 200);
+  playRecordedAudio();
+});
+
+bookmarkIcon2.addEventListener("click", function () {
+  // Add visual feedback
+  this.classList.add("active");
+  setTimeout(() => this.classList.remove("active"), 200);
+  playRecordedAudio();
+});
+
+// Add this CSS for click feedback
+const style = document.createElement("style");
+style.textContent = `
+  #listenButton.active, #listen2Button.active,
+  .bookmark-icon.active, #bookmark-icon2.active {
+    transform: scale(0.9);
+    transition: transform 0.1s;
+  }
+  #listenButton, #listen2Button,
+  .bookmark-icon, #bookmark-icon2 {
+    transition: transform 0.2s, opacity 0.2s;
+    cursor: pointer;
+  }
+`;
+document.head.appendChild(style);
+
+// Force the ear icon SVG path to always be white
+const forceEarIconWhiteStyle = document.createElement("style");
+forceEarIconWhiteStyle.textContent = `
+  .bookmark-icon svg path,
+  #bookmark-icon2 svg path {
+    fill: white !important;
+    stroke: white !important;
+  }
+`;
+document.head.appendChild(forceEarIconWhiteStyle);
+
+// Load lessons from the JSON file
+async function loadLessons() {
+  try {
+    const url =
+      "https://raw.githubusercontent.com/zyadafifi/lessons/main/lessons.json"; // Replace with your JSON URL
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch lessons: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log("Fetched data:", data); // Log the fetched data for debugging
+
+    // Ensure the data has the expected structure
+    if (!data || !data.lessons) {
+      throw new Error("Invalid JSON structure: 'lessons' array not found");
+    }
+
+    lessons = data.lessons;
+    console.log("Lessons loaded successfully:", lessons);
+
+    // Get the quizId from the URL
+    const quizId = getQuizIdFromURL();
+    console.log("Quiz ID from URL:", quizId);
+
+    // Find the lesson with the matching quizId
+    currentLessonIndex = lessons.findIndex(
+      (lesson) => lesson.quizId === quizId
+    );
+
+    if (currentLessonIndex === -1) {
+      console.error("Lesson not found for quizId:", quizId);
+      return;
+    }
+
+    // Update the UI with the first sentence
+    updateSentence();
+    updateSentenceCounter();
+    updateSimpleProgress();
+  } catch (error) {
+    console.error("Error loading lessons:", error);
+  }
+}
+
+// Get the quiz ID from the URL
+function getQuizIdFromURL() {
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get("quizId");
+}
+
+// Load lessons when the page loads
+loadLessons();
+
+// Event listeners for buttons
+micButton.addEventListener("click", async () => {
   // Initialize and resume AudioContext on user gesture
   initializeAudioContext();
   await resumeAudioContext();
@@ -1129,32 +1249,6 @@ micButton.addEventListener("mousedown", async () => {
   retryButton.style.display = "inline-block";
   retryButton.disabled = false;
   startAudioRecording();
-});
-
-// Add touch events for mobile
-micButton.addEventListener("touchstart", async (e) => {
-  e.preventDefault(); // Prevent default touch behavior
-  // Initialize and resume AudioContext on user gesture
-  initializeAudioContext();
-  await resumeAudioContext();
-
-  micButton.style.display = "none";
-  retryButton.style.display = "inline-block";
-  retryButton.disabled = false;
-  startAudioRecording();
-});
-
-// Add event listeners for stopping recording when released
-document.addEventListener("mouseup", () => {
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    handleStopRecording();
-  }
-});
-
-document.addEventListener("touchend", (e) => {
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    handleStopRecording();
-  }
 });
 
 // Update the retry button handler to clear the timeout
@@ -1677,9 +1771,6 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
 
   // Show the dialog
   openDialog();
-
-  // Initialize swipe gestures after dialog is shown
-  initializeSwipeGestures();
 }
 
 // Function to translate text using MyMemory API (free, CORS-friendly)
@@ -1741,61 +1832,3 @@ async function toggleTranslation() {
 
 // Add event listener for translation button
 translateButton.addEventListener("click", toggleTranslation);
-
-// Add swipe gesture handler
-function handleSwipeGesture(element, onSwipeLeft, onSwipeRight) {
-  let touchStartX = 0;
-  let touchEndX = 0;
-  const minSwipeDistance = 50; // Minimum distance for a swipe
-
-  element.addEventListener(
-    "touchstart",
-    (e) => {
-      touchStartX = e.changedTouches[0].screenX;
-    },
-    { passive: true }
-  );
-
-  element.addEventListener(
-    "touchend",
-    (e) => {
-      touchEndX = e.changedTouches[0].screenX;
-      const swipeDistance = touchEndX - touchStartX;
-
-      if (Math.abs(swipeDistance) >= minSwipeDistance) {
-        if (swipeDistance > 0) {
-          // Swipe right
-          onSwipeRight();
-        } else {
-          // Swipe left
-          onSwipeLeft();
-        }
-      }
-    },
-    { passive: true }
-  );
-}
-
-// Initialize swipe gestures when dialog is shown
-function initializeSwipeGestures() {
-  const dialogContainer = document.querySelector(".dialog-container");
-  if (dialogContainer) {
-    handleSwipeGesture(
-      dialogContainer,
-      () => {
-        // Swipe left - retry
-        const retryButton = document.getElementById("retryButton");
-        if (retryButton && !retryButton.disabled) {
-          retryButton.click();
-        }
-      },
-      () => {
-        // Swipe right - continue
-        const nextButton = document.getElementById("nextButton");
-        if (nextButton && !nextButton.disabled) {
-          nextButton.click();
-        }
-      }
-    );
-  }
-}
