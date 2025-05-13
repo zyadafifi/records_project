@@ -181,9 +181,14 @@ function toggleListenButtons(disabled) {
 
 // Function to open the dialog
 function openDialog() {
+  // Show both elements immediately
   dialogContainer.style.display = "block";
   dialogBackdrop.style.display = "block";
-  // Use requestAnimationFrame for smoother animation
+
+  // Force a reflow to ensure the display change takes effect
+  dialogContainer.offsetHeight;
+
+  // Add active class in the next frame
   requestAnimationFrame(() => {
     dialogContainer.classList.add("active");
   });
@@ -192,7 +197,8 @@ function openDialog() {
 // Function to close the dialog
 function closeDialog() {
   dialogContainer.classList.remove("active");
-  // Use requestAnimationFrame for smoother animation
+
+  // Wait for the transition to complete before hiding
   requestAnimationFrame(() => {
     dialogContainer.style.display = "none";
     dialogBackdrop.style.display = "none";
@@ -1734,23 +1740,16 @@ window.addEventListener("DOMContentLoaded", function () {
 });
 
 function showDialog({ score = 0, feedback = "", missingWords = "" }) {
-  // Remove any existing dialog
-  const oldDialog = document.querySelector(".dialog-container");
-  if (oldDialog) oldDialog.remove();
-
-  // Clone the template
-  const template = document.getElementById("dialog-template");
-  const dialogClone = template.content.cloneNode(true);
-
-  // Update dynamic content
-  const scoreText = dialogClone.getElementById("pronunciationScore");
-  const progressCircle = dialogClone.getElementById("progress");
-  const dialogSentenceText = dialogClone.getElementById("dialogSentenceText");
-  const missingWordDiv = dialogClone.getElementById("missingWordDiv");
-  const nextButton = dialogClone.getElementById("nextButton");
+  // Update content directly instead of recreating the dialog
+  const scoreText = document.getElementById("pronunciationScore");
+  const progressCircle = document.getElementById("progress");
+  const dialogSentenceText = document.getElementById("dialogSentenceText");
+  const missingWordDiv = document.getElementById("missingWordDiv");
+  const nextButton = document.getElementById("nextButton");
 
   // Set score
   scoreText.textContent = `${score}%`;
+
   // Animate progress
   const radius = 48;
   const circumference = 2 * Math.PI * radius;
@@ -1770,28 +1769,8 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
       "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
   }
 
-  // Add event for close button
-  dialogClone.querySelector(".close-icon").onclick = function () {
-    document.querySelector(".dialog-container").remove();
-  };
-
-  // Add event for retry button
-  dialogClone.getElementById("retryButton").onclick = function (e) {
-    e.preventDefault();
-    document.querySelector(".dialog-container").remove();
-    // Start a new recording; after scoring, showDialog will be called with the new score
-    startAudioRecording();
-  };
-
-  // Add event for next button
-  dialogClone.getElementById("nextButton").onclick = function (e) {
-    e.preventDefault();
-    document.querySelector(".dialog-container").remove();
-    // Add your continue logic here
-  };
-
-  // Append to body (or your preferred parent)
-  document.body.appendChild(dialogClone);
+  // Show the dialog
+  openDialog();
 }
 
 // Function to translate text using MyMemory API (free, CORS-friendly)
