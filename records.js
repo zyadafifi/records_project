@@ -347,7 +347,7 @@ function setupWaveformVisualization(stream) {
     // Create a separate container for the timer
     const timerContainer = document.createElement("div");
     timerContainer.style.width = "100%";
-    style.display = "flex";
+    timerContainer.style.display = "flex";
     timerContainer.style.justifyContent = "center";
     timerContainer.style.marginTop = "5px";
     timerContainer.appendChild(timerElement);
