@@ -181,10 +181,10 @@ function toggleListenButtons(disabled) {
 
 // Function to open the dialog
 function openDialog() {
+  dialogContainer.style.display = "block";
+  dialogBackdrop.style.display = "block";
   // Use requestAnimationFrame for smoother animation
   requestAnimationFrame(() => {
-    dialogContainer.style.display = "block";
-    dialogBackdrop.style.display = "block";
     dialogContainer.classList.add("active");
   });
 }
