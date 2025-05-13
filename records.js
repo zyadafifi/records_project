@@ -43,6 +43,9 @@ let soundEffects = {
   failure: null,
 };
 
+// Global detection
+const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+
 // Function to create and load sound effects
 async function initializeSoundEffects() {
   try {
@@ -1123,6 +1126,40 @@ function updateBookmarkIcons() {
 }
 
 // Event listeners
+if (isTouchDevice) {
+  // Mobile behavior
+  micButton.addEventListener("touchstart", startHold);
+  micButton.addEventListener("touchend", endHold);
+  micButton.addEventListener("touchcancel", cancelHold);
+
+  // Show hold hint (only once)
+  let hintShown = false;
+  micButton.addEventListener(
+    "touchstart",
+    () => {
+      if (!hintShown) {
+        micButton.classList.remove("hold-hint");
+        hintShown = true;
+      }
+    },
+    { once: true }
+  );
+  micButton.classList.add("hold-hint");
+} else {
+  // Desktop behavior
+  micButton.addEventListener("click", async () => {
+    if (!isRecording) {
+      micButton.style.display = "none";
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      initializeAudioContext();
+      await resumeAudioContext();
+      startAudioRecording();
+    }
+  });
+}
+
+// Listen button event listeners
 listenButton.addEventListener("click", function () {
   if (isSpeaking) {
     // If already speaking, stop the speech
@@ -1145,6 +1182,7 @@ listen2Button.addEventListener("click", function () {
   }
 });
 
+// Bookmark button event listeners
 bookmarkIcon.addEventListener("click", function () {
   // Add visual feedback
   this.classList.add("active");
@@ -1171,6 +1209,14 @@ style.textContent = `
   .bookmark-icon, #bookmark-icon2 {
     transition: transform 0.2s, opacity 0.2s;
     cursor: pointer;
+  }
+  .hold-hint {
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
   }
 `;
 document.head.appendChild(style);
