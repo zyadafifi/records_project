@@ -35,7 +35,7 @@ let speechDetected = false; // Flag to track if speech was detected
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 let pressTimer;
-const HOLD_DURATION = 100; // 100ms hold to start recording
+const HOLD_DURATION = 70; // 70ms hold to start recording
 let isHolding = false;
 // Sound effect variables
 let soundEffects = {
