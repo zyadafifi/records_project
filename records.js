@@ -883,7 +883,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   const pronunciationScore = (correctWords / sentenceWords.length) * 100;
 
   // Play sound effect based on score
-  if (pronunciationScore >= 80) {
+  if (pronunciationScore > 50) {
     playSoundEffect("success");
   } else {
     playSoundEffect("failure");
