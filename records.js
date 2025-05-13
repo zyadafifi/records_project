@@ -181,22 +181,22 @@ function toggleListenButtons(disabled) {
 
 // Function to open the dialog
 function openDialog() {
-  dialogContainer.style.display = "block";
-  dialogBackdrop.style.display = "block";
-  // Add a small delay to ensure display: block is applied before adding active class
-  setTimeout(() => {
+  // Use requestAnimationFrame for smoother animation
+  requestAnimationFrame(() => {
+    dialogContainer.style.display = "block";
+    dialogBackdrop.style.display = "block";
     dialogContainer.classList.add("active");
-  }, 10);
+  });
 }
 
 // Function to close the dialog
 function closeDialog() {
   dialogContainer.classList.remove("active");
-  // Wait for animation to complete before hiding
-  setTimeout(() => {
+  // Use requestAnimationFrame for smoother animation
+  requestAnimationFrame(() => {
     dialogContainer.style.display = "none";
     dialogBackdrop.style.display = "none";
-  }, 300);
+  });
 }
 
 // JavaScript for mobile support
