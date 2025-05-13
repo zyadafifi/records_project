@@ -39,100 +39,46 @@ const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 let soundEffects = {
   success: null,
   failure: null,
-  progress: null,
 };
 
 // Function to create and load sound effects
 async function initializeSoundEffects() {
   try {
-    // Create audio context if not exists
-    if (!audioContext) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
+    // Create audio elements for each sound effect
+    soundEffects.success = new Audio("right answer SFX.wav");
+    soundEffects.failure = new Audio("wrong answer SFX.wav");
 
-    // Create oscillator for success sound (high pitch, short duration)
-    const successOsc = audioContext.createOscillator();
-    const successGain = audioContext.createGain();
-    successOsc.type = "sine";
-    successOsc.frequency.setValueAtTime(880, audioContext.currentTime); // A5 note
-    successGain.gain.setValueAtTime(0.3, audioContext.currentTime);
-    successOsc.connect(successGain);
-    successGain.connect(audioContext.destination);
-    soundEffects.success = { osc: successOsc, gain: successGain };
+    // Preload the audio files
+    await Promise.all([
+      soundEffects.success.load(),
+      soundEffects.failure.load(),
+    ]);
 
-    // Create oscillator for failure sound (low pitch, short duration)
-    const failureOsc = audioContext.createOscillator();
-    const failureGain = audioContext.createGain();
-    failureOsc.type = "sine";
-    failureOsc.frequency.setValueAtTime(220, audioContext.currentTime); // A3 note
-    failureGain.gain.setValueAtTime(0.3, audioContext.currentTime);
-    failureOsc.connect(failureGain);
-    failureGain.connect(audioContext.destination);
-    soundEffects.failure = { osc: failureOsc, gain: failureGain };
-
-    // Create oscillator for progress sound (medium pitch, very short duration)
-    const progressOsc = audioContext.createOscillator();
-    const progressGain = audioContext.createGain();
-    progressOsc.type = "sine";
-    progressOsc.frequency.setValueAtTime(440, audioContext.currentTime); // A4 note
-    progressGain.gain.setValueAtTime(0.2, audioContext.currentTime);
-    progressOsc.connect(progressGain);
-    progressGain.connect(audioContext.destination);
-    soundEffects.progress = { osc: progressOsc, gain: progressGain };
+    console.log("Sound effects loaded successfully");
   } catch (error) {
-    console.error("Error initializing sound effects:", error);
+    console.error("Error loading sound effects:", error);
   }
 }
 
 // Function to play sound effects
 function playSoundEffect(type) {
-  if (!audioContext || !soundEffects[type]) return;
+  if (!soundEffects[type]) return;
 
   try {
-    // Create new oscillator and gain node
-    const newOsc = audioContext.createOscillator();
-    const newGain = audioContext.createGain();
-
-    // Set up the sound
-    newOsc.type = soundEffects[type].osc.type;
-    newOsc.frequency.setValueAtTime(
-      soundEffects[type].osc.frequency.value,
-      audioContext.currentTime
-    );
-    newGain.gain.setValueAtTime(
-      soundEffects[type].gain.gain.value,
-      audioContext.currentTime
-    );
-
-    // Connect nodes
-    newOsc.connect(newGain);
-    newGain.connect(audioContext.destination);
-
-    // Play the sound
-    newOsc.start();
-
-    // Set duration based on type
-    let duration = 0.1; // Default duration
-    if (type === "success") duration = 0.2;
-    else if (type === "failure") duration = 0.3;
-
-    // Fade out and stop
-    newGain.gain.setValueAtTime(newGain.gain.value, audioContext.currentTime);
-    newGain.gain.linearRampToValueAtTime(
-      0,
-      audioContext.currentTime + duration
-    );
-
-    // Schedule the stop
-    setTimeout(() => {
-      try {
-        newOsc.stop();
-        newOsc.disconnect();
-        newGain.disconnect();
-      } catch (error) {
-        console.error("Error cleaning up sound effect:", error);
+    // Stop any currently playing sound
+    Object.values(soundEffects).forEach((audio) => {
+      if (audio) {
+        audio.pause();
+        audio.currentTime = 0;
       }
-    }, duration * 1000);
+    });
+
+    // Play the requested sound
+    const sound = soundEffects[type];
+    sound.currentTime = 0;
+    sound.play().catch((error) => {
+      console.error(`Error playing ${type} sound:`, error);
+    });
   } catch (error) {
     console.error("Error playing sound effect:", error);
   }
@@ -939,8 +885,6 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   // Play sound effect based on score
   if (pronunciationScore >= 80) {
     playSoundEffect("success");
-  } else if (pronunciationScore >= 50) {
-    playSoundEffect("progress");
   } else {
     playSoundEffect("failure");
   }
