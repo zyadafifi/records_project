@@ -534,6 +534,57 @@ body {
   -webkit-backface-visibility: hidden;
   transform-style: preserve-3d;
   -webkit-transform-style: preserve-3d;
+  touch-action: pan-y pinch-zoom; /* Enable vertical scrolling and pinch zoom */
+}
+
+/* Swipe gesture feedback */
+.dialog-container.swiping {
+  transition: transform 0.1s ease-out;
+}
+
+.dialog-container.swipe-left {
+  transform: translate(calc(-50% - 20px), -50%);
+  opacity: 0.7;
+}
+
+.dialog-container.swipe-right {
+  transform: translate(calc(-50% + 20px), -50%);
+  opacity: 0.7;
+}
+
+/* Swipe hint animation */
+@keyframes swipeHint {
+  0% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-10px);
+  }
+  75% {
+    transform: translateX(10px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.dialog-container::after {
+  content: "";
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 4px;
+  background: rgba(75, 155, 148, 0.3);
+  border-radius: 2px;
+  animation: swipeHint 2s infinite;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.dialog-container:hover::after {
+  opacity: 1;
 }
 
 .dialog-container.active {
@@ -982,12 +1033,48 @@ input[type="text"].form-control {
 }
 /* Button click effects - shadows and animations */
 #micButton {
-  transition: all 0.2s ease;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background-color: var(--primary-color);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s ease, background-color 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
-#micButton:active {
-  box-shadow: 0 0 15px #4b9b94;
+#micButton:active,
+#micButton.recording {
   transform: scale(0.95);
+  background-color: #e74c3c;
+}
+
+#micButton svg {
+  width: 24px;
+  height: 24px;
+  fill: white;
+}
+
+/* Add a pulsing animation for recording state */
+@keyframes recordingPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+  }
+}
+
+#micButton.recording {
+  animation: recordingPulse 1.5s infinite;
 }
 
 #listenButton,
