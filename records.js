@@ -656,13 +656,14 @@ function updateSentence() {
   if (lessons.length === 0) return;
   const currentLesson = lessons[currentLessonIndex];
 
-  // Update the sentence
-  sentenceElement.textContent = currentLesson.sentences[currentSentenceIndex];
+  // Update the sentence with English text
+  sentenceElement.textContent =
+    currentLesson.sentences[currentSentenceIndex].english;
   updateSentenceCounter();
 
   // Reset translation state
   isTranslated = false;
-  currentTranslation = null;
+  currentTranslation = currentLesson.sentences[currentSentenceIndex].arabic; // Store Arabic translation
   translationContainer.style.display = "none";
   translateButton.innerHTML =
     '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
@@ -813,7 +814,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   const transcriptWords = normalizeText(transcript)
     .split(/\s+/)
     .filter((word) => word.trim() !== "");
-  const sentenceWords = normalizeText(expectedSentence)
+  const sentenceWords = normalizeText(expectedSentence.english)
     .split(/\s+/)
     .filter((word) => word.trim() !== "");
 
@@ -917,7 +918,7 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   recognizedTextDiv.innerHTML = `
     <div style="margin-bottom: 10px;">
       <strong>Original:</strong><br>
-      ${expectedSentence}
+      ${expectedSentence.english}
     </div>
     <div>
       <strong>You said:</strong><br>
@@ -1010,7 +1011,7 @@ function speakSentence() {
     return;
   }
 
-  const sentence = currentLesson.sentences[currentSentenceIndex];
+  const sentence = currentLesson.sentences[currentSentenceIndex].english;
 
   // Update button immediately
   isSpeaking = true;
@@ -1890,36 +1891,13 @@ async function translateText(text) {
 
 // Function to toggle translation
 async function toggleTranslation() {
-  const currentSentence = sentenceElement.textContent;
-
   if (!isTranslated) {
-    try {
-      // Show loading state
-      translateButton.innerHTML =
-        '<i class="fas fa-spinner fa-spin"></i> Translating...';
-      translateButton.disabled = true;
-
-      // Get translation
-      const translation = await translateText(currentSentence);
-
-      if (translation) {
-        currentTranslation = translation;
-        translationText.textContent = translation;
-        translationContainer.style.display = "block";
-        translateButton.innerHTML =
-          '<i class="fas fa-language"></i> <span>Show Original</span>';
-        isTranslated = true;
-      } else {
-        throw new Error("Translation failed");
-      }
-    } catch (error) {
-      console.error("Translation error:", error);
-      alert("Failed to translate. Please try again.");
-      translateButton.innerHTML =
-        '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
-    } finally {
-      translateButton.disabled = false;
-    }
+    // Show Arabic translation
+    translationText.textContent = currentTranslation;
+    translationContainer.style.display = "block";
+    translateButton.innerHTML =
+      '<i class="fas fa-language"></i> <span>Show Original</span>';
+    isTranslated = true;
   } else {
     // Toggle back to original
     translationContainer.style.display = "none";
