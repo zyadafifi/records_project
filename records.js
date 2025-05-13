@@ -1120,7 +1120,7 @@ function updateBookmarkIcons() {
 }
 
 // Event listeners for buttons
-micButton.addEventListener("mousedown", async () => {
+micButton.addEventListener("click", async () => {
   // Initialize and resume AudioContext on user gesture
   initializeAudioContext();
   await resumeAudioContext();
