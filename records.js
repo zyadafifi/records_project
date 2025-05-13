@@ -268,7 +268,7 @@ function setupWaveformVisualization(stream) {
     controlsContainer.style.justifyContent = "space-between";
     controlsContainer.style.marginTop = "0";
     controlsContainer.style.marginBottom = "0";
-    controlsContainer.style.padding = "0 15px";
+    controlsContainer.style.padding = "0 20px";
     controlsContainer.style.gap = "10px";
 
     // Create timer element
@@ -293,9 +293,9 @@ function setupWaveformVisualization(stream) {
     deleteRecButton.style.color = "#f0f0f0";
     deleteRecButton.style.fontSize = "1em";
     deleteRecButton.style.cursor = "pointer";
-    deleteRecButton.style.padding = "0 8px";
+    deleteRecButton.style.padding = "0 12px";
     deleteRecButton.style.transition = "all 0.3s ease";
-    deleteRecButton.style.webkitTapHighlightColor = "transparent"; // Remove tap highlight on iOS
+    deleteRecButton.style.webkitTapHighlightColor = "transparent";
 
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
@@ -311,7 +311,8 @@ function setupWaveformVisualization(stream) {
     stopRecButton.style.justifyContent = "center";
     stopRecButton.style.cursor = "pointer";
     stopRecButton.style.color = "#4b9b94";
-    stopRecButton.style.webkitTapHighlightColor = "transparent"; // Keep only this iOS compatibility improvement
+    stopRecButton.style.padding = "0 12px";
+    stopRecButton.style.webkitTapHighlightColor = "transparent";
 
     // Create waveform canvas
     waveformCanvas = document.createElement("canvas");
