@@ -34,7 +34,9 @@ let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
-
+let pressTimer;
+const HOLD_DURATION = 300; // 300ms hold to start recording
+let isHolding = false;
 // Sound effect variables
 let soundEffects = {
   success: null,
@@ -1240,23 +1242,75 @@ function getQuizIdFromURL() {
 loadLessons();
 
 // Event listeners for buttons
-micButton.addEventListener("click", async () => {
-  // Initialize and resume AudioContext on user gesture
-  initializeAudioContext();
-  await resumeAudioContext();
+micButton.addEventListener("mousedown", startHold);
+micButton.addEventListener("touchstart", startHold);
+micButton.addEventListener("mouseup", endHold);
+micButton.addEventListener("touchend", endHold);
+micButton.addEventListener("mouseleave", cancelHold);
+micButton.addEventListener("touchcancel", cancelHold);
 
-  micButton.style.display = "none";
-  retryButton.style.display = "inline-block";
-  retryButton.disabled = false;
-  startAudioRecording();
-});
+function startHold(e) {
+  // Prevent default to avoid issues with touch devices
+  e.preventDefault();
 
-// Update the retry button handler to clear the timeout
+  // Only start if we're not already recording
+  if (!isRecording) {
+    isHolding = true;
+
+    // Set a timer to start recording after hold duration
+    pressTimer = setTimeout(async () => {
+      if (isHolding) {
+        // Only proceed if still holding
+        micButton.style.display = "none";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+
+        // Initialize and resume AudioContext on user gesture
+        initializeAudioContext();
+        await resumeAudioContext();
+
+        startAudioRecording();
+      }
+    }, HOLD_DURATION);
+
+    // Visual feedback that holding has started
+    micButton.style.transform = "scale(0.95)";
+  }
+}
+
+function endHold(e) {
+  e.preventDefault();
+  clearTimeout(pressTimer);
+
+  // If we were holding and recording started, stop recording
+  if (isHolding && isRecording) {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
+  }
+
+  // Reset holding state
+  isHolding = false;
+  micButton.style.transform = "";
+}
+
+function cancelHold(e) {
+  e.preventDefault();
+  clearTimeout(pressTimer);
+  isHolding = false;
+  micButton.style.transform = "";
+}
+
+// Update the retry button handler to clear the hold timer
 retryButton.addEventListener("click", () => {
   // Clear any existing recording timeout
   if (recordingTimeout) {
     clearTimeout(recordingTimeout);
   }
+
+  // Clear hold timer if active
+  clearTimeout(pressTimer);
+  isHolding = false;
 
   // First close the dialog to show the sentence again
   closeDialog();
