@@ -1839,46 +1839,42 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
 
 // Function to toggle translation
 async function toggleTranslation() {
-  // Initialize translation container if not already done
-  if (!translationContainer.dataset.initialized) {
-    translationContainer.style.display = "none";
-    translationContainer.style.opacity = "1";
-    translationContainer.style.transition = "opacity 0.3s ease";
-    translationContainer.dataset.initialized = "true";
-  }
+  const container = translationContainer;
+  const textElement = translationText;
 
   if (!isTranslated) {
-    // Ensure we have fresh translation content
+    // Ensure fresh content
     const currentLesson = lessons[currentLessonIndex];
     currentTranslation = currentLesson.sentences[currentSentenceIndex].arabic;
-    translationText.textContent = currentTranslation;
+    textElement.textContent = currentTranslation;
 
-    // iOS-specific rendering fixes
-    translationContainer.style.display = "block";
-    setTimeout(() => {
-      translationContainer.style.opacity = "1";
-    }, 10);
+    // iOS Safari fix - force reflow
+    void container.offsetHeight;
+
+    // Show with animation
+    container.classList.remove("visible");
+    container.style.display = "block";
+    void container.offsetHeight; // Force reflow
+    container.classList.add("visible", "animate");
 
     translateButton.innerHTML =
       '<i class="fas fa-language"></i> <span>Show Original</span>';
     isTranslated = true;
-
-    // Force iOS layout recalculation
-    void translationContainer.offsetHeight;
   } else {
-    // Hide translation with smooth transition
-    translationContainer.style.opacity = "0";
+    // Hide with animation
+    container.classList.remove("visible", "animate");
+
     setTimeout(() => {
-      translationContainer.style.display = "none";
+      container.style.display = "none";
     }, 300);
 
     translateButton.innerHTML =
       '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
     isTranslated = false;
-
-    // Force iOS layout recalculation
-    void translationText.offsetHeight;
   }
+
+  // iOS fix - force layout recalc
+  void textElement.offsetHeight;
 }
 
 // Add event listener for translation button
