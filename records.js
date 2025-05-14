@@ -1871,19 +1871,52 @@ async function translateText(text) {
 async function toggleTranslation() {
   if (!isTranslated) {
     // Show Arabic translation
-    translationText.textContent = currentTranslation;
-    translationContainer.style.display = "block";
-    translateButton.innerHTML =
-      '<i class="fas fa-language"></i> <span>Show Original</span>';
-    isTranslated = true;
+    if (currentTranslation) {
+      translationText.textContent = currentTranslation;
+      translationContainer.style.display = "block";
+      translateButton.innerHTML =
+        '<i class="fas fa-language"></i> <span>Show Original</span>';
+      isTranslated = true;
+
+      // Force a reflow to ensure the container is properly displayed
+      translationContainer.offsetHeight;
+
+      // Add a small delay to ensure the container is visible
+      setTimeout(() => {
+        if (translationContainer.style.display === "block") {
+          translationContainer.style.opacity = "1";
+        }
+      }, 50);
+    }
   } else {
     // Toggle back to original
-    translationContainer.style.display = "none";
-    translateButton.innerHTML =
-      '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
-    isTranslated = false;
+    translationContainer.style.opacity = "0";
+    setTimeout(() => {
+      translationContainer.style.display = "none";
+      translateButton.innerHTML =
+        '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
+      isTranslated = false;
+    }, 200);
   }
 }
 
 // Add event listener for translation button
 translateButton.addEventListener("click", toggleTranslation);
+
+// Add this CSS for translation container
+const translationStyles = document.createElement("style");
+translationStyles.textContent = `
+  #translationContainer {
+    transition: opacity 0.2s ease-in-out;
+    opacity: 0;
+    background-color: #ffffff;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-top: 10px;
+  }
+  #translationContainer[style*="display: block"] {
+    opacity: 1;
+  }
+`;
+document.head.appendChild(translationStyles);
