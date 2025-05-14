@@ -1496,205 +1496,83 @@ function updateSimpleProgress() {
 // Start audio recording with automatic stop
 async function startAudioRecording() {
   console.log("startAudioRecording called");
-  // Ensure AudioContext is ready (important for iOS/Safari)
-  initializeAudioContext();
-  await resumeAudioContext();
 
-  if (!audioContext) {
-    alert("AudioContext could not be initialized. Cannot record.");
+  // Ensure we're not already recording
+  if (isRecording) {
+    console.log("Already recording, ignoring start request");
     return;
   }
 
   try {
+    // Initialize AudioContext with a more iOS-friendly approach
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)({
+        sampleRate: 44100,
+        latencyHint: "interactive",
+      });
+    }
+
+    // Resume AudioContext with a more reliable approach
+    if (audioContext.state === "suspended") {
+      await audioContext.resume();
+    }
+
     console.log("Requesting microphone access...");
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+        sampleRate: 44100,
+      },
+    });
+
     console.log("Microphone access granted.");
     audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
-    console.log("MediaRecorder created.");
 
-    // Set recording flag, start time, toggle buttons
+    // Create MediaRecorder with specific options for better iOS performance
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: "audio/mp4",
+      audioBitsPerSecond: 128000,
+    });
+
+    // Set recording flag and start time
     isRecording = true;
     recordingStartTime = Date.now();
-    toggleListenButtons(true);
-    toggleBookmarkButtons(true);
-    isRecordingCancelled = false; // Ensure flag is reset
 
-    // Setup and start waveform visualization (this now shows the container)
-    setupWaveformVisualization(stream);
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0 && !isRecordingCancelled) {
-        // Don't collect if cancelled
-        audioChunks.push(event.data);
-      }
-    };
-
-    // Assign the NORMAL onstop handler HERE
-    mediaRecorder.onstop = async () => {
-      console.log("mediaRecorder.onstop triggered.");
-
-      // ***** Check Cancellation Flag *****
-      if (isRecordingCancelled) {
-        console.log("onstop: Recording was cancelled, skipping processing.");
-        // UI reset should have already happened in handleDeleteRecording
-        isRecordingCancelled = false; // Reset flag just in case
-        return;
-      }
-
-      // Stop the waveform visual (should be quick)
-      stopWaveformVisualization();
-
-      // --- Normal stop processing ---
-      if (audioChunks.length === 0) {
-        console.warn(
-          "No audio chunks recorded. Recording might have been too short or silent."
-        );
-        resetUI();
-        recognizedTextDiv.textContent = "(Recording too short or silent)";
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/mp4" });
-      console.log(
-        "Recorded audio blob created, size:",
-        recordedAudioBlob?.size
-      );
-      audioChunks = []; // Clear chunks
-
-      // UI Updates after stopping normally
-      micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-      micButton.style.backgroundColor = "";
-      micButton.disabled = false;
-      micButton.style.color = "#fff";
-      micButton.style.display = "inline-block";
-      micButton.style.opacity = "1";
-      micButton.classList.remove("recording");
-      micButton.style.animation =
-        "pulse 2s infinite, glow 2s infinite alternate";
-
-      retryButton.style.display = "inline-block";
-      retryButton.disabled = false;
-      document.getElementById("recordingIndicator").style.display = "none";
-
-      // Set recording flag false AFTER UI updates
-      isRecording = false;
-      recordingStartTime = null;
-      toggleListenButtons(false);
-      toggleBookmarkButtons(false);
-      console.log("UI updated after normal recording stop.");
-
-      // Stop tracks
-      console.log("Stopping media stream tracks normally...");
-      stream.getTracks().forEach((track) => track.stop());
-      console.log("Media stream tracks stopped normally.");
-
-      // Upload for transcription
-      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
-        console.log("Uploading audio for transcription...");
-        recognizedTextDiv.innerHTML =
-          '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
-        pronunciationScoreDiv.textContent = "...";
-        micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        micButton.style.color = "#fff";
-        micButton.style.backgroundColor = "#4b9b94";
-        micButton.style.animation = "glow 2s infinite alternate";
-        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
-        if (transcription !== null) {
-          console.log("Transcription received:", transcription);
-          const pronunciationScore = calculatePronunciationScore(
-            transcription,
-            lessons[currentLessonIndex].sentences[currentSentenceIndex]
-          );
-          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-          updateProgressCircle(pronunciationScore);
-          totalPronunciationScore += pronunciationScore; // Add score to total
-          console.log("Score calculated and totals updated.");
-
-          // Update progress bar immediately after score calculation
-          updateSimpleProgress();
-
-          // Restore mic icon after transcription is complete
-          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-          micButton.style.color = "#fff";
-          micButton.style.backgroundColor = "";
-          micButton.style.display = "inline-block";
-          micButton.style.opacity = "1";
-          micButton.classList.remove("recording");
-          micButton.style.animation =
-            "pulse 2s infinite, glow 2s infinite alternate";
-
-          openDialog();
-          console.log("Dialog opened.");
-        } else {
-          console.log(
-            "Transcription was null, likely an error during processing."
-          );
-          recognizedTextDiv.textContent = "(Transcription failed)";
-          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-          micButton.style.color = "#fff";
-          micButton.style.backgroundColor = "";
-          micButton.style.display = "inline-block";
-          micButton.style.opacity = "1";
-          micButton.classList.remove("recording");
-          micButton.style.animation =
-            "pulse 2s infinite, glow 2s infinite alternate";
-        }
-      } else {
-        console.warn(
-          "Recorded audio blob is empty or very small, skipping transcription."
-        );
-        recognizedTextDiv.textContent = "(Recording too short or silent)";
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-      }
-    };
-
-    mediaRecorder.onerror = (event) => {
-      console.error("MediaRecorder error:", event.error);
-      alert(`Recording error: ${event.error.name} - ${event.error.message}`);
-      // Reset UI on error
-      resetUI(); // resetUI already calls stopWaveformVisualization
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop()); // Stop stream on error
-      }
-    };
-
-    // Start recording
-    mediaRecorder.start(100);
+    // Update UI immediately
     micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
     micButton.style.color = "#ff0000";
     micButton.disabled = true;
-    document.getElementById("recordingIndicator").style.display =
-      "inline-block";
-    console.log("UI updated for recording start.");
 
-    // Set timeout to automatically stop recording after RECORDING_DURATION
-    clearTimeout(recordingTimeout); // Clear any previous timeout
+    // Setup waveform visualization
+    setupWaveformVisualization(stream);
+
+    // Start recording with a smaller timeslice for better performance
+    mediaRecorder.start(50);
+
+    // Set timeout to automatically stop recording
+    clearTimeout(recordingTimeout);
     recordingTimeout = setTimeout(() => {
-      console.log("Recording duration timeout reached.");
       if (mediaRecorder && mediaRecorder.state === "recording") {
-        console.log("Stopping recorder due to timeout...");
         mediaRecorder.stop();
       }
     }, RECORDING_DURATION);
-    console.log(`Recording timeout set for ${RECORDING_DURATION}ms`);
   } catch (error) {
     console.error("Error in startAudioRecording:", error);
     alert(
       `Could not start recording: ${error.message}. Please check microphone permissions.`
     );
 
-    // Ensure recording flag is reset and buttons are re-enabled in case of error
+    // Reset state on error
     isRecording = false;
     recordingStartTime = null;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
-    // Make sure waveform is stopped and hidden on error
     stopWaveformVisualization();
+
+    // Reset UI
+    micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
+    micButton.style.color = "#fff";
+    micButton.disabled = false;
   }
 }
 
@@ -1869,34 +1747,42 @@ async function translateText(text) {
 
 // Function to toggle translation
 async function toggleTranslation() {
+  const translationContainer = document.getElementById("translationContainer");
+  const translationText = document.querySelector(".translation-text");
+
   if (!isTranslated) {
     // Show Arabic translation
     if (currentTranslation) {
+      // First set the content
       translationText.textContent = currentTranslation;
-      translationContainer.style.display = "block";
+
+      // Then show the container with a direct style change
+      translationContainer.style.cssText = `
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        background-color: #ffffff;
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        margin-top: 10px;
+      `;
+
       translateButton.innerHTML =
         '<i class="fas fa-language"></i> <span>Show Original</span>';
       isTranslated = true;
-
-      // Force a reflow to ensure the container is properly displayed
-      translationContainer.offsetHeight;
-
-      // Add a small delay to ensure the container is visible
-      setTimeout(() => {
-        if (translationContainer.style.display === "block") {
-          translationContainer.style.opacity = "1";
-        }
-      }, 50);
     }
   } else {
-    // Toggle back to original
-    translationContainer.style.opacity = "0";
-    setTimeout(() => {
-      translationContainer.style.display = "none";
-      translateButton.innerHTML =
-        '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
-      isTranslated = false;
-    }, 200);
+    // Hide the container
+    translationContainer.style.cssText = `
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+    `;
+
+    translateButton.innerHTML =
+      '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
+    isTranslated = false;
   }
 }
 
