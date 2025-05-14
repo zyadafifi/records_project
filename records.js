@@ -1,3 +1,12 @@
+// Add Eruda console for mobile debugging
+const erudaScript = document.createElement("script");
+erudaScript.src = "https://cdn.jsdelivr.net/npm/eruda";
+document.head.appendChild(erudaScript);
+erudaScript.onload = function () {
+  window.eruda.init();
+  console.log("Eruda console initialized");
+};
+
 // DOM Elements
 const sentenceElement = document.getElementById("sentence");
 const micButton = document.getElementById("micButton");
@@ -1828,60 +1837,47 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   openDialog();
 }
 
-// Function to translate text using MyMemory API (free, CORS-friendly)
-async function translateText(text) {
-  try {
-    // Add timeout to the fetch request
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-    const response = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
-        text
-      )}&langpair=en|ar`,
-      {
-        signal: controller.signal,
-      }
-    );
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`Translation failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.responseData || !data.responseData.translatedText) {
-      throw new Error("Invalid translation response");
-    }
-
-    return data.responseData.translatedText;
-  } catch (error) {
-    console.error("Translation error:", error);
-    if (error.name === "AbortError") {
-      console.error("Translation request timed out");
-      return null;
-    }
-    return null;
-  }
-}
-
 // Function to toggle translation
 async function toggleTranslation() {
+  // Initialize translation container if not already done
+  if (!translationContainer.dataset.initialized) {
+    translationContainer.style.display = "none";
+    translationContainer.style.opacity = "1";
+    translationContainer.style.transition = "opacity 0.3s ease";
+    translationContainer.dataset.initialized = "true";
+  }
+
   if (!isTranslated) {
-    // Show Arabic translation
+    // Ensure we have fresh translation content
+    const currentLesson = lessons[currentLessonIndex];
+    currentTranslation = currentLesson.sentences[currentSentenceIndex].arabic;
     translationText.textContent = currentTranslation;
+
+    // iOS-specific rendering fixes
     translationContainer.style.display = "block";
+    setTimeout(() => {
+      translationContainer.style.opacity = "1";
+    }, 10);
+
     translateButton.innerHTML =
       '<i class="fas fa-language"></i> <span>Show Original</span>';
     isTranslated = true;
+
+    // Force iOS layout recalculation
+    void translationContainer.offsetHeight;
   } else {
-    // Toggle back to original
-    translationContainer.style.display = "none";
+    // Hide translation with smooth transition
+    translationContainer.style.opacity = "0";
+    setTimeout(() => {
+      translationContainer.style.display = "none";
+    }, 300);
+
     translateButton.innerHTML =
       '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
     isTranslated = false;
+
+    // Force iOS layout recalculation
+    void translationText.offsetHeight;
   }
 }
 
