@@ -129,19 +129,33 @@ dialogBackdrop.style.display = "none";
 function initializeAudioContext() {
   if (!audioContext) {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    // Set a higher sample rate for better performance
+    audioContext.sampleRate = 44100;
   }
   return audioContext;
 }
 
-// Function to resume AudioContext
-async function resumeAudioContext() {
-  if (audioContext && audioContext.state === "suspended") {
-    try {
-      await audioContext.resume();
-      console.log("AudioContext resumed.");
-    } catch (error) {
-      console.error("Failed to resume AudioContext:", error);
-    }
+// Function to pre-warm audio system
+async function preWarmAudioSystem() {
+  try {
+    // Initialize AudioContext
+    initializeAudioContext();
+
+    // Request microphone access in advance
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+
+    // Immediately stop the stream
+    stream.getTracks().forEach((track) => track.stop());
+
+    console.log("Audio system pre-warmed successfully");
+  } catch (error) {
+    console.error("Error pre-warming audio system:", error);
   }
 }
 
@@ -1266,10 +1280,7 @@ function startHold(e) {
         retryButton.style.display = "inline-block";
         retryButton.disabled = false;
 
-        // Initialize and resume AudioContext on user gesture
-        initializeAudioContext();
-        await resumeAudioContext();
-
+        // Start recording immediately without additional initialization
         startAudioRecording();
       }
     }, HOLD_DURATION);
@@ -1496,21 +1507,22 @@ function updateSimpleProgress() {
 // Start audio recording with automatic stop
 async function startAudioRecording() {
   console.log("startAudioRecording called");
-  // Ensure AudioContext is ready (important for iOS/Safari)
-  initializeAudioContext();
-  await resumeAudioContext();
-
-  if (!audioContext) {
-    alert("AudioContext could not be initialized. Cannot record.");
-    return;
-  }
 
   try {
     console.log("Requesting microphone access...");
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
     console.log("Microphone access granted.");
+
     audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: "audio/webm;codecs=opus",
+    });
     console.log("MediaRecorder created.");
 
     // Set recording flag, start time, toggle buttons
@@ -1518,9 +1530,9 @@ async function startAudioRecording() {
     recordingStartTime = Date.now();
     toggleListenButtons(true);
     toggleBookmarkButtons(true);
-    isRecordingCancelled = false; // Ensure flag is reset
+    isRecordingCancelled = false;
 
-    // Setup and start waveform visualization (this now shows the container)
+    // Setup and start waveform visualization
     setupWaveformVisualization(stream);
 
     mediaRecorder.ondataavailable = (event) => {
@@ -1558,7 +1570,7 @@ async function startAudioRecording() {
         return;
       }
 
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/mp4" });
+      recordedAudioBlob = new Blob(audioChunks, { type: "audio/webm" });
       console.log(
         "Recorded audio blob created, size:",
         recordedAudioBlob?.size
@@ -1687,14 +1699,7 @@ async function startAudioRecording() {
     alert(
       `Could not start recording: ${error.message}. Please check microphone permissions.`
     );
-
-    // Ensure recording flag is reset and buttons are re-enabled in case of error
-    isRecording = false;
-    recordingStartTime = null;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
-    // Make sure waveform is stopped and hidden on error
-    stopWaveformVisualization();
+    resetUI();
   }
 }
 
@@ -1887,3 +1892,11 @@ async function toggleTranslation() {
 
 // Add event listener for translation button
 translateButton.addEventListener("click", toggleTranslation);
+
+// Add pre-warming to the page load
+window.addEventListener("DOMContentLoaded", function () {
+  // Pre-warm the audio system
+  preWarmAudioSystem();
+
+  // ... rest of the existing DOMContentLoaded event handler ...
+});
