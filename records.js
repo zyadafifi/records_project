@@ -628,7 +628,7 @@ function updateSentence() {
 
   // Handle translation display based on device type
   if (isIOS) {
-    // For iOS: Show translation in div
+    // For iOS: Show translation in div and hide translation button
     let iosTranslationDiv = document.getElementById("iosTranslationDiv");
     if (!iosTranslationDiv) {
       iosTranslationDiv = createIOSTranslationDiv();
@@ -638,14 +638,20 @@ function updateSentence() {
       );
     }
     iosTranslationDiv.textContent = currentTranslation;
-    translationContainer.style.display = "none";
     translateButton.style.display = "none";
-  } else {
-    // For Android/Desktop: Keep translation button
     translationContainer.style.display = "none";
+  } else {
+    // For Android/Desktop: Show translation button and hide iOS div
     translateButton.style.display = "inline-block";
+    translationContainer.style.display = "none";
     translateButton.innerHTML =
       '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
+
+    // Remove iOS translation div if it exists
+    const iosTranslationDiv = document.getElementById("iosTranslationDiv");
+    if (iosTranslationDiv) {
+      iosTranslationDiv.remove();
+    }
   }
 
   // Reset UI
@@ -1902,3 +1908,15 @@ function createIOSTranslationDiv() {
   `;
   return translationDiv;
 }
+
+// Add initialization code to handle initial device type
+document.addEventListener("DOMContentLoaded", () => {
+  if (isIOS) {
+    // Hide translation button and container on iOS
+    translateButton.style.display = "none";
+    translationContainer.style.display = "none";
+  } else {
+    // Show translation button on Android/Desktop
+    translateButton.style.display = "inline-block";
+  }
+});
