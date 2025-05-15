@@ -1,12 +1,3 @@
-// Add Eruda console for mobile debugging
-const erudaScript = document.createElement("script");
-erudaScript.src = "https://cdn.jsdelivr.net/npm/eruda";
-document.head.appendChild(erudaScript);
-erudaScript.onload = function () {
-  window.eruda.init();
-  console.log("Eruda console initialized");
-};
-
 // DOM Elements
 const sentenceElement = document.getElementById("sentence");
 const micButton = document.getElementById("micButton");
@@ -1837,44 +1828,61 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   openDialog();
 }
 
+// Function to translate text using MyMemory API (free, CORS-friendly)
+async function translateText(text) {
+  try {
+    // Add timeout to the fetch request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+    const response = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
+        text
+      )}&langpair=en|ar`,
+      {
+        signal: controller.signal,
+      }
+    );
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      throw new Error(`Translation failed: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+
+    if (!data.responseData || !data.responseData.translatedText) {
+      throw new Error("Invalid translation response");
+    }
+
+    return data.responseData.translatedText;
+  } catch (error) {
+    console.error("Translation error:", error);
+    if (error.name === "AbortError") {
+      console.error("Translation request timed out");
+      return null;
+    }
+    return null;
+  }
+}
+
 // Function to toggle translation
 async function toggleTranslation() {
-  const container = translationContainer;
-  const textElement = translationText;
-
   if (!isTranslated) {
-    // Ensure fresh content
-    const currentLesson = lessons[currentLessonIndex];
-    currentTranslation = currentLesson.sentences[currentSentenceIndex].arabic;
-    textElement.textContent = currentTranslation;
-
-    // iOS Safari fix - force reflow
-    void container.offsetHeight;
-
-    // Show with animation
-    container.classList.remove("visible");
-    container.style.display = "block";
-    void container.offsetHeight; // Force reflow
-    container.classList.add("visible", "animate");
-
+    // Show Arabic translation
+    translationText.textContent = currentTranslation;
+    translationContainer.style.display = "block";
     translateButton.innerHTML =
       '<i class="fas fa-language"></i> <span>Show Original</span>';
     isTranslated = true;
   } else {
-    // Hide with animation
-    container.classList.remove("visible", "animate");
-
-    setTimeout(() => {
-      container.style.display = "none";
-    }, 300);
-
+    // Toggle back to original
+    translationContainer.style.display = "none";
     translateButton.innerHTML =
       '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
     isTranslated = false;
   }
-
-  // iOS fix - force layout recalc
-  void textElement.offsetHeight;
 }
 
 // Add event listener for translation button
