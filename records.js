@@ -1243,87 +1243,26 @@ function getQuizIdFromURL() {
 loadLessons();
 
 // Event listeners for buttons
-micButton.addEventListener("mousedown", startHold);
-micButton.addEventListener("touchstart", startHold);
-micButton.addEventListener("mouseup", endHold);
-micButton.addEventListener("touchend", endHold);
-micButton.addEventListener("mouseleave", cancelHold);
-micButton.addEventListener("touchcancel", cancelHold);
+micButton.addEventListener("click", startRecording);
+micButton.addEventListener("touchstart", startRecording);
 
-function startHold(e) {
+function startRecording(e) {
   // Prevent default to avoid issues with touch devices
   e.preventDefault();
 
   // Only start if we're not already recording
   if (!isRecording) {
-    isHolding = true;
+    micButton.style.display = "none";
+    retryButton.style.display = "inline-block";
+    retryButton.disabled = false;
 
-    // Set a timer to start recording after hold duration
-    pressTimer = setTimeout(async () => {
-      if (isHolding) {
-        // Only proceed if still holding
-        micButton.style.display = "none";
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-
-        // Initialize and resume AudioContext on user gesture
-        initializeAudioContext();
-        await resumeAudioContext();
-
-        startAudioRecording();
-      }
-    }, HOLD_DURATION);
-
-    // Visual feedback that holding has started
-    micButton.style.transform = "scale(0.95)";
+    // Initialize and resume AudioContext on user gesture
+    initializeAudioContext();
+    resumeAudioContext().then(() => {
+      startAudioRecording();
+    });
   }
 }
-
-function endHold(e) {
-  e.preventDefault();
-  clearTimeout(pressTimer);
-
-  // If we were holding and recording started, stop recording
-  if (isHolding && isRecording) {
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-    }
-  }
-
-  // Reset holding state
-  isHolding = false;
-  micButton.style.transform = "";
-}
-
-function cancelHold(e) {
-  e.preventDefault();
-  clearTimeout(pressTimer);
-  isHolding = false;
-  micButton.style.transform = "";
-}
-
-// Update the retry button handler to clear the hold timer
-retryButton.addEventListener("click", () => {
-  // Clear any existing recording timeout
-  if (recordingTimeout) {
-    clearTimeout(recordingTimeout);
-  }
-
-  // Clear hold timer if active
-  clearTimeout(pressTimer);
-  isHolding = false;
-
-  // First close the dialog to show the sentence again
-  closeDialog();
-
-  // Reset UI without changing the sentence
-  resetUI();
-
-  // Stop any ongoing recording
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    mediaRecorder.stop();
-  }
-});
 
 nextButton.addEventListener("click", () => {
   const currentLesson = lessons[currentLessonIndex];
@@ -1887,3 +1826,22 @@ async function toggleTranslation() {
 
 // Add event listener for translation button
 translateButton.addEventListener("click", toggleTranslation);
+
+// Update the retry button handler
+retryButton.addEventListener("click", () => {
+  // Clear any existing recording timeout
+  if (recordingTimeout) {
+    clearTimeout(recordingTimeout);
+  }
+
+  // First close the dialog to show the sentence again
+  closeDialog();
+
+  // Reset UI without changing the sentence
+  resetUI();
+
+  // Stop any ongoing recording
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
+});
