@@ -35,13 +35,16 @@ let speechDetected = false; // Flag to track if speech was detected
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
 let pressTimer;
-const HOLD_DURATION = 70; // 70ms hold to start recording
+const HOLD_DURATION = 300; // 300ms hold to start recording
 let isHolding = false;
 // Sound effect variables
 let soundEffects = {
   success: null,
   failure: null,
 };
+
+// Global detection
+const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
 // Function to create and load sound effects
 async function initializeSoundEffects() {
@@ -1123,6 +1126,40 @@ function updateBookmarkIcons() {
 }
 
 // Event listeners
+if (isTouchDevice) {
+  // Mobile behavior
+  micButton.addEventListener("touchstart", startHold);
+  micButton.addEventListener("touchend", endHold);
+  micButton.addEventListener("touchcancel", cancelHold);
+
+  // Show hold hint (only once)
+  let hintShown = false;
+  micButton.addEventListener(
+    "touchstart",
+    () => {
+      if (!hintShown) {
+        micButton.classList.remove("hold-hint");
+        hintShown = true;
+      }
+    },
+    { once: true }
+  );
+  micButton.classList.add("hold-hint");
+} else {
+  // Desktop behavior
+  micButton.addEventListener("click", async () => {
+    if (!isRecording) {
+      micButton.style.display = "none";
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      initializeAudioContext();
+      await resumeAudioContext();
+      startAudioRecording();
+    }
+  });
+}
+
+// Listen button event listeners
 listenButton.addEventListener("click", function () {
   if (isSpeaking) {
     // If already speaking, stop the speech
@@ -1145,6 +1182,7 @@ listen2Button.addEventListener("click", function () {
   }
 });
 
+// Bookmark button event listeners
 bookmarkIcon.addEventListener("click", function () {
   // Add visual feedback
   this.classList.add("active");
@@ -1171,6 +1209,14 @@ style.textContent = `
   .bookmark-icon, #bookmark-icon2 {
     transition: transform 0.2s, opacity 0.2s;
     cursor: pointer;
+  }
+  .hold-hint {
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
   }
 `;
 document.head.appendChild(style);
@@ -1243,26 +1289,87 @@ function getQuizIdFromURL() {
 loadLessons();
 
 // Event listeners for buttons
-micButton.addEventListener("click", startRecording);
-micButton.addEventListener("touchstart", startRecording);
+micButton.addEventListener("mousedown", startHold);
+micButton.addEventListener("touchstart", startHold);
+micButton.addEventListener("mouseup", endHold);
+micButton.addEventListener("touchend", endHold);
+micButton.addEventListener("mouseleave", cancelHold);
+micButton.addEventListener("touchcancel", cancelHold);
 
-function startRecording(e) {
+function startHold(e) {
   // Prevent default to avoid issues with touch devices
   e.preventDefault();
 
   // Only start if we're not already recording
   if (!isRecording) {
-    micButton.style.display = "none";
-    retryButton.style.display = "inline-block";
-    retryButton.disabled = false;
+    isHolding = true;
 
-    // Initialize and resume AudioContext on user gesture
-    initializeAudioContext();
-    resumeAudioContext().then(() => {
-      startAudioRecording();
-    });
+    // Set a timer to start recording after hold duration
+    pressTimer = setTimeout(async () => {
+      if (isHolding) {
+        // Only proceed if still holding
+        micButton.style.display = "none";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+
+        // Initialize and resume AudioContext on user gesture
+        initializeAudioContext();
+        await resumeAudioContext();
+
+        startAudioRecording();
+      }
+    }, HOLD_DURATION);
+
+    // Visual feedback that holding has started
+    micButton.style.transform = "scale(0.95)";
   }
 }
+
+function endHold(e) {
+  e.preventDefault();
+  clearTimeout(pressTimer);
+
+  // If we were holding and recording started, stop recording
+  if (isHolding && isRecording) {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
+  }
+
+  // Reset holding state
+  isHolding = false;
+  micButton.style.transform = "";
+}
+
+function cancelHold(e) {
+  e.preventDefault();
+  clearTimeout(pressTimer);
+  isHolding = false;
+  micButton.style.transform = "";
+}
+
+// Update the retry button handler to clear the hold timer
+retryButton.addEventListener("click", () => {
+  // Clear any existing recording timeout
+  if (recordingTimeout) {
+    clearTimeout(recordingTimeout);
+  }
+
+  // Clear hold timer if active
+  clearTimeout(pressTimer);
+  isHolding = false;
+
+  // First close the dialog to show the sentence again
+  closeDialog();
+
+  // Reset UI without changing the sentence
+  resetUI();
+
+  // Stop any ongoing recording
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
+});
 
 nextButton.addEventListener("click", () => {
   const currentLesson = lessons[currentLessonIndex];
@@ -1826,22 +1933,3 @@ async function toggleTranslation() {
 
 // Add event listener for translation button
 translateButton.addEventListener("click", toggleTranslation);
-
-// Update the retry button handler
-retryButton.addEventListener("click", () => {
-  // Clear any existing recording timeout
-  if (recordingTimeout) {
-    clearTimeout(recordingTimeout);
-  }
-
-  // First close the dialog to show the sentence again
-  closeDialog();
-
-  // Reset UI without changing the sentence
-  resetUI();
-
-  // Stop any ongoing recording
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    mediaRecorder.stop();
-  }
-});
