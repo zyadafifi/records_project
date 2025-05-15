@@ -27,16 +27,131 @@ let lessons = []; // Stores loaded lessons
 let currentLessonIndex = 0; // Tracks the current lesson
 let currentSentenceIndex = 0; // Tracks the current sentence in the lesson
 let totalPronunciationScore = 0; // Tracks total pronunciation score
-let mediaRecorder;
+let mediaRecorder = null;
 let audioChunks = [];
-let recordedAudioBlob; // Stores the recorded audio blob
-let isRecording = false; // Flag to track recording state
-let speechDetected = false; // Flag to track if speech was detected
-let noSpeechTimeout;
+let recordedAudioBlob = null;
+let isRecording = false;
+let speechDetected = false;
+let noSpeechTimeout = null;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
-let pressTimer;
-const HOLD_DURATION = 70; // 70ms hold to start recording
-let isHolding = false;
+let isRecordingCancelled = false;
+let recordingTimeout = null;
+let recordingStartTime = null;
+let animationId = null;
+let waveformCanvas = null;
+let waveformContainer = null;
+let stopRecButton = null;
+let deleteRecButton = null;
+let dataArray = null;
+let canvasCtx = null;
+
+// Constants for recording
+const RECORDING_DURATION = 5000; // 5 seconds recording time
+
+// Function to start recording with a single click
+function startRecording(e) {
+  // Prevent default to avoid issues with touch devices
+  e.preventDefault();
+
+  // Only start if we're not already recording
+  if (!isRecording) {
+    micButton.style.display = "none";
+    retryButton.style.display = "inline-block";
+    retryButton.disabled = false;
+
+    // Start recording immediately
+    startAudioRecording();
+  }
+}
+
+// Update event listeners for micButton
+micButton.addEventListener("click", startRecording);
+micButton.addEventListener("touchstart", startRecording);
+
+// Update the startAudioRecording function to be more responsive
+async function startAudioRecording() {
+  console.log("startAudioRecording called");
+
+  try {
+    console.log("Requesting microphone access...");
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      },
+    });
+    console.log("Microphone access granted.");
+
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream, {
+      mimeType: "audio/webm;codecs=opus",
+    });
+    console.log("MediaRecorder created.");
+
+    // Set recording flag, start time, toggle buttons
+    isRecording = true;
+    recordingStartTime = Date.now();
+    toggleListenButtons(true);
+    toggleBookmarkButtons(true);
+    isRecordingCancelled = false;
+
+    // Setup and start waveform visualization
+    setupWaveformVisualization(stream);
+
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0 && !isRecordingCancelled) {
+        audioChunks.push(event.data);
+      }
+    };
+
+    // Start recording
+    mediaRecorder.start(100);
+    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
+    micButton.style.color = "#ff0000";
+    micButton.disabled = true;
+    document.getElementById("recordingIndicator").style.display =
+      "inline-block";
+    console.log("UI updated for recording start.");
+
+    // Set timeout to automatically stop recording after RECORDING_DURATION
+    clearTimeout(recordingTimeout);
+    recordingTimeout = setTimeout(() => {
+      console.log("Recording duration timeout reached.");
+      if (mediaRecorder && mediaRecorder.state === "recording") {
+        console.log("Stopping recorder due to timeout...");
+        mediaRecorder.stop();
+      }
+    }, RECORDING_DURATION);
+    console.log(`Recording timeout set for ${RECORDING_DURATION}ms`);
+  } catch (error) {
+    console.error("Error in startAudioRecording:", error);
+    alert(
+      `Could not start recording: ${error.message}. Please check microphone permissions.`
+    );
+    resetUI();
+  }
+}
+
+// Update the retry button handler
+retryButton.addEventListener("click", () => {
+  // Clear any existing recording timeout
+  if (recordingTimeout) {
+    clearTimeout(recordingTimeout);
+  }
+
+  // First close the dialog to show the sentence again
+  closeDialog();
+
+  // Reset UI without changing the sentence
+  resetUI();
+
+  // Stop any ongoing recording
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
+});
+
 // Sound effect variables
 let soundEffects = {
   success: null,
@@ -101,18 +216,6 @@ const translationText = document.querySelector(".translation-text");
 
 // AudioContext for sound effects and waveform
 let audioContext;
-
-// Waveform specific variables
-let analyser;
-let dataArray;
-let canvasCtx;
-let animationId;
-let waveformCanvas;
-let recordingStartTime;
-let waveformContainer; // Container for canvas and buttons
-let stopRecButton; // Stop button
-let deleteRecButton; // Delete button
-let isRecordingCancelled = false; // Flag for cancellation
 
 // Audio elements for sound effects
 let soundsInitialized = false;
@@ -237,10 +340,6 @@ dialogBackdrop.addEventListener("click", closeDialog);
 // Add this after the global variables section
 let sentenceScores = []; // Array to store individual sentence scores
 let completedSentences = new Set(); // Track completed sentences
-
-// Constants for recording
-const RECORDING_DURATION = 5000; // 5 seconds recording time
-let recordingTimeout;
 
 // AssemblyAI API Key
 const ASSEMBLYAI_API_KEY = "bdb00961a07c4184889a80206c52b6f2"; // Replace with your AssemblyAI API key
@@ -1256,155 +1355,6 @@ function getQuizIdFromURL() {
 // Load lessons when the page loads
 loadLessons();
 
-// Event listeners for buttons
-micButton.addEventListener("mousedown", startHold);
-micButton.addEventListener("touchstart", startHold);
-micButton.addEventListener("mouseup", endHold);
-micButton.addEventListener("touchend", endHold);
-micButton.addEventListener("mouseleave", cancelHold);
-micButton.addEventListener("touchcancel", cancelHold);
-
-function startHold(e) {
-  // Prevent default to avoid issues with touch devices
-  e.preventDefault();
-
-  // Only start if we're not already recording
-  if (!isRecording) {
-    isHolding = true;
-
-    // Set a timer to start recording after hold duration
-    pressTimer = setTimeout(async () => {
-      if (isHolding) {
-        // Only proceed if still holding
-        micButton.style.display = "none";
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-
-        // Start recording immediately without additional initialization
-        startAudioRecording();
-      }
-    }, HOLD_DURATION);
-
-    // Visual feedback that holding has started
-    micButton.style.transform = "scale(0.95)";
-  }
-}
-
-function endHold(e) {
-  e.preventDefault();
-  clearTimeout(pressTimer);
-
-  // If we were holding and recording started, stop recording
-  if (isHolding && isRecording) {
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-    }
-  }
-
-  // Reset holding state
-  isHolding = false;
-  micButton.style.transform = "";
-}
-
-function cancelHold(e) {
-  e.preventDefault();
-  clearTimeout(pressTimer);
-  isHolding = false;
-  micButton.style.transform = "";
-}
-
-// Update the retry button handler to clear the hold timer
-retryButton.addEventListener("click", () => {
-  // Clear any existing recording timeout
-  if (recordingTimeout) {
-    clearTimeout(recordingTimeout);
-  }
-
-  // Clear hold timer if active
-  clearTimeout(pressTimer);
-  isHolding = false;
-
-  // First close the dialog to show the sentence again
-  closeDialog();
-
-  // Reset UI without changing the sentence
-  resetUI();
-
-  // Stop any ongoing recording
-  if (mediaRecorder && mediaRecorder.state === "recording") {
-    mediaRecorder.stop();
-  }
-});
-
-nextButton.addEventListener("click", () => {
-  const currentLesson = lessons[currentLessonIndex];
-  if (currentSentenceIndex < currentLesson.sentences.length - 1) {
-    currentSentenceIndex++;
-    updateSentence();
-    updateSentenceCounter();
-    updateSimpleProgress();
-    // Reset recording state and re-enable listen/bookmark buttons
-    isRecording = false;
-    toggleListenButtons(false);
-    toggleBookmarkButtons(false);
-
-    if (mediaRecorder && mediaRecorder.state === "recording") {
-      mediaRecorder.stop();
-    }
-  } else {
-    // All sentences in the current lesson completed
-    const congratulationModal = new bootstrap.Modal(
-      document.getElementById("congratulationModal")
-    );
-
-    // Update the modal content with percentage of completed sentences
-    const completionPercentage =
-      (completedSentences.size / currentLesson.sentences.length) * 100;
-    overallScoreDiv.textContent = `${Math.round(completionPercentage)}%`;
-
-    congratulationModal.show(); // Show the congratulation modal
-  }
-});
-
-// Continue button logic
-continueButton.addEventListener("click", () => {
-  const congratulationModal = bootstrap.Modal.getInstance(
-    document.getElementById("congratulationModal")
-  );
-  congratulationModal.hide(); // Hide the modal
-
-  // Reset icons container to default state
-  const iconsContainer = document.querySelector(".icons-container");
-  if (iconsContainer) {
-    // Reset mic button
-    micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-    micButton.style.color = "#fff";
-    micButton.style.backgroundColor = "";
-    micButton.style.display = "inline-block";
-    micButton.disabled = false;
-    micButton.style.opacity = "1";
-
-    // Reset listen button
-    listenButton.disabled = false;
-    listenButton.style.opacity = "1";
-
-    // Hide recording indicator
-    document.getElementById("recordingIndicator").style.display = "none";
-
-    // Make sure the mic circle is visible and properly styled
-    micButton.classList.remove("recording");
-    micButton.style.animation = "pulse 2s infinite, glow 2s infinite alternate";
-  }
-});
-
-function updateProgressBar(percentage) {
-  const progressFill = document.querySelector(".progress-fill");
-  const progressPercentage = document.querySelector(".progress-percentage");
-
-  progressFill.style.width = `${percentage}%`;
-  progressPercentage.textContent = `${percentage}%`;
-}
-
 // Add simple progress bar update function
 function updateSimpleProgress() {
   if (lessons.length === 0 || currentLessonIndex === -1) return;
@@ -1502,335 +1452,6 @@ function updateSimpleProgress() {
 
     requestAnimationFrame(animatePercentage);
   }
-}
-
-// Start audio recording with automatic stop
-async function startAudioRecording() {
-  console.log("startAudioRecording called");
-
-  try {
-    console.log("Requesting microphone access...");
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-      },
-    });
-    console.log("Microphone access granted.");
-
-    audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream, {
-      mimeType: "audio/webm;codecs=opus",
-    });
-    console.log("MediaRecorder created.");
-
-    // Set recording flag, start time, toggle buttons
-    isRecording = true;
-    recordingStartTime = Date.now();
-    toggleListenButtons(true);
-    toggleBookmarkButtons(true);
-    isRecordingCancelled = false;
-
-    // Setup and start waveform visualization
-    setupWaveformVisualization(stream);
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0 && !isRecordingCancelled) {
-        // Don't collect if cancelled
-        audioChunks.push(event.data);
-      }
-    };
-
-    // Assign the NORMAL onstop handler HERE
-    mediaRecorder.onstop = async () => {
-      console.log("mediaRecorder.onstop triggered.");
-
-      // ***** Check Cancellation Flag *****
-      if (isRecordingCancelled) {
-        console.log("onstop: Recording was cancelled, skipping processing.");
-        // UI reset should have already happened in handleDeleteRecording
-        isRecordingCancelled = false; // Reset flag just in case
-        return;
-      }
-
-      // Stop the waveform visual (should be quick)
-      stopWaveformVisualization();
-
-      // --- Normal stop processing ---
-      if (audioChunks.length === 0) {
-        console.warn(
-          "No audio chunks recorded. Recording might have been too short or silent."
-        );
-        resetUI();
-        recognizedTextDiv.textContent = "(Recording too short or silent)";
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-        stream.getTracks().forEach((track) => track.stop());
-        return;
-      }
-
-      recordedAudioBlob = new Blob(audioChunks, { type: "audio/webm" });
-      console.log(
-        "Recorded audio blob created, size:",
-        recordedAudioBlob?.size
-      );
-      audioChunks = []; // Clear chunks
-
-      // UI Updates after stopping normally
-      micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-      micButton.style.backgroundColor = "";
-      micButton.disabled = false;
-      micButton.style.color = "#fff";
-      micButton.style.display = "inline-block";
-      micButton.style.opacity = "1";
-      micButton.classList.remove("recording");
-      micButton.style.animation =
-        "pulse 2s infinite, glow 2s infinite alternate";
-
-      retryButton.style.display = "inline-block";
-      retryButton.disabled = false;
-      document.getElementById("recordingIndicator").style.display = "none";
-
-      // Set recording flag false AFTER UI updates
-      isRecording = false;
-      recordingStartTime = null;
-      toggleListenButtons(false);
-      toggleBookmarkButtons(false);
-      console.log("UI updated after normal recording stop.");
-
-      // Stop tracks
-      console.log("Stopping media stream tracks normally...");
-      stream.getTracks().forEach((track) => track.stop());
-      console.log("Media stream tracks stopped normally.");
-
-      // Upload for transcription
-      if (recordedAudioBlob && recordedAudioBlob.size > 100) {
-        console.log("Uploading audio for transcription...");
-        recognizedTextDiv.innerHTML =
-          '<i class="fas fa-spinner fa-spin"></i> Transcribing...';
-        pronunciationScoreDiv.textContent = "...";
-        micButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        micButton.style.color = "#fff";
-        micButton.style.backgroundColor = "#4b9b94";
-        micButton.style.animation = "glow 2s infinite alternate";
-        const transcription = await uploadAudioToAssemblyAI(recordedAudioBlob);
-        if (transcription !== null) {
-          console.log("Transcription received:", transcription);
-          const pronunciationScore = calculatePronunciationScore(
-            transcription,
-            lessons[currentLessonIndex].sentences[currentSentenceIndex]
-          );
-          pronunciationScoreDiv.textContent = `${pronunciationScore}%`;
-          updateProgressCircle(pronunciationScore);
-          totalPronunciationScore += pronunciationScore; // Add score to total
-          console.log("Score calculated and totals updated.");
-
-          // Update progress bar immediately after score calculation
-          updateSimpleProgress();
-
-          // Restore mic icon after transcription is complete
-          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-          micButton.style.color = "#fff";
-          micButton.style.backgroundColor = "";
-          micButton.style.display = "inline-block";
-          micButton.style.opacity = "1";
-          micButton.classList.remove("recording");
-          micButton.style.animation =
-            "pulse 2s infinite, glow 2s infinite alternate";
-
-          openDialog();
-          console.log("Dialog opened.");
-        } else {
-          console.log(
-            "Transcription was null, likely an error during processing."
-          );
-          recognizedTextDiv.textContent = "(Transcription failed)";
-          micButton.innerHTML = '<i class="fas fa-microphone mic-icon"></i>';
-          micButton.style.color = "#fff";
-          micButton.style.backgroundColor = "";
-          micButton.style.display = "inline-block";
-          micButton.style.opacity = "1";
-          micButton.classList.remove("recording");
-          micButton.style.animation =
-            "pulse 2s infinite, glow 2s infinite alternate";
-        }
-      } else {
-        console.warn(
-          "Recorded audio blob is empty or very small, skipping transcription."
-        );
-        recognizedTextDiv.textContent = "(Recording too short or silent)";
-        retryButton.style.display = "inline-block";
-        retryButton.disabled = false;
-      }
-    };
-
-    mediaRecorder.onerror = (event) => {
-      console.error("MediaRecorder error:", event.error);
-      alert(`Recording error: ${event.error.name} - ${event.error.message}`);
-      // Reset UI on error
-      resetUI(); // resetUI already calls stopWaveformVisualization
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop()); // Stop stream on error
-      }
-    };
-
-    // Start recording
-    mediaRecorder.start(100);
-    micButton.innerHTML = '<i class="fas fa-microphone-slash"></i>';
-    micButton.style.color = "#ff0000";
-    micButton.disabled = true;
-    document.getElementById("recordingIndicator").style.display =
-      "inline-block";
-    console.log("UI updated for recording start.");
-
-    // Set timeout to automatically stop recording after RECORDING_DURATION
-    clearTimeout(recordingTimeout); // Clear any previous timeout
-    recordingTimeout = setTimeout(() => {
-      console.log("Recording duration timeout reached.");
-      if (mediaRecorder && mediaRecorder.state === "recording") {
-        console.log("Stopping recorder due to timeout...");
-        mediaRecorder.stop();
-      }
-    }, RECORDING_DURATION);
-    console.log(`Recording timeout set for ${RECORDING_DURATION}ms`);
-  } catch (error) {
-    console.error("Error in startAudioRecording:", error);
-    alert(
-      `Could not start recording: ${error.message}. Please check microphone permissions.`
-    );
-    resetUI();
-  }
-}
-
-// Upload audio to AssemblyAI and get transcription
-async function uploadAudioToAssemblyAI(audioBlob) {
-  try {
-    // Step 1: Upload the audio file to AssemblyAI
-    const uploadResponse = await fetch("https://api.assemblyai.com/v2/upload", {
-      method: "POST",
-      headers: {
-        authorization: ASSEMBLYAI_API_KEY,
-        "content-type": "application/octet-stream",
-      },
-      body: audioBlob,
-    });
-
-    if (!uploadResponse.ok) {
-      throw new Error(`Failed to upload audio: ${uploadResponse.statusText}`);
-    }
-
-    const uploadData = await uploadResponse.json();
-    const audioUrl = uploadData.upload_url;
-
-    // Step 2: Submit the transcription request
-    const transcriptionResponse = await fetch(
-      "https://api.assemblyai.com/v2/transcript",
-      {
-        method: "POST",
-        headers: {
-          authorization: ASSEMBLYAI_API_KEY,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          audio_url: audioUrl,
-        }),
-      }
-    );
-
-    if (!transcriptionResponse.ok) {
-      throw new Error(
-        `Failed to submit transcription request: ${transcriptionResponse.statusText}`
-      );
-    }
-
-    const transcriptionData = await transcriptionResponse.json();
-    const transcriptId = transcriptionData.id;
-
-    // Step 3: Poll for the transcription result
-    let transcriptionResult;
-    while (true) {
-      const statusResponse = await fetch(
-        `https://api.assemblyai.com/v2/transcript/${transcriptId}`,
-        {
-          headers: {
-            authorization: ASSEMBLYAI_API_KEY,
-          },
-        }
-      );
-
-      if (!statusResponse.ok) {
-        throw new Error(
-          `Failed to get transcription status: ${statusResponse.statusText}`
-        );
-      }
-
-      const statusData = await statusResponse.json();
-      if (statusData.status === "completed") {
-        transcriptionResult = statusData.text;
-        break;
-      } else if (statusData.status === "error") {
-        throw new Error("Transcription failed");
-      }
-
-      // Wait for 1 second before polling again
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-
-    return transcriptionResult;
-  } catch (error) {
-    console.error("Error in AssemblyAI transcription:", error);
-    alert("Failed to transcribe audio. Please try again.");
-    return null;
-  }
-}
-
-// Apply listen button design to ear icon buttons (bookmarkIcon, bookmarkIcon2) on page load
-window.addEventListener("DOMContentLoaded", function () {
-  [bookmarkIcon, bookmarkIcon2].forEach((btn) => {
-    btn.style.background = "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
-    btn.style.borderRadius = "50%";
-    btn.style.padding = "8px";
-    btn.style.display = "flex";
-    btn.style.alignItems = "center";
-    btn.style.justifyContent = "center";
-    btn.style.boxShadow = "0 4px 12px rgba(75, 155, 148, 0.3)";
-    btn.style.border = "none";
-  });
-});
-
-function showDialog({ score = 0, feedback = "", missingWords = "" }) {
-  // Update content directly instead of recreating the dialog
-  const scoreText = document.getElementById("pronunciationScore");
-  const progressCircle = document.getElementById("progress");
-  const dialogSentenceText = document.getElementById("dialogSentenceText");
-  const missingWordDiv = document.getElementById("missingWordDiv");
-  const nextButton = document.getElementById("nextButton");
-
-  // Set score
-  scoreText.textContent = `${score}%`;
-
-  // Animate progress
-  const radius = 48;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference - (score / 100) * circumference;
-  progressCircle.style.strokeDashoffset = offset;
-
-  // Set feedback
-  if (feedback) dialogSentenceText.innerHTML = feedback;
-  if (missingWords) missingWordDiv.textContent = missingWords;
-
-  // Set continue button color based on score
-  if (score < 50) {
-    nextButton.style.background =
-      "linear-gradient(135deg, #ff4444 0%, #cc0000 100%)";
-  } else {
-    nextButton.style.background =
-      "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
-  }
-
-  // Show the dialog
-  openDialog();
 }
 
 // Function to translate text using MyMemory API (free, CORS-friendly)
