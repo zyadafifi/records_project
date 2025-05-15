@@ -95,16 +95,6 @@ function playSoundEffect(type) {
 // Initialize sound effects when the page loads
 window.addEventListener("DOMContentLoaded", initializeSoundEffects);
 
-// Translation related variables
-let isTranslated = false;
-let currentTranslation = null;
-const GOOGLE_TRANSLATE_API_KEY = "YOUR_GOOGLE_TRANSLATE_API_KEY"; // Replace with your API key
-
-// DOM Elements for translation
-const translateButton = document.getElementById("translateButton");
-const translationContainer = document.getElementById("translationContainer");
-const translationText = document.querySelector(".translation-text");
-
 // AudioContext for sound effects and waveform
 let audioContext;
 
@@ -622,36 +612,11 @@ function updateSentence() {
     currentLesson.sentences[currentSentenceIndex].english;
   updateSentenceCounter();
 
-  // Reset translation state
-  isTranslated = false;
-  currentTranslation = currentLesson.sentences[currentSentenceIndex].arabic;
-
-  // Handle translation display based on device type
-  if (isIOS) {
-    // For iOS: Show translation in div and hide translation button
-    let iosTranslationDiv = document.getElementById("iosTranslationDiv");
-    if (!iosTranslationDiv) {
-      iosTranslationDiv = createIOSTranslationDiv();
-      sentenceElement.parentNode.insertBefore(
-        iosTranslationDiv,
-        sentenceElement.nextSibling
-      );
-    }
-    iosTranslationDiv.textContent = currentTranslation;
-    translateButton.style.display = "none";
-    translationContainer.style.display = "none";
-  } else {
-    // For Android/Desktop: Show translation button and hide iOS div
-    translateButton.style.display = "inline-block";
-    translationContainer.style.display = "none";
-    translateButton.innerHTML =
-      '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
-
-    // Remove iOS translation div if it exists
-    const iosTranslationDiv = document.getElementById("iosTranslationDiv");
-    if (iosTranslationDiv) {
-      iosTranslationDiv.remove();
-    }
+  // Update translation div
+  const translationDiv = document.getElementById("translationDiv");
+  if (translationDiv) {
+    translationDiv.textContent =
+      currentLesson.sentences[currentSentenceIndex].arabic;
   }
 
   // Reset UI
@@ -1828,74 +1793,10 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
   openDialog();
 }
 
-// Function to translate text using MyMemory API (free, CORS-friendly)
-async function translateText(text) {
-  try {
-    // Add timeout to the fetch request
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
-    const response = await fetch(
-      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(
-        text
-      )}&langpair=en|ar`,
-      {
-        signal: controller.signal,
-      }
-    );
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`Translation failed: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.responseData || !data.responseData.translatedText) {
-      throw new Error("Invalid translation response");
-    }
-
-    return data.responseData.translatedText;
-  } catch (error) {
-    console.error("Translation error:", error);
-    if (error.name === "AbortError") {
-      console.error("Translation request timed out");
-      return null;
-    }
-    return null;
-  }
-}
-
-// Function to toggle translation
-async function toggleTranslation() {
-  if (isIOS) return; // Don't toggle on iOS devices
-
-  if (!isTranslated) {
-    // Show Arabic translation
-    translationText.textContent = currentTranslation;
-    translationContainer.style.display = "block";
-    translateButton.innerHTML =
-      '<i class="fas fa-language"></i> <span>Show Original</span>';
-    isTranslated = true;
-  } else {
-    // Toggle back to original
-    translationContainer.style.display = "none";
-    translateButton.innerHTML =
-      '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
-    isTranslated = false;
-  }
-}
-
-// Add event listener for translation button only on non-iOS devices
-if (!isIOS) {
-  translateButton.addEventListener("click", toggleTranslation);
-}
-
-// Add function to create iOS translation div
-function createIOSTranslationDiv() {
+// Add function to create translation div
+function createTranslationDiv() {
   const translationDiv = document.createElement("div");
-  translationDiv.id = "iosTranslationDiv";
+  translationDiv.id = "translationDiv";
   translationDiv.style.cssText = `
     margin-top: 10px;
     padding: 10px;
@@ -1909,14 +1810,9 @@ function createIOSTranslationDiv() {
   return translationDiv;
 }
 
-// Add initialization code to handle initial device type
+// Add initialization code to hide translation button
 document.addEventListener("DOMContentLoaded", () => {
-  if (isIOS) {
-    // Hide translation button and container on iOS
-    translateButton.style.display = "none";
-    translationContainer.style.display = "none";
-  } else {
-    // Show translation button on Android/Desktop
-    translateButton.style.display = "inline-block";
-  }
+  // Hide translation button and container
+  translateButton.style.display = "none";
+  translationContainer.style.display = "none";
 });
