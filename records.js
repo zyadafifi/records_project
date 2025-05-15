@@ -43,6 +43,7 @@ let soundEffects = {
 
 // Global detection
 const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
 
 // Function to create and load sound effects
 async function initializeSoundEffects() {
@@ -623,10 +624,29 @@ function updateSentence() {
 
   // Reset translation state
   isTranslated = false;
-  currentTranslation = currentLesson.sentences[currentSentenceIndex].arabic; // Store Arabic translation
-  translationContainer.style.display = "none";
-  translateButton.innerHTML =
-    '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
+  currentTranslation = currentLesson.sentences[currentSentenceIndex].arabic;
+
+  // Handle translation display based on device type
+  if (isIOS) {
+    // For iOS: Show translation in div
+    let iosTranslationDiv = document.getElementById("iosTranslationDiv");
+    if (!iosTranslationDiv) {
+      iosTranslationDiv = createIOSTranslationDiv();
+      sentenceElement.parentNode.insertBefore(
+        iosTranslationDiv,
+        sentenceElement.nextSibling
+      );
+    }
+    iosTranslationDiv.textContent = currentTranslation;
+    translationContainer.style.display = "none";
+    translateButton.style.display = "none";
+  } else {
+    // For Android/Desktop: Keep translation button
+    translationContainer.style.display = "none";
+    translateButton.style.display = "inline-block";
+    translateButton.innerHTML =
+      '<i class="fas fa-language"></i> <span>Translate to Arabic</span>';
+  }
 
   // Reset UI
   recognizedTextDiv.textContent = "";
@@ -1843,6 +1863,8 @@ async function translateText(text) {
 
 // Function to toggle translation
 async function toggleTranslation() {
+  if (isIOS) return; // Don't toggle on iOS devices
+
   if (!isTranslated) {
     // Show Arabic translation
     translationText.textContent = currentTranslation;
@@ -1859,5 +1881,24 @@ async function toggleTranslation() {
   }
 }
 
-// Add event listener for translation button
-translateButton.addEventListener("click", toggleTranslation);
+// Add event listener for translation button only on non-iOS devices
+if (!isIOS) {
+  translateButton.addEventListener("click", toggleTranslation);
+}
+
+// Add function to create iOS translation div
+function createIOSTranslationDiv() {
+  const translationDiv = document.createElement("div");
+  translationDiv.id = "iosTranslationDiv";
+  translationDiv.style.cssText = `
+    margin-top: 10px;
+    padding: 10px;
+    background: linear-gradient(135deg, #4b9b94 0%, #2c7873 100%);
+    border-radius: 10px;
+    color: white;
+    text-align: center;
+    font-size: 1.1em;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  `;
+  return translationDiv;
+}
