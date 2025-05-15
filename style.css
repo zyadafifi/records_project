@@ -1292,30 +1292,3 @@ input[type="text"].form-control {
     margin: 10px auto;
   }
 }
-
-#translationContainer {
-  opacity: 0;
-  transform: translateY(10px);
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  display: none;
-}
-
-#translationContainer.visible {
-  opacity: 1;
-  transform: translateY(0);
-}
-
-#translationContainer.animate {
-  transition: opacity 0.3s ease, transform 0.3s ease;
-}
-
-.translation-text {
-  font-size: 1.1em;
-  line-height: 1.5;
-  color: #333;
-  text-align: center;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
