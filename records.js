@@ -34,27 +34,33 @@ let isRecording = false; // Flag to track recording state
 let speechDetected = false; // Flag to track if speech was detected
 let noSpeechTimeout;
 const NO_SPEECH_TIMEOUT_MS = 3000; // 3 seconds timeout to detect speech
-
+let pressTimer;
+const HOLD_DURATION = 300; // 300ms hold to start recording
+let isHolding = false;
 // Sound effect variables
 let soundEffects = {
   success: null,
   failure: null,
-  progress: null,
 };
+
+// Global detection
+const isTouchDevice = "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
 // Function to create and load sound effects
 async function initializeSoundEffects() {
   try {
-    // Create audio elements for each sound effect
-    soundEffects.success = new Audio("success.mp3");
-    soundEffects.failure = new Audio("failure.mp3");
-    soundEffects.progress = new Audio("progress.mp3"); // Optional, you can remove this if you don't have a progress sound
+    // Create audio elements for each sound effect with the GitHub raw URLs
+    soundEffects.success = new Audio(
+      "https://raw.githubusercontent.com/zyadafifi/records_project/main/right%20answer%20SFX.wav"
+    );
+    soundEffects.failure = new Audio(
+      "https://raw.githubusercontent.com/zyadafifi/records_project/main/wrong%20answer%20SFX.wav"
+    );
 
     // Preload the audio files
     await Promise.all([
       soundEffects.success.load(),
       soundEffects.failure.load(),
-      soundEffects.progress.load(),
     ]);
 
     console.log("Sound effects loaded successfully");
@@ -184,22 +190,28 @@ function toggleListenButtons(disabled) {
 
 // Function to open the dialog
 function openDialog() {
+  // Show both elements immediately
   dialogContainer.style.display = "block";
   dialogBackdrop.style.display = "block";
-  // Add a small delay to ensure display: block is applied before adding active class
-  setTimeout(() => {
+
+  // Force a reflow to ensure the display change takes effect
+  dialogContainer.offsetHeight;
+
+  // Add active class in the next frame
+  requestAnimationFrame(() => {
     dialogContainer.classList.add("active");
-  }, 10);
+  });
 }
 
 // Function to close the dialog
 function closeDialog() {
   dialogContainer.classList.remove("active");
-  // Wait for animation to complete before hiding
-  setTimeout(() => {
+
+  // Wait for the transition to complete before hiding
+  requestAnimationFrame(() => {
     dialogContainer.style.display = "none";
     dialogBackdrop.style.display = "none";
-  }, 300);
+  });
 }
 
 // JavaScript for mobile support
@@ -263,7 +275,7 @@ function setupWaveformVisualization(stream) {
     controlsContainer.style.justifyContent = "space-between";
     controlsContainer.style.marginTop = "0";
     controlsContainer.style.marginBottom = "0";
-    controlsContainer.style.padding = "0 15px";
+    controlsContainer.style.padding = "0 20px";
     controlsContainer.style.gap = "10px";
 
     // Create timer element
@@ -288,9 +300,9 @@ function setupWaveformVisualization(stream) {
     deleteRecButton.style.color = "#f0f0f0";
     deleteRecButton.style.fontSize = "1em";
     deleteRecButton.style.cursor = "pointer";
-    deleteRecButton.style.padding = "0 8px";
+    deleteRecButton.style.padding = "0 12px";
     deleteRecButton.style.transition = "all 0.3s ease";
-    deleteRecButton.style.webkitTapHighlightColor = "transparent"; // Remove tap highlight on iOS
+    deleteRecButton.style.webkitTapHighlightColor = "transparent";
 
     stopRecButton = document.createElement("button");
     stopRecButton.id = "stopRecButton";
@@ -306,7 +318,8 @@ function setupWaveformVisualization(stream) {
     stopRecButton.style.justifyContent = "center";
     stopRecButton.style.cursor = "pointer";
     stopRecButton.style.color = "#4b9b94";
-    stopRecButton.style.webkitTapHighlightColor = "transparent"; // Keep only this iOS compatibility improvement
+    stopRecButton.style.padding = "0 12px";
+    stopRecButton.style.webkitTapHighlightColor = "transparent";
 
     // Create waveform canvas
     waveformCanvas = document.createElement("canvas");
@@ -342,7 +355,7 @@ function setupWaveformVisualization(stream) {
     // Create a separate container for the timer
     const timerContainer = document.createElement("div");
     timerContainer.style.width = "100%";
-    style.display = "flex";
+    timerContainer.style.display = "flex";
     timerContainer.style.justifyContent = "center";
     timerContainer.style.marginTop = "5px";
     timerContainer.appendChild(timerElement);
@@ -885,11 +898,9 @@ function calculatePronunciationScore(transcript, expectedSentence) {
   // Calculate pronunciation score with fractional correctness
   const pronunciationScore = (correctWords / sentenceWords.length) * 100;
 
-  // Play sound effect based on score
-  if (pronunciationScore >= 80) {
+  // Play sound effect based on score threshold
+  if (pronunciationScore > 50) {
     playSoundEffect("success");
-  } else if (pronunciationScore >= 50) {
-    playSoundEffect("progress");
   } else {
     playSoundEffect("failure");
   }
@@ -1119,6 +1130,40 @@ function updateBookmarkIcons() {
 }
 
 // Event listeners
+if (isTouchDevice) {
+  // Mobile behavior
+  micButton.addEventListener("touchstart", startHold);
+  micButton.addEventListener("touchend", endHold);
+  micButton.addEventListener("touchcancel", cancelHold);
+
+  // Show hold hint (only once)
+  let hintShown = false;
+  micButton.addEventListener(
+    "touchstart",
+    () => {
+      if (!hintShown) {
+        micButton.classList.remove("hold-hint");
+        hintShown = true;
+      }
+    },
+    { once: true }
+  );
+  micButton.classList.add("hold-hint");
+} else {
+  // Desktop behavior
+  micButton.addEventListener("click", async () => {
+    if (!isRecording) {
+      micButton.style.display = "none";
+      retryButton.style.display = "inline-block";
+      retryButton.disabled = false;
+      initializeAudioContext();
+      await resumeAudioContext();
+      startAudioRecording();
+    }
+  });
+}
+
+// Listen button event listeners
 listenButton.addEventListener("click", function () {
   if (isSpeaking) {
     // If already speaking, stop the speech
@@ -1141,6 +1186,7 @@ listen2Button.addEventListener("click", function () {
   }
 });
 
+// Bookmark button event listeners
 bookmarkIcon.addEventListener("click", function () {
   // Add visual feedback
   this.classList.add("active");
@@ -1167,6 +1213,14 @@ style.textContent = `
   .bookmark-icon, #bookmark-icon2 {
     transition: transform 0.2s, opacity 0.2s;
     cursor: pointer;
+  }
+  .hold-hint {
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
   }
 `;
 document.head.appendChild(style);
@@ -1239,23 +1293,75 @@ function getQuizIdFromURL() {
 loadLessons();
 
 // Event listeners for buttons
-micButton.addEventListener("click", async () => {
-  // Initialize and resume AudioContext on user gesture
-  initializeAudioContext();
-  await resumeAudioContext();
+micButton.addEventListener("mousedown", startHold);
+micButton.addEventListener("touchstart", startHold);
+micButton.addEventListener("mouseup", endHold);
+micButton.addEventListener("touchend", endHold);
+micButton.addEventListener("mouseleave", cancelHold);
+micButton.addEventListener("touchcancel", cancelHold);
 
-  micButton.style.display = "none";
-  retryButton.style.display = "inline-block";
-  retryButton.disabled = false;
-  startAudioRecording();
-});
+function startHold(e) {
+  // Prevent default to avoid issues with touch devices
+  e.preventDefault();
 
-// Update the retry button handler to clear the timeout
+  // Only start if we're not already recording
+  if (!isRecording) {
+    isHolding = true;
+
+    // Set a timer to start recording after hold duration
+    pressTimer = setTimeout(async () => {
+      if (isHolding) {
+        // Only proceed if still holding
+        micButton.style.display = "none";
+        retryButton.style.display = "inline-block";
+        retryButton.disabled = false;
+
+        // Initialize and resume AudioContext on user gesture
+        initializeAudioContext();
+        await resumeAudioContext();
+
+        startAudioRecording();
+      }
+    }, HOLD_DURATION);
+
+    // Visual feedback that holding has started
+    micButton.style.transform = "scale(0.95)";
+  }
+}
+
+function endHold(e) {
+  e.preventDefault();
+  clearTimeout(pressTimer);
+
+  // If we were holding and recording started, stop recording
+  if (isHolding && isRecording) {
+    if (mediaRecorder && mediaRecorder.state === "recording") {
+      mediaRecorder.stop();
+    }
+  }
+
+  // Reset holding state
+  isHolding = false;
+  micButton.style.transform = "";
+}
+
+function cancelHold(e) {
+  e.preventDefault();
+  clearTimeout(pressTimer);
+  isHolding = false;
+  micButton.style.transform = "";
+}
+
+// Update the retry button handler to clear the hold timer
 retryButton.addEventListener("click", () => {
   // Clear any existing recording timeout
   if (recordingTimeout) {
     clearTimeout(recordingTimeout);
   }
+
+  // Clear hold timer if active
+  clearTimeout(pressTimer);
+  isHolding = false;
 
   // First close the dialog to show the sentence again
   closeDialog();
@@ -1516,7 +1622,6 @@ async function startAudioRecording() {
       micButton.style.color = "#fff";
       micButton.style.display = "inline-block";
       micButton.style.opacity = "1";
-      micButton.classList.remove("recording");
       micButton.style.animation =
         "pulse 2s infinite, glow 2s infinite alternate";
 
@@ -1567,7 +1672,6 @@ async function startAudioRecording() {
           micButton.style.backgroundColor = "";
           micButton.style.display = "inline-block";
           micButton.style.opacity = "1";
-          micButton.classList.remove("recording");
           micButton.style.animation =
             "pulse 2s infinite, glow 2s infinite alternate";
 
@@ -1583,7 +1687,6 @@ async function startAudioRecording() {
           micButton.style.backgroundColor = "";
           micButton.style.display = "inline-block";
           micButton.style.opacity = "1";
-          micButton.classList.remove("recording");
           micButton.style.animation =
             "pulse 2s infinite, glow 2s infinite alternate";
         }
@@ -1739,23 +1842,16 @@ window.addEventListener("DOMContentLoaded", function () {
 });
 
 function showDialog({ score = 0, feedback = "", missingWords = "" }) {
-  // Remove any existing dialog
-  const oldDialog = document.querySelector(".dialog-container");
-  if (oldDialog) oldDialog.remove();
-
-  // Clone the template
-  const template = document.getElementById("dialog-template");
-  const dialogClone = template.content.cloneNode(true);
-
-  // Update dynamic content
-  const scoreText = dialogClone.getElementById("pronunciationScore");
-  const progressCircle = dialogClone.getElementById("progress");
-  const dialogSentenceText = dialogClone.getElementById("dialogSentenceText");
-  const missingWordDiv = dialogClone.getElementById("missingWordDiv");
-  const nextButton = dialogClone.getElementById("nextButton");
+  // Update content directly instead of recreating the dialog
+  const scoreText = document.getElementById("pronunciationScore");
+  const progressCircle = document.getElementById("progress");
+  const dialogSentenceText = document.getElementById("dialogSentenceText");
+  const missingWordDiv = document.getElementById("missingWordDiv");
+  const nextButton = document.getElementById("nextButton");
 
   // Set score
   scoreText.textContent = `${score}%`;
+
   // Animate progress
   const radius = 48;
   const circumference = 2 * Math.PI * radius;
@@ -1775,28 +1871,8 @@ function showDialog({ score = 0, feedback = "", missingWords = "" }) {
       "linear-gradient(135deg, #4b9b94 0%, #2c7873 100%)";
   }
 
-  // Add event for close button
-  dialogClone.querySelector(".close-icon").onclick = function () {
-    document.querySelector(".dialog-container").remove();
-  };
-
-  // Add event for retry button
-  dialogClone.getElementById("retryButton").onclick = function (e) {
-    e.preventDefault();
-    document.querySelector(".dialog-container").remove();
-    // Start a new recording; after scoring, showDialog will be called with the new score
-    startAudioRecording();
-  };
-
-  // Add event for next button
-  dialogClone.getElementById("nextButton").onclick = function (e) {
-    e.preventDefault();
-    document.querySelector(".dialog-container").remove();
-    // Add your continue logic here
-  };
-
-  // Append to body (or your preferred parent)
-  document.body.appendChild(dialogClone);
+  // Show the dialog
+  openDialog();
 }
 
 // Function to translate text using MyMemory API (free, CORS-friendly)
